@@ -25,10 +25,7 @@ class AppTheme {
           fontWeight: FontWeight.w700,
           letterSpacing: -0.5,
         ),
-        bodyMedium: TextStyle(
-          fontSize: 16,
-          height: 1.5,
-        ),
+        bodyMedium: TextStyle(fontSize: 16, height: 1.5),
       ),
     );
   }

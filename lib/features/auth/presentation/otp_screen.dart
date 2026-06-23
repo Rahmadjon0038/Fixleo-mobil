@@ -53,7 +53,7 @@ class _OtpScreenState extends State<OtpScreen> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(content: Text('Неверный код. Попробуйте 1111')),
+          const SnackBar(content: Text('Kod notoʻgʻri. 1111 ni kiriting')),
         );
     }
   }
@@ -61,7 +61,7 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   Widget build(BuildContext context) {
     return BrandedScaffold(
-      title: 'Подтверждение',
+      title: 'Tasdiqlash',
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -70,7 +70,7 @@ class _OtpScreenState extends State<OtpScreen> {
           children: [
             const SizedBox(height: 8),
             const Text(
-              'Введите код из SMS',
+              'SMS dagi kodni kiriting',
               style: TextStyle(
                 fontSize: 30,
                 fontWeight: FontWeight.w500,
@@ -79,7 +79,7 @@ class _OtpScreenState extends State<OtpScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Отправили на +998 90 123 45 67',
+              '+998 90 123 45 67 raqamiga yuborildi',
               style: TextStyle(fontSize: 15, color: AppColors.muted),
             ),
             const SizedBox(height: 28),
@@ -95,12 +95,12 @@ class _OtpScreenState extends State<OtpScreen> {
             const SizedBox(height: 16),
             Center(
               child: Text(
-                'Отправить код повторно через 0:59',
+                'Kodni qayta yuborish 0:59 dan soʻng',
                 style: TextStyle(fontSize: 13, color: AppColors.muted),
               ),
             ),
             const Spacer(),
-            PrimaryButton(label: 'Подтвердить', onPressed: _verify),
+            PrimaryButton(label: 'Tasdiqlash', onPressed: _verify),
           ],
         ),
       ),

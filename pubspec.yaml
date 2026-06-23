@@ -37,6 +37,8 @@ dependencies:
   flutter_svg: ^2.3.0
   image_picker: ^1.2.2
   file_selector: ^1.1.0
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
 
 dev_dependencies:
   flutter_test:
@@ -83,6 +85,10 @@ flutter:
     - assets/icon/chat.svg
     - assets/icon/wallet.svg
     - assets/icon/Waterdrop.svg
+    - assets/icon/Camera.svg
+    - assets/icon/search.svg
+    - assets/icon/Illustration - Scene Plants.svg
+    - assets/icon/Illustration - humaaans standing 23.svg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

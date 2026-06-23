@@ -21,8 +21,8 @@ class LanguageScreen extends StatefulWidget {
 
 class _LanguageScreenState extends State<LanguageScreen> {
   static const _languages = [
-    _Language('Русский', 'Кириллица'),
     _Language('O‘zbekcha', 'Lotin'),
+    _Language('Русский', 'Кириллица'),
     _Language('English', 'Latin'),
   ];
 
@@ -31,7 +31,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
   @override
   Widget build(BuildContext context) {
     return BrandedScaffold(
-      title: 'Выбор языка',
+      title: 'Til tanlash',
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -62,7 +62,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
             ),
             const Spacer(),
             PrimaryButton(
-              label: 'Дальше',
+              label: 'Davom etish',
               onPressed: () {
                 Navigator.of(
                   context,

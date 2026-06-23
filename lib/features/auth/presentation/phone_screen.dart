@@ -30,7 +30,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
   @override
   Widget build(BuildContext context) {
     return BrandedScaffold(
-      title: 'Вход',
+      title: 'Kirish',
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -39,7 +39,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
           children: [
             const SizedBox(height: 8),
             const Text(
-              'Введите номер телефона',
+              'Telefon raqamingizni kiriting',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
@@ -48,12 +48,12 @@ class _PhoneScreenState extends State<PhoneScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Отправим SMS с кодом подтверждения',
+              'Tasdiqlash kodi bilan SMS yuboramiz',
               style: TextStyle(fontSize: 15, color: AppColors.muted),
             ),
             const SizedBox(height: 28),
             Text(
-              'Номер телефона',
+              'Telefon raqami',
               style: TextStyle(fontSize: 13, color: AppColors.muted),
             ),
             const SizedBox(height: 8),
@@ -63,8 +63,8 @@ class _PhoneScreenState extends State<PhoneScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Продолжая, вы соглашаетесь с условиями использования и '
-              'политикой конфиденциальности FixLeo',
+              'Davom etish orqali siz FixLeo foydalanish shartlari va '
+              'maxfiylik siyosatiga rozilik bildirasiz',
               style: TextStyle(
                 fontSize: 12,
                 height: 1.4,
@@ -73,7 +73,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
             ),
             const Spacer(),
             PrimaryButton(
-              label: 'Получить код',
+              label: 'Kod olish',
               onPressed: _isValid
                   ? () {
                       Navigator.of(context).push(

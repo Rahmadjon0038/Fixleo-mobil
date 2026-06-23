@@ -13,7 +13,7 @@ class NewRequestScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BrandedScaffold(
-      title: 'Новая заявка',
+      title: 'Yangi buyurtma',
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
@@ -22,12 +22,12 @@ class NewRequestScreen extends StatelessWidget {
           children: [
             const _StepProgress(current: 0, total: 4),
             const SizedBox(height: 16),
-            const _CategoryPill(label: 'Сантехника'),
+            const _CategoryPill(label: 'Santexnika'),
             const SizedBox(height: 16),
             const _DescribeCard(),
             const Spacer(),
             PrimaryButton(
-              label: 'Далее',
+              label: 'Keyingi',
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const PhotoProblemScreen()),
@@ -125,7 +125,7 @@ class _DescribeCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Опишите задачу',
+            'Vazifani tasvirlang',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -146,8 +146,8 @@ class _DescribeCard extends StatelessWidget {
                 isCollapsed: true,
                 border: InputBorder.none,
                 hintText:
-                    'Например: течёт смеситель на кухне, нужно заменить '
-                    'картридж...',
+                    'Masalan: oshxonadagi smesitel oqyapti, kartrijni '
+                    'almashtirish kerak...',
                 hintStyle: TextStyle(
                   color: AppColors.muted,
                   fontSize: 14,

@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/features/request/presentation/address_screen.dart';
 
 /// Step 2 of the "new request" flow — attach up to 6 photos of the problem
 /// from the device gallery.
@@ -37,7 +38,7 @@ class _PhotoProblemScreenState extends State<PhotoProblemScreen> {
   @override
   Widget build(BuildContext context) {
     return BrandedScaffold(
-      title: 'Фото проблемы',
+      title: 'Muammo rasmi',
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
@@ -62,7 +63,7 @@ class _PhotoProblemScreenState extends State<PhotoProblemScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Добавьте до 6 фото — мастеру будет проще оценить задачу',
+                    '6 tagacha rasm qoʻshing — ustaga vazifani baholash osonroq boʻladi',
                     style: TextStyle(
                       fontSize: 14,
                       height: 1.35,
@@ -94,9 +95,11 @@ class _PhotoProblemScreenState extends State<PhotoProblemScreen> {
             ),
             const Spacer(),
             PrimaryButton(
-              label: 'Далее',
+              label: 'Keyingi',
               onPressed: () {
-                // TODO: advance to the next step of the request flow.
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AddressScreen()),
+                );
               },
             ),
           ],

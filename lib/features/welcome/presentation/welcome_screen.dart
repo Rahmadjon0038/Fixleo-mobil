@@ -33,7 +33,7 @@ class WelcomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Мастера рядом и быстро',
+              'Ustalar yaqin va tez',
               style: TextStyle(
                 fontSize: 15,
                 color: _navy.withValues(alpha: 0.55),
@@ -41,7 +41,7 @@ class WelcomeScreen extends StatelessWidget {
             ),
             const Spacer(flex: 4),
             _PrimaryButton(
-              label: 'Создать первую заявку',
+              label: 'Birinchi buyurtma yaratish',
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const LanguageScreen()),
@@ -54,7 +54,7 @@ class WelcomeScreen extends StatelessWidget {
                 // TODO: navigate to the master onboarding flow.
               },
               child: const Text(
-                'Я мастер — хочу получать заказы',
+                'Men ustaman — buyurtma olmoqchiman',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,

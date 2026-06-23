@@ -5,6 +5,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/features/profile/presentation/profile_screen.dart';
+import 'package:fixleo/features/request/presentation/my_orders_screen.dart';
+import 'package:fixleo/features/wallet/presentation/wallet_screen.dart';
 import 'package:fixleo/features/request/presentation/new_request_screen.dart';
 
 /// Main home feed shown after a successful login. A single scrollable page
@@ -58,7 +61,23 @@ class _HomeScreenState extends State<HomeScreen> {
             bottom: 8,
             child: _LiquidGlassNavBar(
               currentIndex: _navIndex,
-              onTap: (i) => setState(() => _navIndex = i),
+              onTap: (i) {
+                setState(() => _navIndex = i);
+                // "Buyurtmalar" tab → orders list; "Profil" tab → profile.
+                if (i == 1) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+                  );
+                } else if (i == 3) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const WalletScreen()),
+                  );
+                } else if (i == 4) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  );
+                }
+              },
             ),
           ),
         ],
@@ -258,7 +277,7 @@ class _GreetingCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Добрый день, Арслан!',
+                  'Xayrli kun, Arslan!',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -271,7 +290,7 @@ class _GreetingCard extends StatelessWidget {
                     Icon(Icons.location_on, size: 14, color: AppColors.navy),
                     SizedBox(width: 4),
                     Text(
-                      'Яшнабад, Ташкент',
+                      'Yashnobod, Toshkent',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -298,7 +317,7 @@ class _GreetingCard extends StatelessWidget {
               ],
             ),
             child: const Text(
-              'Изменить локацию',
+              'Manzilni oʻzgartirish',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 12,
@@ -328,7 +347,7 @@ class _SearchHero extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Найдём проверенного мастера\nдля любой задачи',
+            'Har qanday vazifa uchun ishonchli\nusta topamiz',
             style: TextStyle(
               color: Colors.white,
               fontSize: 20,
@@ -357,7 +376,7 @@ class _SearchHero extends StatelessWidget {
                       decoration: const InputDecoration(
                         isCollapsed: true,
                         border: InputBorder.none,
-                        hintText: 'Специалист или услуга',
+                        hintText: 'Mutaxassis yoki xizmat',
                         hintStyle: TextStyle(
                           color: AppColors.muted,
                           fontSize: 14,
@@ -385,12 +404,12 @@ class _CategoriesCard extends StatelessWidget {
   const _CategoriesCard();
 
   static const _items = [
-    _Category('Сантехника'),
-    _Category('Электрика'),
-    _Category('Клининг'),
-    _Category('Бытовая техника'),
-    _Category('Покраска'),
-    _Category('Сборка'),
+    _Category('Santexnika'),
+    _Category('Elektrika'),
+    _Category('Tozalash'),
+    _Category('Maishiy texnika'),
+    _Category('Boʻyash'),
+    _Category('Yigʻish'),
   ];
 
   @override
@@ -403,7 +422,7 @@ class _CategoriesCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Наши Fix-еры',
+            'Bizning Fix-erlar',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -444,7 +463,7 @@ class _CategoriesCard extends StatelessWidget {
               ),
               icon: const Icon(Icons.add, size: 20),
               label: const Text(
-                'Запросить задание',
+                'Vazifa soʻrash',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
               ),
             ),
@@ -522,7 +541,7 @@ class _PhotosCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Фото Мастеров',
+            'Ustalar fotosi',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -552,7 +571,7 @@ class _PhotosCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: const Text(
-                    'Все фото',
+                    'Barcha foto',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -606,9 +625,9 @@ class _FeedbackRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: const [
-          Expanded(child: _FeedbackCard(title: 'Как вам\nприложение?')),
+          Expanded(child: _FeedbackCard(title: 'Ilova sizga\nyoqdimi?')),
           SizedBox(width: 12),
-          Expanded(child: _FeedbackCard(title: 'Написать в\nподдержку')),
+          Expanded(child: _FeedbackCard(title: 'Qoʻllab-quvvatlashga\nyozish')),
         ],
       ),
     );
@@ -646,7 +665,7 @@ class _SpecialistCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Вы специалист?',
+            'Siz mutaxassismisiz?',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -655,7 +674,7 @@ class _SpecialistCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Находите клиентов и зарабатывайте вместе с FixLeo',
+            'FixLeo bilan mijozlar toping va daromad qiling',
             style: TextStyle(
               fontSize: 14,
               height: 1.35,
@@ -691,7 +710,7 @@ class _ActiveOrderCard extends StatelessWidget {
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'Активный заказ · Ремонт смесителя',
+                  'Faol buyurtma · Smesitel taʼmiri',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -703,7 +722,7 @@ class _ActiveOrderCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Мастер в пути · ~15 мин',
+            'Usta yoʻlda · ~15 daqiqa',
             style: TextStyle(fontSize: 10, color: Color(0xFF4B5563)),
           ),
         ],
@@ -727,11 +746,11 @@ class _LiquidGlassNavBar extends StatelessWidget {
   final ValueChanged<int> onTap;
 
   static const _items = [
-    _NavItem('Главная', 'assets/icon/Home.svg'),
-    _NavItem('Заказы', 'assets/icon/History.svg'),
-    _NavItem('Чаты', 'assets/icon/chat.svg'),
-    _NavItem('Кошелек', 'assets/icon/wallet.svg'),
-    _NavItem('Профиль', 'assets/icon/usericon.svg'),
+    _NavItem('Asosiy', 'assets/icon/Home.svg'),
+    _NavItem('Buyurtmalar', 'assets/icon/History.svg'),
+    _NavItem('Chatlar', 'assets/icon/chat.svg'),
+    _NavItem('Hamyon', 'assets/icon/wallet.svg'),
+    _NavItem('Profil', 'assets/icon/usericon.svg'),
   ];
 
   @override

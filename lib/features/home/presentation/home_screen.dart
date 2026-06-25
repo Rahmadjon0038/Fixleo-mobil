@@ -5,7 +5,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
 import 'package:fixleo/features/profile/presentation/profile_screen.dart';
+import 'package:fixleo/features/request/presentation/chat_screen.dart';
 import 'package:fixleo/features/request/presentation/my_orders_screen.dart';
 import 'package:fixleo/features/wallet/presentation/wallet_screen.dart';
 import 'package:fixleo/features/request/presentation/new_request_screen.dart';
@@ -59,7 +61,14 @@ class _HomeScreenState extends State<HomeScreen> {
             left: 12,
             right: 12,
             bottom: 8,
-            child: _LiquidGlassNavBar(
+            child: LiquidGlassNavBar(
+              items: const [
+                LiquidGlassNavItem('Asosiy', 'assets/icon/Home.svg'),
+                LiquidGlassNavItem('Buyurtmalar', 'assets/icon/History.svg'),
+                LiquidGlassNavItem('Chatlar', 'assets/icon/chat.svg'),
+                LiquidGlassNavItem('Hamyon', 'assets/icon/wallet.svg'),
+                LiquidGlassNavItem('Profil', 'assets/icon/usericon.svg'),
+              ],
               currentIndex: _navIndex,
               onTap: (i) {
                 setState(() => _navIndex = i);
@@ -67,6 +76,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (i == 1) {
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+                  );
+                } else if (i == 2) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ChatScreen()),
                   );
                 } else if (i == 3) {
                   Navigator.of(context).push(
@@ -727,188 +740,6 @@ class _ActiveOrderCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _NavItem {
-  const _NavItem(this.label, this.asset);
-  final String label;
-  final String asset;
-}
-
-/// Floating iOS "liquid glass" bottom navigation bar — translucent,
-/// blurred, with a bright edge highlight like a water droplet.
-class _LiquidGlassNavBar extends StatelessWidget {
-  const _LiquidGlassNavBar({required this.currentIndex, required this.onTap});
-
-  final int currentIndex;
-  final ValueChanged<int> onTap;
-
-  static const _items = [
-    _NavItem('Asosiy', 'assets/icon/Home.svg'),
-    _NavItem('Buyurtmalar', 'assets/icon/History.svg'),
-    _NavItem('Chatlar', 'assets/icon/chat.svg'),
-    _NavItem('Hamyon', 'assets/icon/wallet.svg'),
-    _NavItem('Profil', 'assets/icon/usericon.svg'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(36),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: SizedBox(
-        height: 80,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(36),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Glass background layer — the blur lives here, with NO
-              // interactive children (avoids the macOS mouse_tracker bug).
-              BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.white.withValues(alpha: 0.85),
-                        Colors.white.withValues(alpha: 0.65),
-                      ],
-                    ),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      width: 1,
-                    ),
-                    borderRadius: BorderRadius.circular(36),
-                  ),
-                ),
-              ),
-              // Interactive layer — sits ON TOP of the blur, not inside it.
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 10,
-                ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final itemWidth = constraints.maxWidth / _items.length;
-                    void selectAt(double dx) {
-                      final i = (dx / itemWidth).floor().clamp(
-                        0,
-                        _items.length - 1,
-                      );
-                      if (i != currentIndex) onTap(i);
-                    }
-
-                    return GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      // Tap a tab, or drag a finger across the bar and the
-                      // selection follows and lands where you release.
-                      onTapDown: (d) => selectAt(d.localPosition.dx),
-                      onHorizontalDragStart: (d) =>
-                          selectAt(d.localPosition.dx),
-                      onHorizontalDragUpdate: (d) =>
-                          selectAt(d.localPosition.dx),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          // Sliding "liquid" highlight — flows from one tab to
-                          // the next as the selection changes.
-                          AnimatedAlign(
-                            duration: const Duration(milliseconds: 420),
-                            curve: Curves.easeOutCubic,
-                            alignment: Alignment((currentIndex - 2) / 2, 0),
-                            child: FractionallySizedBox(
-                              widthFactor: 1 / _items.length,
-                              heightFactor: 1,
-                              child: Container(
-                                margin: const EdgeInsets.all(2),
-                                decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFF0079EB,
-                                  ).withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(22),
-                                ),
-                              ),
-                            ),
-                          ),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              for (var i = 0; i < _items.length; i++)
-                                Expanded(
-                                  child: _NavButton(
-                                    item: _items[i],
-                                    active: i == currentIndex,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavButton extends StatelessWidget {
-  const _NavButton({required this.item, required this.active});
-
-  final _NavItem item;
-  final bool active;
-
-  static const _activeColor = Color(0xFF0079EB);
-
-  @override
-  Widget build(BuildContext context) {
-    const duration = Duration(milliseconds: 300);
-    final color = active ? _activeColor : AppColors.navy;
-    // Purely visual — tap/drag is handled by the parent gesture detector.
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        AnimatedScale(
-          scale: active ? 1.12 : 1.0,
-          duration: duration,
-          curve: Curves.easeOutBack,
-          child: SvgPicture.asset(
-            item.asset,
-            width: 24,
-            height: 24,
-            colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-          ),
-        ),
-        const SizedBox(height: 4),
-        AnimatedDefaultTextStyle(
-          duration: duration,
-          curve: Curves.easeOut,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-            color: color,
-          ),
-          child: Text(item.label),
-        ),
-      ],
     );
   }
 }

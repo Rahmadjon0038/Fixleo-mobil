@@ -5,10 +5,15 @@ import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/features/home/presentation/home_screen.dart';
+import 'package:fixleo/features/master/presentation/master_register_screen.dart';
 
 /// SMS code confirmation. For now the valid code is hard-coded to "1111".
 class OtpScreen extends StatefulWidget {
-  const OtpScreen({super.key});
+  const OtpScreen({super.key, this.isMaster = false});
+
+  /// When true, a successful code sends the master to the master home
+  /// instead of the client home.
+  final bool isMaster;
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
@@ -46,9 +51,13 @@ class _OtpScreenState extends State<OtpScreen> {
 
   void _verify() {
     if (_code == _validCode) {
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => widget.isMaster
+              ? const MasterRegisterScreen()
+              : const HomeScreen(),
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()

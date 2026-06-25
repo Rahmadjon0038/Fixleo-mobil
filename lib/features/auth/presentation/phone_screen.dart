@@ -9,7 +9,11 @@ import 'package:fixleo/features/auth/presentation/otp_screen.dart';
 /// Phone number entry — sends an (mock) SMS code. The number is required:
 /// the button stays disabled until all 9 digits are entered.
 class PhoneScreen extends StatefulWidget {
-  const PhoneScreen({super.key});
+  const PhoneScreen({super.key, this.isMaster = false});
+
+  /// When true this is the master sign-in flow — only the header title and
+  /// the post-verify destination differ from the client flow.
+  final bool isMaster;
 
   @override
   State<PhoneScreen> createState() => _PhoneScreenState();
@@ -30,7 +34,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
   @override
   Widget build(BuildContext context) {
     return BrandedScaffold(
-      title: 'Kirish',
+      title: widget.isMaster ? 'Usta uchun kirish' : 'Kirish',
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -77,7 +81,9 @@ class _PhoneScreenState extends State<PhoneScreen> {
               onPressed: _isValid
                   ? () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const OtpScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => OtpScreen(isMaster: widget.isMaster),
+                        ),
                       );
                     }
                   : null,

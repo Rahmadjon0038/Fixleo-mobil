@@ -85,6 +85,9 @@ flutter:
     - assets/icon/chat.svg
     - assets/icon/wallet.svg
     - assets/icon/Waterdrop.svg
+    - assets/icon/filter.svg
+    - assets/icon/headphones.svg
+    - assets/icon/Ranking.svg
     - assets/icon/Camera.svg
     - assets/icon/search.svg
     - assets/icon/Illustration - Scene Plants.svg

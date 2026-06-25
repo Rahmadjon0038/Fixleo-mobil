@@ -11,9 +11,12 @@ class _Language {
   final String script;
 }
 
-/// Language selection screen — first step of onboarding.
+/// Language selection screen — first step of onboarding. [isMaster] carries
+/// the master flow forward so the phone/OTP steps adapt to it.
 class LanguageScreen extends StatefulWidget {
-  const LanguageScreen({super.key});
+  const LanguageScreen({super.key, this.isMaster = false});
+
+  final bool isMaster;
 
   @override
   State<LanguageScreen> createState() => _LanguageScreenState();
@@ -64,9 +67,11 @@ class _LanguageScreenState extends State<LanguageScreen> {
             PrimaryButton(
               label: 'Davom etish',
               onPressed: () {
-                Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => const PhoneScreen()));
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => PhoneScreen(isMaster: widget.isMaster),
+                  ),
+                );
               },
             ),
           ],

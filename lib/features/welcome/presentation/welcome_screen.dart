@@ -51,7 +51,11 @@ class WelcomeScreen extends StatelessWidget {
             const SizedBox(height: 12),
             TextButton(
               onPressed: () {
-                // TODO: navigate to the master onboarding flow.
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const LanguageScreen(isMaster: true),
+                  ),
+                );
               },
               child: const Text(
                 'Men ustaman — buyurtma olmoqchiman',

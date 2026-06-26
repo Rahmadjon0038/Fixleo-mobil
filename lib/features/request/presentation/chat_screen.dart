@@ -3,20 +3,31 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/theme/app_colors.dart';
+import 'package:fixleo/features/request/presentation/attach_photos_sheet.dart';
 
 /// A single chat message. [isMine] is true for the user's own (blue) bubbles.
-class _Message {
-  const _Message({required this.text, required this.time, required this.isMine});
+class ChatMessage {
+  const ChatMessage({
+    required this.text,
+    required this.time,
+    required this.isMine,
+  });
 
   final String text;
   final String time;
   final bool isMine;
 }
 
-/// Chat with the master — message thread plus a working input bar at the
-/// bottom. The seed thread is mock data; sent messages are kept in state.
+/// One-on-one chat — message thread plus a working input bar at the bottom.
+/// [peerName] is the person shown in the header; [seed] is the initial thread
+/// (mock data). Sent messages are kept in state. Reused by both the client
+/// side (chatting with the master) and the master side (chatting with the
+/// client) — only [peerName] and [seed] differ.
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  const ChatScreen({super.key, this.peerName = 'Aleksey Ivanov', this.seed});
+
+  final String peerName;
+  final List<ChatMessage>? seed;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -29,44 +40,47 @@ class _ChatScreenState extends State<ChatScreen> {
   static const _slate200 = Color(0xFFE2E8F0);
   static const _slate500 = Color(0xFF64748B);
 
-  final _controller = TextEditingController();
-  final _scrollController = ScrollController();
-
-  // Seed conversation shown when the chat opens.
-  final _messages = <_Message>[
-    const _Message(
+  // Default seed conversation (client side) shown when no [seed] is passed.
+  static const _defaultSeed = <ChatMessage>[
+    ChatMessage(
       text: 'Salom! Yoʻlga chiqdim, 15 daqiqada yetib boraman.',
       time: '14:32',
       isMine: false,
     ),
-    const _Message(text: 'Zoʻr, sizni kutaman!', time: '14:33', isMine: true),
-    const _Message(
+    ChatMessage(text: 'Zoʻr, sizni kutaman!', time: '14:33', isMine: true),
+    ChatMessage(
       text: 'Domofon kodini ayting, iltimos.',
       time: '14:35',
       isMine: false,
     ),
-    const _Message(
+    ChatMessage(
       text: 'Domofon kodi 1234, rahmat!',
       time: '14:36',
       isMine: false,
     ),
-    const _Message(
+    ChatMessage(
       text: 'Tushundim, tez orada yetaman.',
       time: '14:37',
       isMine: true,
     ),
-    const _Message(
+    ChatMessage(
       text: 'Kvartira kalitlarini unutmang!',
       time: '14:38',
       isMine: false,
     ),
-    const _Message(text: 'Oldim, hammasi joyida!', time: '14:39', isMine: false),
-    const _Message(
+    ChatMessage(text: 'Oldim, hammasi joyida!', time: '14:39', isMine: false),
+    ChatMessage(
       text: 'Yaqinlashyapman, bir daqiqada yetaman!',
       time: '14:41',
       isMine: true,
     ),
   ];
+
+  final _controller = TextEditingController();
+  final _scrollController = ScrollController();
+
+  // Mutable thread: starts from the passed [seed] (or the default).
+  late final List<ChatMessage> _messages = [...(widget.seed ?? _defaultSeed)];
 
   @override
   void dispose() {
@@ -88,7 +102,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty) return;
 
     setState(() {
-      _messages.add(_Message(text: text, time: _now(), isMine: true));
+      _messages.add(ChatMessage(text: text, time: _now(), isMine: true));
       _controller.clear();
     });
 
@@ -148,10 +162,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
+                  children: [
                     Text(
-                      'Aleksey Ivanov',
-                      style: TextStyle(
+                      widget.peerName,
+                      style: const TextStyle(
                         fontSize: 16,
                         height: 22 / 16,
                         letterSpacing: -0.18,
@@ -159,7 +173,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         color: _bubbleText,
                       ),
                     ),
-                    Text(
+                    const Text(
                       'onlayn',
                       style: TextStyle(
                         fontSize: 14,
@@ -185,7 +199,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   /// One message bubble, aligned left (incoming) or right (mine).
-  Widget _bubble(_Message m) {
+  Widget _bubble(ChatMessage m) {
     return Align(
       alignment: m.isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: ConstrainedBox(
@@ -234,17 +248,20 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       child: Row(
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: _slate200,
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: const Icon(
-              Icons.photo_camera_outlined,
-              size: 22,
-              color: _slate500,
+          GestureDetector(
+            onTap: () => showAttachPhotosSheet(context),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: _slate200,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: const Icon(
+                Icons.photo_camera_outlined,
+                size: 22,
+                color: _slate500,
+              ),
             ),
           ),
           const SizedBox(width: 10),

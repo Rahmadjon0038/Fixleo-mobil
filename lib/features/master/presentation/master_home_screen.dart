@@ -6,7 +6,12 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
+import 'package:fixleo/features/master/presentation/master_chats_screen.dart';
 import 'package:fixleo/features/master/presentation/master_filters_screen.dart';
+import 'package:fixleo/app/locale/app_locale.dart';
+import 'package:fixleo/features/master/presentation/master_orders_screen.dart';
+import 'package:fixleo/features/master/presentation/master_profile_tab_screen.dart';
+import 'package:fixleo/features/master/presentation/master_wallet_screen.dart';
 import 'package:fixleo/features/master/presentation/master_request_detail_screen.dart';
 
 /// A nearby job request shown in the master feed.
@@ -36,12 +41,17 @@ class MasterHomeScreen extends StatefulWidget {
 }
 
 class _MasterHomeScreenState extends State<MasterHomeScreen> {
-  static const _navItems = [
-    LiquidGlassNavItem('Buyurtmalar', 'assets/icon/Home.svg'),
-    LiquidGlassNavItem('Zakazlar', 'assets/icon/History.svg'),
-    LiquidGlassNavItem('Chatlar', 'assets/icon/chat.svg'),
-    LiquidGlassNavItem('Hamyon', 'assets/icon/wallet.svg'),
-    LiquidGlassNavItem('Profil', 'assets/icon/usericon.svg'),
+  List<LiquidGlassNavItem> _navItems(AppLanguage lang) => [
+    LiquidGlassNavItem(
+        tr(lang, 'Buyurtmalar', 'Заявки', 'Requests'), 'assets/icon/Home.svg'),
+    LiquidGlassNavItem(
+        tr(lang, 'Zakazlar', 'Заказы', 'Orders'), 'assets/icon/History.svg'),
+    LiquidGlassNavItem(
+        tr(lang, 'Chatlar', 'Чаты', 'Chats'), 'assets/icon/chat.svg'),
+    LiquidGlassNavItem(
+        tr(lang, 'Hamyon', 'Кошелек', 'Wallet'), 'assets/icon/wallet.svg'),
+    LiquidGlassNavItem(
+        tr(lang, 'Profil', 'Профиль', 'Profile'), 'assets/icon/usericon.svg'),
   ];
 
   static const _requests = [
@@ -65,42 +75,53 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Column(
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: LocaleController.language,
+      builder: (context, lang, _) {
+        final navItems = _navItems(lang);
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: SafeArea(
+            child: Stack(
               children: [
-                const SizedBox(height: 8),
-                const Center(child: BrandBar()),
-                const SizedBox(height: 8),
-                _header(),
-                Expanded(
-                  child: _navIndex == 0
-                      ? _feed()
-                      : const _ComingSoon(),
+                Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    const Center(child: BrandBar()),
+                    const SizedBox(height: 8),
+                    _header(lang, navItems),
+                    Expanded(
+                      child: switch (_navIndex) {
+                        0 => _feed(),
+                        1 => const MasterOrdersScreen(),
+                        2 => const MasterChatsScreen(),
+                        3 => const MasterWalletScreen(),
+                        4 => const MasterProfileTabScreen(),
+                        _ => const _ComingSoon(),
+                      },
+                    ),
+                  ],
+                ),
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 8,
+                  child: LiquidGlassNavBar(
+                    items: navItems,
+                    currentIndex: _navIndex,
+                    onTap: (i) => setState(() => _navIndex = i),
+                  ),
                 ),
               ],
             ),
-            Positioned(
-              left: 12,
-              right: 12,
-              bottom: 8,
-              child: LiquidGlassNavBar(
-                items: _navItems,
-                currentIndex: _navIndex,
-                onTap: (i) => setState(() => _navIndex = i),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
   /// Back · title pill · filter row.
-  Widget _header() {
+  Widget _header(AppLanguage lang, List<LiquidGlassNavItem> navItems) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: SizedBox(
@@ -110,7 +131,12 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
           children: [
             _Pill(
               child: Text(
-                'Yoningizdagi buyurtmalar',
+                switch (_navIndex) {
+                  0 => tr(lang, 'Yoningizdagi buyurtmalar', 'Заявки рядом',
+                      'Requests nearby'),
+                  1 => tr(lang, 'Mening ishlarim', 'Моя работа', 'My work'),
+                  _ => navItems[_navIndex].label,
+                },
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -129,27 +155,28 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
                 ),
               ),
             ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: _GlassButton(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const MasterFiltersScreen(),
+            if (_navIndex == 0)
+              Align(
+                alignment: Alignment.centerRight,
+                child: _GlassButton(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const MasterFiltersScreen(),
+                      ),
+                    );
+                  },
+                  child: SvgPicture.asset(
+                    'assets/icon/filter.svg',
+                    width: 22,
+                    height: 22,
+                    colorFilter: const ColorFilter.mode(
+                      AppColors.navy,
+                      BlendMode.srcIn,
                     ),
-                  );
-                },
-                child: SvgPicture.asset(
-                  'assets/icon/filter.svg',
-                  width: 22,
-                  height: 22,
-                  colorFilter: const ColorFilter.mode(
-                    AppColors.navy,
-                    BlendMode.srcIn,
                   ),
                 ),
               ),
-            ),
           ],
         ),
       ),

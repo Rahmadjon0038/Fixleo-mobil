@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
@@ -33,8 +34,11 @@ class _PhoneScreenState extends State<PhoneScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: widget.isMaster ? 'Usta uchun kirish' : 'Kirish',
+      title: widget.isMaster
+          ? tr(lang, 'Usta uchun kirish', 'Вход для мастера', 'Master sign in')
+          : tr(lang, 'Kirish', 'Вход', 'Sign in'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -42,9 +46,10 @@ class _PhoneScreenState extends State<PhoneScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 8),
-            const Text(
-              'Telefon raqamingizni kiriting',
-              style: TextStyle(
+            Text(
+              tr(lang, 'Telefon raqamingizni kiriting',
+                  'Введите номер телефона', 'Enter your phone number'),
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
                 color: AppColors.navy,
@@ -52,12 +57,14 @@ class _PhoneScreenState extends State<PhoneScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Tasdiqlash kodi bilan SMS yuboramiz',
+              tr(lang, 'Tasdiqlash kodi bilan SMS yuboramiz',
+                  'Отправим SMS с кодом подтверждения',
+                  'We will send an SMS with a code'),
               style: TextStyle(fontSize: 15, color: AppColors.muted),
             ),
             const SizedBox(height: 28),
             Text(
-              'Telefon raqami',
+              tr(lang, 'Telefon raqami', 'Номер телефона', 'Phone number'),
               style: TextStyle(fontSize: 13, color: AppColors.muted),
             ),
             const SizedBox(height: 8),
@@ -67,8 +74,15 @@ class _PhoneScreenState extends State<PhoneScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Davom etish orqali siz FixLeo foydalanish shartlari va '
-              'maxfiylik siyosatiga rozilik bildirasiz',
+              tr(
+                lang,
+                'Davom etish orqali siz FixLeo foydalanish shartlari va '
+                    'maxfiylik siyosatiga rozilik bildirasiz',
+                'Продолжая, вы соглашаетесь с условиями использования и '
+                    'политикой конфиденциальности FixLeo',
+                'By continuing you agree to FixLeo terms of use and '
+                    'privacy policy',
+              ),
               style: TextStyle(
                 fontSize: 12,
                 height: 1.4,
@@ -77,7 +91,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
             ),
             const Spacer(),
             PrimaryButton(
-              label: 'Kod olish',
+              label: tr(lang, 'Kod olish', 'Получить код', 'Get code'),
               onPressed: _isValid
                   ? () {
                       Navigator.of(context).push(

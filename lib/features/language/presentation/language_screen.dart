@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
-import 'package:fixleo/features/auth/presentation/phone_screen.dart';
+import 'package:fixleo/features/welcome/presentation/welcome_screen.dart';
 
 class _Language {
-  const _Language(this.name, this.script);
+  const _Language(this.lang, this.name, this.script);
+  final AppLanguage lang;
   final String name;
   final String script;
 }
 
-/// Language selection screen — first step of onboarding. [isMaster] carries
-/// the master flow forward so the phone/OTP steps adapt to it.
+/// Language selection — the first onboarding step for both client and master.
+/// Picking a language sets it app-wide immediately, so the rest of the flow is
+/// already translated.
 class LanguageScreen extends StatefulWidget {
-  const LanguageScreen({super.key, this.isMaster = false});
-
-  final bool isMaster;
+  const LanguageScreen({super.key});
 
   @override
   State<LanguageScreen> createState() => _LanguageScreenState();
@@ -24,17 +25,16 @@ class LanguageScreen extends StatefulWidget {
 
 class _LanguageScreenState extends State<LanguageScreen> {
   static const _languages = [
-    _Language('O‘zbekcha', 'Lotin'),
-    _Language('Русский', 'Кириллица'),
-    _Language('English', 'Latin'),
+    _Language(AppLanguage.uz, 'O‘zbekcha', 'Lotin'),
+    _Language(AppLanguage.ru, 'Русский', 'Кириллица'),
+    _Language(AppLanguage.en, 'English', 'Latin'),
   ];
-
-  int _selected = 0;
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Til tanlash',
+      title: tr(lang, 'Til tanlash', 'Выбор языка', 'Select language'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -56,8 +56,9 @@ class _LanguageScreenState extends State<LanguageScreen> {
                       ),
                     _LanguageTile(
                       language: _languages[i],
-                      selected: _selected == i,
-                      onTap: () => setState(() => _selected = i),
+                      selected: lang == _languages[i].lang,
+                      onTap: () =>
+                          setState(() => LocaleController.set(_languages[i].lang)),
                     ),
                   ],
                 ],
@@ -65,12 +66,10 @@ class _LanguageScreenState extends State<LanguageScreen> {
             ),
             const Spacer(),
             PrimaryButton(
-              label: 'Davom etish',
+              label: tr(lang, 'Davom etish', 'Продолжить', 'Continue'),
               onPressed: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => PhoneScreen(isMaster: widget.isMaster),
-                  ),
+                  MaterialPageRoute(builder: (_) => const WelcomeScreen()),
                 );
               },
             ),

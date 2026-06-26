@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
@@ -62,15 +63,23 @@ class _OtpScreenState extends State<OtpScreen> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(content: Text('Kod notoʻgʻri. 1111 ni kiriting')),
+          SnackBar(
+            content: Text(tr(
+              LocaleController.language.value,
+              'Kod notoʻgʻri. 1111 ni kiriting',
+              'Неверный код. Введите 1111',
+              'Wrong code. Enter 1111',
+            )),
+          ),
         );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Tasdiqlash',
+      title: tr(lang, 'Tasdiqlash', 'Подтверждение', 'Confirmation'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -78,9 +87,10 @@ class _OtpScreenState extends State<OtpScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 8),
-            const Text(
-              'SMS dagi kodni kiriting',
-              style: TextStyle(
+            Text(
+              tr(lang, 'SMS dagi kodni kiriting', 'Введите код из SMS',
+                  'Enter the code from SMS'),
+              style: const TextStyle(
                 fontSize: 30,
                 fontWeight: FontWeight.w500,
                 color: AppColors.navy,
@@ -88,7 +98,9 @@ class _OtpScreenState extends State<OtpScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              '+998 90 123 45 67 raqamiga yuborildi',
+              tr(lang, '+998 90 123 45 67 raqamiga yuborildi',
+                  'Отправлено на +998 90 123 45 67',
+                  'Sent to +998 90 123 45 67'),
               style: TextStyle(fontSize: 15, color: AppColors.muted),
             ),
             const SizedBox(height: 28),
@@ -104,12 +116,17 @@ class _OtpScreenState extends State<OtpScreen> {
             const SizedBox(height: 16),
             Center(
               child: Text(
-                'Kodni qayta yuborish 0:59 dan soʻng',
+                tr(lang, 'Kodni qayta yuborish 0:59 dan soʻng',
+                    'Повторная отправка через 0:59',
+                    'Resend code in 0:59'),
                 style: TextStyle(fontSize: 13, color: AppColors.muted),
               ),
             ),
             const Spacer(),
-            PrimaryButton(label: 'Tasdiqlash', onPressed: _verify),
+            PrimaryButton(
+              label: tr(lang, 'Tasdiqlash', 'Подтвердить', 'Confirm'),
+              onPressed: _verify,
+            ),
           ],
         ),
       ),

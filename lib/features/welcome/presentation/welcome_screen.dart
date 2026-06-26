@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
-import 'package:fixleo/features/language/presentation/language_screen.dart';
+import 'package:fixleo/features/auth/presentation/phone_screen.dart';
 
 /// Onboarding screen shown after the splash. Lets the user start as a
 /// client ("create first request") or switch to the master flow.
@@ -14,6 +15,7 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -33,7 +35,8 @@ class WelcomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Ustalar yaqin va tez',
+              tr(lang, 'Ustalar yaqin va tez', 'Мастера рядом и быстро',
+                  'Masters nearby and fast'),
               style: TextStyle(
                 fontSize: 15,
                 color: _navy.withValues(alpha: 0.55),
@@ -41,10 +44,11 @@ class WelcomeScreen extends StatelessWidget {
             ),
             const Spacer(flex: 4),
             _PrimaryButton(
-              label: 'Birinchi buyurtma yaratish',
+              label: tr(lang, 'Birinchi buyurtma yaratish',
+                  'Создать первую заявку', 'Create first request'),
               onPressed: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const LanguageScreen()),
+                  MaterialPageRoute(builder: (_) => const PhoneScreen()),
                 );
               },
             ),
@@ -53,13 +57,15 @@ class WelcomeScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => const LanguageScreen(isMaster: true),
+                    builder: (_) => const PhoneScreen(isMaster: true),
                   ),
                 );
               },
-              child: const Text(
-                'Men ustaman — buyurtma olmoqchiman',
-                style: TextStyle(
+              child: Text(
+                tr(lang, 'Men ustaman — buyurtma olmoqchiman',
+                    'Я мастер — хочу брать заказы',
+                    'I am a master — I want to take orders'),
+                style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
                   color: _blue,

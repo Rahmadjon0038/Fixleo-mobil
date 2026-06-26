@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
-import 'package:fixleo/app/widgets/branded_scaffold.dart';
-import 'package:fixleo/features/request/presentation/my_orders_screen.dart';
 
-/// User profile — account header plus grouped settings rows and logout.
-/// Mock data for now.
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+/// Master's profile tab — mirrors the client profile layout: account header,
+/// a working language switcher (O‘zbekcha / Русский), grouped settings rows and
+/// a logout pill. Shown under the "Profil" tab.
+class MasterProfileTabScreen extends StatelessWidget {
+  const MasterProfileTabScreen({super.key});
 
   static const _gray = Color(0xFF8D96A4);
   static const _slate50 = Color(0xFFF8FAFC);
@@ -18,64 +17,97 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
-    return BrandedScaffold(
-      title: tr(lang, 'Profil', 'Профиль'),
-      showBack: true,
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              _userCard(),
-              const SizedBox(height: 8),
-              _languageCard(lang),
-              const SizedBox(height: 8),
-              _group([
-                _MenuItem(
-                  icon: Icons.location_on_outlined,
-                  label: tr(lang, 'Mening manzillarim', 'Мои адреса'),
-                  onTap: () {},
-                ),
-                _MenuItem(
-                  icon: Icons.history,
-                  label: tr(lang, 'Buyurtmalar tarixi', 'История заказов'),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const MyOrdersScreen(),
-                      ),
-                    );
-                  },
-                ),
-                _MenuItem(
-                  icon: Icons.settings_outlined,
-                  label: tr(lang, 'Sozlamalar', 'Настройки'),
-                  onTap: () {},
-                ),
-              ]),
-              const SizedBox(height: 8),
-              _group([
-                _MenuItem(
-                  icon: Icons.notifications_outlined,
-                  label: tr(lang, 'Bildirishnomalar', 'Уведомления'),
-                  onTap: () {},
-                ),
-                _MenuItem(
-                  icon: Icons.headset_mic_outlined,
-                  label: tr(lang, 'Qoʻllab-quvvatlash', 'Поддержка'),
-                  onTap: () {},
-                ),
-                _MenuItem(
-                  icon: Icons.shield_outlined,
-                  label: tr(lang, 'Maxfiylik siyosati', 'Политика конфиденциальности'),
-                  onTap: () {},
-                ),
-              ]),
-              const SizedBox(height: 8),
-              _logout(context, lang),
-            ],
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+      children: [
+        _userCard(),
+        const SizedBox(height: 8),
+        _languageCard(lang),
+        const SizedBox(height: 8),
+        _group([
+          _MenuItem(
+            icon: Icons.person_outline,
+            label: tr(lang, 'Mening maʼlumotlarim', 'Мои данные'),
+            onTap: () {},
           ),
-        ),
+          _MenuItem(
+            icon: Icons.history,
+            label: tr(lang, 'Ishlar tarixi', 'История работ'),
+            onTap: () {},
+          ),
+          _MenuItem(
+            icon: Icons.settings_outlined,
+            label: tr(lang, 'Sozlamalar', 'Настройки'),
+            onTap: () {},
+          ),
+        ]),
+        const SizedBox(height: 8),
+        _group([
+          _MenuItem(
+            icon: Icons.notifications_outlined,
+            label: tr(lang, 'Bildirishnomalar', 'Уведомления'),
+            onTap: () {},
+          ),
+          _MenuItem(
+            icon: Icons.headset_mic_outlined,
+            label: tr(lang, 'Qoʻllab-quvvatlash', 'Поддержка'),
+            onTap: () {},
+          ),
+          _MenuItem(
+            icon: Icons.shield_outlined,
+            label: tr(lang, 'Maxfiylik siyosati', 'Политика конфиденциальности'),
+            onTap: () {},
+          ),
+        ]),
+        const SizedBox(height: 8),
+        _logout(context, lang),
+      ],
+    );
+  }
+
+  /// Avatar + name + phone header card.
+  Widget _userCard() {
+    return Container(
+      width: double.infinity,
+      height: 155,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 66,
+            height: 66,
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(Icons.person, size: 38, color: _gray),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Arslan Koptleulov',
+            style: TextStyle(
+              fontSize: 16,
+              height: 22 / 16,
+              letterSpacing: -0.18,
+              fontWeight: FontWeight.w700,
+              color: AppColors.navy,
+            ),
+          ),
+          const Text(
+            '+998 90 000 00 00',
+            style: TextStyle(
+              fontSize: 14,
+              height: 20 / 14,
+              letterSpacing: -0.16,
+              color: _gray,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -113,53 +145,6 @@ class ProfileScreen extends StatelessWidget {
             title: 'Русский',
             selected: lang == AppLanguage.ru,
             onTap: () => LocaleController.set(AppLanguage.ru),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Avatar + name + phone header card.
-  Widget _userCard() {
-    return Container(
-      width: double.infinity,
-      height: 155,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 66,
-            height: 66,
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(Icons.person, size: 38, color: _gray),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Arslan Koʻpletulov',
-            style: TextStyle(
-              fontSize: 16,
-              height: 22 / 16,
-              letterSpacing: -0.18,
-              fontWeight: FontWeight.w700,
-              color: AppColors.navy,
-            ),
-          ),
-          const Text(
-            '+998 90 000 00 00',
-            style: TextStyle(
-              fontSize: 14,
-              height: 20 / 14,
-              letterSpacing: -0.16,
-              color: _gray,
-            ),
           ),
         ],
       ),
@@ -319,7 +304,7 @@ class _MenuItem extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: const BoxDecoration(
-                color: ProfileScreen._slate50,
+                color: MasterProfileTabScreen._slate50,
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 22, color: AppColors.navy),
@@ -340,7 +325,7 @@ class _MenuItem extends StatelessWidget {
             const Icon(
               Icons.chevron_right,
               size: 20,
-              color: ProfileScreen._gray,
+              color: MasterProfileTabScreen._gray,
             ),
           ],
         ),

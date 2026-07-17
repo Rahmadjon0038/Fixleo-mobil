@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/features/master/presentation/master_order_status_screen.dart';
 
 /// The master's active job — current status, client, address, the task
 /// itself and a quick "go to client now" action, with a button to change
@@ -12,8 +14,9 @@ class MasterCurrentRequestScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Joriy buyurtma',
+      title: tr(lang, 'Joriy buyurtma', 'Текущая заявка', 'Current request'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
@@ -33,9 +36,9 @@ class MasterCurrentRequestScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Ishda',
-                    style: TextStyle(
+                  Text(
+                    tr(lang, 'Ish jarayonida', 'В работе', 'In progress'),
+                    style: const TextStyle(
                       fontSize: 16,
                       height: 22 / 16,
                       letterSpacing: -0.18,
@@ -44,9 +47,9 @@ class MasterCurrentRequestScreen extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  const Text(
-                    'Boshlandi 15:10',
-                    style: TextStyle(
+                  Text(
+                    tr(lang, '15:10 da boshlandi', 'Начат 15:10', 'Started 15:10'),
+                    style: const TextStyle(
                       fontSize: 14,
                       height: 20 / 14,
                       letterSpacing: -0.16,
@@ -81,10 +84,10 @@ class MasterCurrentRequestScreen extends StatelessWidget {
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Text(
-                              'Arslan Koptleulov',
-                              style: TextStyle(
+                              tr(lang, 'Arslan Koptleulov', 'Арслан Коптлеулов', 'Arslan Koptleulov'),
+                              style: const TextStyle(
                                 fontSize: 16,
                                 height: 22 / 16,
                                 letterSpacing: -0.18,
@@ -93,8 +96,8 @@ class MasterCurrentRequestScreen extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              'Mijoz',
-                              style: TextStyle(
+                              tr(lang, 'Mijoz', 'Клиент', 'Client'),
+                              style: const TextStyle(
                                 fontSize: 14,
                                 height: 20 / 14,
                                 letterSpacing: -0.16,
@@ -108,17 +111,22 @@ class MasterCurrentRequestScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Row(
-                    children: const [
+                    children: [
                       Icon(
                         Icons.location_on_outlined,
                         size: 19,
                         color: Color(0xFF8D96A4),
                       ),
-                      SizedBox(width: 2),
+                      const SizedBox(width: 2),
                       Expanded(
                         child: Text(
-                          'Yunusobod, Amir Temur 12, 45-xonadon',
-                          style: TextStyle(
+                          tr(
+                            lang,
+                            'Yunusobod, Amir Temur 12, xonadon 45',
+                            'Юнусабад, Амира Темура 12, кв. 45',
+                            'Yunusabad, Amir Temur 12, apt. 45',
+                          ),
+                          style: const TextStyle(
                             fontSize: 14,
                             height: 20 / 14,
                             letterSpacing: -0.16,
@@ -136,10 +144,10 @@ class MasterCurrentRequestScreen extends StatelessWidget {
             _Card(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text(
-                    'Vazifa',
-                    style: TextStyle(
+                    tr(lang, 'Vazifa', 'Задача', 'Task'),
+                    style: const TextStyle(
                       fontSize: 16,
                       height: 22 / 16,
                       letterSpacing: -0.18,
@@ -148,8 +156,13 @@ class MasterCurrentRequestScreen extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Oshxonadagi smesitelni almashtirish, kartrijni almashtirish.',
-                    style: TextStyle(
+                    tr(
+                      lang,
+                      'Oshxonadagi smesitelni almashtirish, kartrijni almashtirish.',
+                      'Замена смесителя на кухне, замена картриджа.',
+                      'Replace the kitchen mixer and cartridge.',
+                    ),
+                    style: const TextStyle(
                       fontSize: 14,
                       height: 20 / 14,
                       letterSpacing: -0.16,
@@ -164,11 +177,11 @@ class MasterCurrentRequestScreen extends StatelessWidget {
             _Card(
               onTap: () {},
               child: Row(
-                children: const [
+                children: [
                   Expanded(
                     child: Text(
-                      'Hozir mijoznikiga borish',
-                      style: TextStyle(
+                      tr(lang, 'Mijozga hozir borish', 'Поехать к клиенту сейчас', 'Go to the client now'),
+                      style: const TextStyle(
                         fontSize: 16,
                         height: 22 / 16,
                         letterSpacing: -0.18,
@@ -187,8 +200,12 @@ class MasterCurrentRequestScreen extends StatelessWidget {
             ),
             const Spacer(),
             PrimaryButton(
-              label: 'Statusni oʻzgartirish',
-              onPressed: () {},
+              label: tr(lang, 'Statusni oʻzgartirish', 'Изменить статус', 'Change status'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const MasterOrderStatusScreen(),
+                ),
+              ),
             ),
           ],
         ),

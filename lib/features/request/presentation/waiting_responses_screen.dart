@@ -30,7 +30,7 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
     // Simulate masters responding after a few seconds.
     _timer = Timer(const Duration(seconds: 3), () {
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
+      Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const MastersResponsesScreen()),
       );
     });

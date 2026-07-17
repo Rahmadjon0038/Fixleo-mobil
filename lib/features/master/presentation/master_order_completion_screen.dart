@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/features/master/presentation/master_home_screen.dart';
 
 /// Master's "finish the job" screen — order summary, up to six "done work"
 /// photos and a button to mark the order completed. The client then confirms
@@ -12,24 +14,30 @@ class MasterOrderCompletionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Buyurtmani yakunlash',
+      title: tr(lang, 'Buyurtmani yakunlash', 'Завершение заказа', 'Complete order'),
       showBack: true,
       body: Column(
         children: [
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              children: const [
+              children: [
                 // Order summary card.
-                _SummaryCard(),
-                SizedBox(height: 10),
+                _SummaryCard(lang: lang),
+                const SizedBox(height: 10),
                 // Photos of the completed work.
-                _PhotosCard(),
-                SizedBox(height: 10),
+                _PhotosCard(lang: lang),
+                const SizedBox(height: 10),
                 // Info banner.
                 _InfoBanner(
-                  'Mijoz oʻz tomonidan bajarilishini tasdiqlaydi.',
+                  tr(
+                    lang,
+                    'Mijoz ish bajarilganini oʻz tomonidan tasdiqlaydi.',
+                    'Клиент подтверждает выполнение со своей стороны.',
+                    'The client confirms completion on their side.',
+                  ),
                 ),
               ],
             ),
@@ -37,8 +45,20 @@ class MasterOrderCompletionScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
             child: PrimaryButton(
-              label: 'Bajarildi deb belgilash',
-              onPressed: () {},
+              label: tr(
+                lang,
+                'Bajarildi deb belgilash',
+                'Отметить выполненным',
+                'Mark as completed',
+              ),
+              onPressed: () {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (_) => const MasterHomeScreen(),
+                  ),
+                  (route) => false,
+                );
+              },
             ),
           ),
         ],
@@ -49,7 +69,9 @@ class MasterOrderCompletionScreen extends StatelessWidget {
 
 /// White card with service / time / price summary rows.
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard();
+  const _SummaryCard({required this.lang});
+
+  final AppLanguage lang;
 
   @override
   Widget build(BuildContext context) {
@@ -61,12 +83,21 @@ class _SummaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
-        children: const [
-          _SummaryRow(label: 'Xizmat', value: 'Smesitel almashtirish'),
-          SizedBox(height: 8),
-          _SummaryRow(label: 'Vaqt', value: 'Bugun, 12:00–15:00'),
-          SizedBox(height: 8),
-          _SummaryRow(label: 'Master taklifi', value: '50 000 soʻm'),
+        children: [
+          _SummaryRow(
+            label: tr(lang, 'Xizmat', 'Услуга', 'Service'),
+            value: tr(lang, 'Smesitel almashtirish', 'Замена смесителя', 'Mixer replacement'),
+          ),
+          const SizedBox(height: 8),
+          _SummaryRow(
+            label: tr(lang, 'Vaqt', 'Время', 'Time'),
+            value: tr(lang, 'Bugun, 12:00–15:00', 'Сегодня, 12:00–15:00', 'Today, 12:00–15:00'),
+          ),
+          const SizedBox(height: 8),
+          _SummaryRow(
+            label: tr(lang, 'Master taklifi', 'Предложение мастера', 'Master offer'),
+            value: tr(lang, '50 000 soʻm', '50 000 сум', '50 000 sum'),
+          ),
         ],
       ),
     );
@@ -110,7 +141,9 @@ class _SummaryRow extends StatelessWidget {
 
 /// White card with the hint text and a 3×2 photo grid (first cell adds photos).
 class _PhotosCard extends StatelessWidget {
-  const _PhotosCard();
+  const _PhotosCard({required this.lang});
+
+  final AppLanguage lang;
 
   @override
   Widget build(BuildContext context) {
@@ -124,10 +157,14 @@ class _PhotosCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Bajarilgan ishdan 6 tagacha foto qoʻshing — mijozga koʻrsatish '
-            'uchun',
-            style: TextStyle(
+          Text(
+            tr(
+              lang,
+              'Bajarilgan ishdan 6 tagacha foto qoʻshing — mijozga koʻrsatish uchun',
+              'Добавьте до 6 фото — мастеру будет проще оценить задачу',
+              'Add up to 6 photos - it will be easier to assess the job',
+            ),
+            style: const TextStyle(
               fontSize: 14,
               height: 20 / 14,
               letterSpacing: -0.16,

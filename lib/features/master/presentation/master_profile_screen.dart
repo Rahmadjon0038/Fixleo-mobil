@@ -3,9 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/master/data/master_service.dart';
 import 'package:fixleo/features/master/presentation/master_categories_screen.dart';
 
 /// Second master onboarding step — profile photo and an "about me" blurb.
@@ -19,7 +22,9 @@ class MasterProfileScreen extends StatefulWidget {
 class _MasterProfileScreenState extends State<MasterProfileScreen> {
   final _picker = ImagePicker();
   final _about = TextEditingController();
+  final _service = MasterService();
   XFile? _photo;
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -36,16 +41,40 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
     setState(() => _photo = file);
   }
 
-  void _next() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const MasterCategoriesScreen()),
-    );
+  /// Saves the "about me" bio (`PATCH /masters/me/about`) then moves on. The
+  /// bio is optional, so an empty field just skips the call.
+  Future<void> _next() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      final bio = _about.text.trim();
+      if (bio.isNotEmpty) {
+        await _service.updateAbout(bio);
+      }
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const MasterCategoriesScreen()),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tarmoq xatosi')),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Profil',
+      title: tr(lang, 'Profil', 'Профиль', 'Profile'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
@@ -56,7 +85,17 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
             const SizedBox(height: 12),
             _AboutCard(controller: _about),
             const Spacer(),
-            PrimaryButton(label: 'Saqlash va davom etish', onPressed: _next),
+            PrimaryButton(
+              label: _loading
+                  ? tr(lang, 'Saqlanmoqda...', 'Сохранение...', 'Saving...')
+                  : tr(
+                      lang,
+                      'Saqlash va davom etish',
+                      'Сохранить и продолжить',
+                      'Save and continue',
+                    ),
+              onPressed: _loading ? null : _next,
+            ),
           ],
         ),
       ),
@@ -74,21 +113,24 @@ class _PhotoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        height: 148,
+        padding: const EdgeInsets.symmetric(vertical: 24),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
+            // Placeholder tile grows into a bigger preview once a photo is
+            // picked (matches the two states in the design).
             Container(
-              width: 66,
-              height: 66,
+              width: file != null ? 100 : 66,
+              height: file != null ? 100 : 66,
               decoration: BoxDecoration(
                 color: const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(20),
@@ -102,9 +144,16 @@ class _PhotoCard extends StatelessWidget {
                       color: AppColors.navy,
                     ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
-              file != null ? 'Rasmni oʻzgartirish' : 'Rasm qoʻshish',
+              file != null
+                  ? tr(
+                      lang,
+                      'Rasmni oʻzgartirish uchun rasmga bosing',
+                      'Нажмите на фото, чтобы изменить его',
+                      'Tap the photo to change it',
+                    )
+                  : tr(lang, 'Rasm qoʻshish', 'Добавить фото', 'Add photo'),
               style: const TextStyle(fontSize: 14, color: AppColors.navy),
             ),
           ],
@@ -122,6 +171,7 @@ class _AboutCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -132,8 +182,8 @@ class _AboutCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Oʻzim haqimda',
+          Text(
+            tr(lang, 'Oʻzim haqimda', 'О себе', 'About me'),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -159,11 +209,15 @@ class _AboutCard extends StatelessWidget {
                 height: 1.4,
                 color: AppColors.navy,
               ),
-              decoration: InputDecoration(
-                isCollapsed: true,
-                border: InputBorder.none,
-                hintText:
-                    'Tajribali santexnik. Ozoda ishlayman, oʻz asboblarim bor.',
+                decoration: InputDecoration(
+                  isCollapsed: true,
+                  border: InputBorder.none,
+                hintText: tr(
+                  lang,
+                  'Tajribali santexnik. Ozoda ishlayman, oʻz asboblarim bor.',
+                  'Опытный сантехник. Работаю аккуратно, есть свой инструмент.',
+                  'Experienced plumber. I work neatly and have my own tools.',
+                ),
                 hintStyle: TextStyle(
                   fontSize: 14,
                   height: 1.4,

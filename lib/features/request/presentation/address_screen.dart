@@ -6,13 +6,21 @@ import 'package:latlong2/latlong.dart';
 
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/features/home/presentation/home_screen.dart';
 import 'package:fixleo/features/request/presentation/time_urgency_screen.dart';
 
-/// Step 3 of the "new request" flow — a real, draggable map where the user
-/// pins the spot the master should come to. The map moves under a fixed
-/// center marker, so wherever the map is dropped is the chosen address.
+/// A real, draggable map where the user pins a location. The map moves under
+/// a fixed center marker, so wherever the map is dropped is the chosen spot.
+///
+/// Used in two places:
+/// - the "new request" flow (default): confirm → time/urgency step;
+/// - client onboarding ([isOnboarding]): "Saqlash" → main screen.
 class AddressScreen extends StatefulWidget {
-  const AddressScreen({super.key});
+  const AddressScreen({super.key, this.isOnboarding = false});
+
+  /// True right after registration — the button says "Saqlash" and leads to
+  /// the home screen instead of continuing the request flow.
+  final bool isOnboarding;
 
   @override
   State<AddressScreen> createState() => _AddressScreenState();
@@ -117,12 +125,22 @@ class _AddressScreenState extends State<AddressScreen> {
             child: _AddressSheet(
               onBack: () => Navigator.of(context).maybePop(),
               onRecenter: _recenter,
+              confirmLabel:
+                  widget.isOnboarding ? 'Saqlash' : 'Manzilni tasdiqlash',
+              showDetailsField: !widget.isOnboarding,
               onConfirm: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const TimeUrgencyScreen(),
-                  ),
-                );
+                if (widget.isOnboarding) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+                    (route) => false,
+                  );
+                } else {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const TimeUrgencyScreen(),
+                    ),
+                  );
+                }
               },
             ),
           ),
@@ -249,11 +267,18 @@ class _AddressSheet extends StatelessWidget {
     required this.onBack,
     required this.onRecenter,
     required this.onConfirm,
+    required this.confirmLabel,
+    this.showDetailsField = true,
   });
 
   final VoidCallback onBack;
   final VoidCallback onRecenter;
   final VoidCallback onConfirm;
+  final String confirmLabel;
+
+  /// Whether to show the optional apartment/entrance/floor field (hidden
+  /// during onboarding, matching the design).
+  final bool showDetailsField;
 
   @override
   Widget build(BuildContext context) {
@@ -348,29 +373,31 @@ class _AddressSheet extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 10),
-                // Optional apartment / entrance / floor field.
-                Container(
-                  height: 50,
-                  alignment: Alignment.centerLeft,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                  child: const TextField(
-                    style: TextStyle(fontSize: 14, color: AppColors.navy),
-                    decoration: InputDecoration(
-                      isCollapsed: true,
-                      border: InputBorder.none,
-                      hintText: 'Kvartira / podyezd / qavat (ixtiyoriy)',
-                      hintStyle: TextStyle(
-                        color: Color(0xFF9494A3),
-                        fontSize: 14,
+                if (showDetailsField) ...[
+                  const SizedBox(height: 10),
+                  // Optional apartment / entrance / floor field.
+                  Container(
+                    height: 50,
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(40),
+                    ),
+                    child: const TextField(
+                      style: TextStyle(fontSize: 14, color: AppColors.navy),
+                      decoration: InputDecoration(
+                        isCollapsed: true,
+                        border: InputBorder.none,
+                        hintText: 'Kvartira / podyezd / qavat (ixtiyoriy)',
+                        hintStyle: TextStyle(
+                          color: Color(0xFF9494A3),
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 10),
                 // Confirm button — Figma pill: 52px tall, fully rounded.
                 SizedBox(
@@ -385,9 +412,9 @@ class _AddressSheet extends StatelessWidget {
                         borderRadius: BorderRadius.circular(40),
                       ),
                     ),
-                    child: const Text(
-                      'Manzilni tasdiqlash',
-                      style: TextStyle(
+                    child: Text(
+                      confirmLabel,
+                      style: const TextStyle(
                         fontSize: 16,
                         height: 22 / 16,
                         letterSpacing: -0.18,

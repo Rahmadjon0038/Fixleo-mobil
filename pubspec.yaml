@@ -39,6 +39,9 @@ dependencies:
   file_selector: ^1.1.0
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
+  dio: ^5.9.2
+  shared_preferences: ^2.5.5
+  socket_io_client: ^3.1.6
 
 dev_dependencies:
   flutter_test:
@@ -78,6 +81,7 @@ flutter:
 
   assets:
     - assets/logo.svg
+    - assets/onboarding_intro.png
     - assets/icon/notificationicon.svg
     - assets/icon/usericon.svg
     - assets/icon/Home.svg

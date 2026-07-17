@@ -17,18 +17,39 @@ import 'package:fixleo/features/master/presentation/master_request_detail_screen
 /// A nearby job request shown in the master feed.
 class _Request {
   const _Request({
-    required this.category,
+    required this.categoryUz,
+    required this.categoryRu,
+    required this.categoryEn,
     required this.icon,
-    required this.time,
-    required this.text,
-    required this.location,
+    required this.timeUz,
+    required this.timeRu,
+    required this.timeEn,
+    required this.textUz,
+    required this.textRu,
+    required this.textEn,
+    required this.locationUz,
+    required this.locationRu,
+    required this.locationEn,
   });
 
-  final String category;
+  final String categoryUz;
+  final String categoryRu;
+  final String categoryEn;
   final IconData icon;
-  final String time;
-  final String text;
-  final String location;
+  final String timeUz;
+  final String timeRu;
+  final String timeEn;
+  final String textUz;
+  final String textRu;
+  final String textEn;
+  final String locationUz;
+  final String locationRu;
+  final String locationEn;
+
+  String category(AppLanguage lang) => tr(lang, categoryUz, categoryRu, categoryEn);
+  String time(AppLanguage lang) => tr(lang, timeUz, timeRu, timeEn);
+  String text(AppLanguage lang) => tr(lang, textUz, textRu, textEn);
+  String location(AppLanguage lang) => tr(lang, locationUz, locationRu, locationEn);
 }
 
 /// Master dashboard — "nearby requests" feed with the shared liquid-glass
@@ -41,6 +62,8 @@ class MasterHomeScreen extends StatefulWidget {
 }
 
 class _MasterHomeScreenState extends State<MasterHomeScreen> {
+  final List<int> _navHistory = [];
+
   List<LiquidGlassNavItem> _navItems(AppLanguage lang) => [
     LiquidGlassNavItem(
         tr(lang, 'Buyurtmalar', 'Заявки', 'Requests'), 'assets/icon/Home.svg'),
@@ -56,22 +79,57 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
 
   static const _requests = [
     _Request(
-      category: 'Santexnika',
+      categoryUz: 'Santexnika',
+      categoryRu: 'Сантехника',
+      categoryEn: 'Plumbing',
       icon: Icons.water_drop_outlined,
-      time: '12 daqiqa oldin',
-      text: 'Oshxonada smesitel oqyapti, kartrij almashtirish kerak',
-      location: 'Yunusobod · 2.4 km',
+      timeUz: '12 daqiqa oldin',
+      timeRu: '12 минут назад',
+      timeEn: '12 min ago',
+      textUz: 'Oshxonada smesitel oqyapti, kartrij almashtirish kerak',
+      textRu: 'На кухне течет смеситель, нужно заменить картридж',
+      textEn: 'The kitchen mixer is leaking, the cartridge needs replacement',
+      locationUz: 'Yunusobod · 2.4 km',
+      locationRu: 'Юнусабад · 2.4 км',
+      locationEn: 'Yunusabad · 2.4 km',
     ),
     _Request(
-      category: 'Elektrika',
+      categoryUz: 'Elektrika',
+      categoryRu: 'Электрика',
+      categoryEn: 'Electrical',
       icon: Icons.bolt_outlined,
-      time: '12 daqiqa oldin',
-      text: 'Rozetka ishlamayapti, uchqun chiqyapti',
-      location: 'Yunusobod · 2.4 km',
+      timeUz: '12 daqiqa oldin',
+      timeRu: '12 минут назад',
+      timeEn: '12 min ago',
+      textUz: 'Rozetka ishlamayapti, uchqun chiqyapti',
+      textRu: 'Розетка не работает, есть искра',
+      textEn: 'The socket is not working, sparks are coming out',
+      locationUz: 'Yunusobod · 2.4 km',
+      locationRu: 'Юнусабад · 2.4 км',
+      locationEn: 'Yunusabad · 2.4 km',
     ),
   ];
 
   int _navIndex = 0;
+
+  void _setTab(int index) {
+    if (index == _navIndex) return;
+    _navHistory.add(_navIndex);
+    setState(() => _navIndex = index);
+  }
+
+  void _goBackTab() {
+    if (_navHistory.isNotEmpty) {
+      final previous = _navHistory.removeLast();
+      setState(() => _navIndex = previous);
+      return;
+    }
+    if (_navIndex != 0) {
+      setState(() => _navIndex = 0);
+      return;
+    }
+    Navigator.of(context).maybePop();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,13 +164,13 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
                   left: 12,
                   right: 12,
                   bottom: 8,
-                  child: LiquidGlassNavBar(
-                    items: navItems,
-                    currentIndex: _navIndex,
-                    onTap: (i) => setState(() => _navIndex = i),
-                  ),
+                child: LiquidGlassNavBar(
+                  items: navItems,
+                  currentIndex: _navIndex,
+                  onTap: _setTab,
                 ),
-              ],
+              ),
+            ],
             ),
           ),
         );
@@ -147,7 +205,7 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
             Align(
               alignment: Alignment.centerLeft,
               child: _GlassButton(
-                onTap: () => Navigator.of(context).maybePop(),
+                onTap: _goBackTab,
                 child: const Icon(
                   Icons.arrow_back,
                   size: 20,
@@ -201,17 +259,21 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
           const SizedBox(height: 10),
         ],
         Row(
-          children: const [
+          children: [
             Expanded(
               child: _MiniCard(
-                title: 'Ilova qanday?',
+                titleUz: 'Ilova qanday?',
+                titleRu: 'Как работает приложение?',
+                titleEn: 'How the app works?',
                 asset: 'assets/icon/Ranking.svg',
               ),
             ),
-            SizedBox(width: 14),
-            Expanded(
+            const SizedBox(width: 14),
+            const Expanded(
               child: _MiniCard(
-                title: 'Qoʻllab-quvvatlashga yozish',
+                titleUz: 'Qoʻllab-quvvatlashga yozish',
+                titleRu: 'Написать в поддержку',
+                titleEn: 'Write to support',
                 asset: 'assets/icon/headphones.svg',
               ),
             ),
@@ -223,6 +285,7 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
 
   /// Greeting + location + "change location" pill.
   Widget _greeting() {
+    final lang = LocaleController.language.value;
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(296),
@@ -256,57 +319,72 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
               borderRadius: BorderRadius.circular(296),
             ),
             child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Xayrli kun, Arslan!',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.navy,
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tr(
+                          lang,
+                          'Xayrli kun, Arslan!',
+                          'Добрый день, Арслан!',
+                          'Good day, Arslan!',
+                        ),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.navy,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on_outlined,
+                            size: 14,
+                            color: AppColors.navy,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            tr(
+                              lang,
+                              'Yashnobod, Toshkent',
+                              'Яшнабад, Ташкент',
+                              'Yashnobod, Tashkent',
+                            ),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.navy,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                Row(
-                  children: const [
-                    Icon(
-                      Icons.location_on_outlined,
-                      size: 14,
-                      color: AppColors.navy,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.blue,
+                    borderRadius: BorderRadius.circular(40),
+                  ),
+                  child: Text(
+                    tr(
+                      lang,
+                      'Lokatsiyani oʻzgartirish',
+                      'Изменить локацию',
+                      'Change location',
                     ),
-                    SizedBox(width: 2),
-                    Text(
-                      'Yashnobod, Toshkent',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.navy,
-                      ),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
                     ),
-                  ],
+                  ),
                 ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.blue,
-              borderRadius: BorderRadius.circular(40),
-            ),
-            child: const Text(
-              'Lokatsiyani oʻzgartirish',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Colors.white,
-              ),
-            ),
-          ),
               ],
             ),
           ),
@@ -351,7 +429,7 @@ class _RequestCard extends StatelessWidget {
                     Icon(request.icon, size: 18, color: AppColors.blue),
                     const SizedBox(width: 6),
                     Text(
-                      request.category,
+                      request.category(LocaleController.language.value),
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -363,14 +441,14 @@ class _RequestCard extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                request.time,
+                request.time(LocaleController.language.value),
                 style: const TextStyle(fontSize: 14, color: Color(0xFF8D96A4)),
               ),
             ],
           ),
           const SizedBox(height: 10),
           Text(
-            request.text,
+            request.text(LocaleController.language.value),
             style: const TextStyle(
               fontSize: 16,
               height: 22 / 16,
@@ -388,7 +466,7 @@ class _RequestCard extends StatelessWidget {
               ),
               const SizedBox(width: 5),
               Text(
-                request.location,
+                request.location(LocaleController.language.value),
                 style: const TextStyle(
                   fontSize: 14,
                   color: Color(0xFF8D96A4),
@@ -423,13 +501,21 @@ class _RequestCard extends StatelessWidget {
 
 /// Small white card (rate-app / support) at the bottom of the feed.
 class _MiniCard extends StatelessWidget {
-  const _MiniCard({required this.title, required this.asset});
+  const _MiniCard({
+    required this.titleUz,
+    required this.titleRu,
+    required this.titleEn,
+    required this.asset,
+  });
 
-  final String title;
+  final String titleUz;
+  final String titleRu;
+  final String titleEn;
   final String asset;
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return Container(
       height: 122,
       padding: const EdgeInsets.all(12),
@@ -442,7 +528,7 @@ class _MiniCard extends StatelessWidget {
           SizedBox(
             width: 110,
             child: Text(
-              title,
+              tr(lang, titleUz, titleRu, titleEn),
               style: const TextStyle(
                 fontSize: 16,
                 height: 22 / 16,
@@ -468,9 +554,10 @@ class _ComingSoon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return Center(
       child: Text(
-        'Tez orada',
+        tr(lang, 'Tez orada', 'Скоро', 'Coming soon'),
         style: TextStyle(fontSize: 16, color: AppColors.muted),
       ),
     );

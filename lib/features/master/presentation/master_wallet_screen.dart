@@ -1,15 +1,31 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/features/master/presentation/master_withdraw_screen.dart';
 
 /// A single wallet transaction in the master's operations list.
 class _Txn {
-  const _Txn({required this.title, required this.date, required this.amount});
+  const _Txn({
+    required this.titleUz,
+    required this.titleRu,
+    required this.titleEn,
+    required this.dateUz,
+    required this.dateRu,
+    required this.dateEn,
+    required this.amount,
+  });
 
-  final String title;
-  final String date;
+  final String titleUz;
+  final String titleRu;
+  final String titleEn;
+  final String dateUz;
+  final String dateRu;
+  final String dateEn;
   final String amount;
+
+  String title(AppLanguage lang) => tr(lang, titleUz, titleRu, titleEn);
+  String date(AppLanguage lang) => tr(lang, dateUz, dateRu, dateEn);
 }
 
 /// Master's wallet — available balance with a withdraw action, quick stats
@@ -23,10 +39,42 @@ class MasterWalletScreen extends StatelessWidget {
   static const _gray = Color(0xFF8D96A4);
 
   static const _txns = <_Txn>[
-    _Txn(title: 'Kartaga toʻlov', date: 'Bugun, 14:30', amount: '+50 000'),
-    _Txn(title: 'Mablagʻ yechish', date: 'Bugun, 14:30', amount: '-60 000'),
-    _Txn(title: 'Kartaga toʻlov', date: 'Bugun, 14:30', amount: '+50 000'),
-    _Txn(title: 'Mablagʻ yechish', date: 'Bugun, 14:30', amount: '-60 000'),
+    _Txn(
+      titleUz: 'Kartaga toʻlov',
+      titleRu: 'Перевод на карту',
+      titleEn: 'Card payment',
+      dateUz: 'Bugun, 14:30',
+      dateRu: 'Сегодня, 14:30',
+      dateEn: 'Today, 14:30',
+      amount: '+50 000',
+    ),
+    _Txn(
+      titleUz: 'Mablagʻ yechish',
+      titleRu: 'Снятие средств',
+      titleEn: 'Withdraw funds',
+      dateUz: 'Bugun, 14:30',
+      dateRu: 'Сегодня, 14:30',
+      dateEn: 'Today, 14:30',
+      amount: '-60 000',
+    ),
+    _Txn(
+      titleUz: 'Kartaga toʻlov',
+      titleRu: 'Перевод на карту',
+      titleEn: 'Card payment',
+      dateUz: 'Bugun, 14:30',
+      dateRu: 'Сегодня, 14:30',
+      dateEn: 'Today, 14:30',
+      amount: '+50 000',
+    ),
+    _Txn(
+      titleUz: 'Mablagʻ yechish',
+      titleRu: 'Снятие средств',
+      titleEn: 'Withdraw funds',
+      dateUz: 'Bugun, 14:30',
+      dateRu: 'Сегодня, 14:30',
+      dateEn: 'Today, 14:30',
+      amount: '-60 000',
+    ),
   ];
 
   @override
@@ -45,6 +93,7 @@ class MasterWalletScreen extends StatelessWidget {
 
   /// Dark balance card with the withdraw button.
   Widget _balanceCard(BuildContext context) {
+    final lang = LocaleController.language.value;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
@@ -56,18 +105,18 @@ class MasterWalletScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: const [
+            children: [
               Text(
-                'Mavjud',
-                style: TextStyle(
+                tr(lang, 'Mavjud', 'Доступно', 'Available'),
+                style: const TextStyle(
                   fontSize: 14,
                   height: 20 / 14,
                   letterSpacing: -0.16,
                   color: Color(0xFFEDEBFC),
                 ),
               ),
-              Spacer(),
-              Icon(
+              const Spacer(),
+              const Icon(
                 Icons.account_balance_wallet_outlined,
                 size: 20,
                 color: Colors.white,
@@ -100,9 +149,9 @@ class MasterWalletScreen extends StatelessWidget {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
-                'Mablagʻni yechish',
-                style: TextStyle(
+              child: Text(
+                tr(lang, 'Mablagʻni yechish', 'Снять средства', 'Withdraw funds'),
+                style: const TextStyle(
                   fontSize: 14,
                   height: 20 / 14,
                   letterSpacing: -0.16,
@@ -119,19 +168,36 @@ class MasterWalletScreen extends StatelessWidget {
 
   /// Three quick-stat cards: orders, rating, earned this month.
   Widget _statsRow() {
+    final lang = LocaleController.language.value;
     return Row(
-      children: const [
-        Expanded(child: _StatCard(value: '48', label: 'buyurtma')),
-        SizedBox(width: 10),
-        Expanded(child: _StatCard(value: '4.9', label: 'reyting')),
-        SizedBox(width: 10),
-        Expanded(child: _StatCard(value: '850 000', label: 'Mayda ishlangan')),
+      children: [
+        Expanded(
+          child: _StatCard(
+            value: '48',
+            label: tr(lang, 'buyurtma', 'заказа', 'orders'),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatCard(
+            value: '4.9',
+            label: tr(lang, 'reyting', 'рейтинг', 'rating'),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatCard(
+            value: '850 000',
+            label: tr(lang, 'Ishlangan', 'Заработано', 'Earned'),
+          ),
+        ),
       ],
     );
   }
 
   /// Operations list card.
   Widget _operationsCard() {
+    final lang = LocaleController.language.value;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
@@ -142,9 +208,9 @@ class MasterWalletScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Operatsiyalar',
-            style: TextStyle(
+          Text(
+            tr(lang, 'Operatsiyalar', 'Операции', 'Operations'),
+            style: const TextStyle(
               fontSize: 16,
               height: 22 / 16,
               letterSpacing: -0.18,
@@ -155,14 +221,14 @@ class MasterWalletScreen extends StatelessWidget {
           const SizedBox(height: 8),
           for (var i = 0; i < _txns.length; i++) ...[
             if (i != 0) const SizedBox(height: 8),
-            _txnTile(_txns[i]),
+            _txnTile(_txns[i], lang),
           ],
         ],
       ),
     );
   }
 
-  Widget _txnTile(_Txn txn) {
+  Widget _txnTile(_Txn txn, AppLanguage lang) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -176,7 +242,7 @@ class MasterWalletScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  txn.title,
+                  txn.title(lang),
                   style: const TextStyle(
                     fontSize: 16,
                     height: 24 / 16,
@@ -185,7 +251,7 @@ class MasterWalletScreen extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  txn.date,
+                  txn.date(lang),
                   style: const TextStyle(
                     fontSize: 14,
                     height: 20 / 14,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
@@ -11,6 +12,7 @@ class MasterVerifiedScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
@@ -45,10 +47,10 @@ class MasterVerifiedScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      const Text(
-                        'Profil yaratildi!',
+                      Text(
+                        tr(lang, 'Profil yaratildi!', 'Профиль создан!', 'Profile created!'),
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 24,
                           height: 30 / 24,
                           letterSpacing: -0.15,
@@ -57,11 +59,15 @@ class MasterVerifiedScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      const Text(
-                        'Siz tasdiqlandingiz va yoningizdagi '
-                        'buyurtmalarni olishingiz mumkin',
+                      Text(
+                        tr(
+                          lang,
+                          'Siz tasdiqlandingiz va yoningizdagi buyurtmalarni olishingiz mumkin',
+                          'Вы подтверждены и можете получать заказы рядом с вами',
+                          'You are verified and can receive nearby requests',
+                        ),
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 16,
                           height: 22 / 16,
                           letterSpacing: -0.18,
@@ -74,7 +80,7 @@ class MasterVerifiedScreen extends StatelessWidget {
               ),
             ),
             PrimaryButton(
-              label: 'Buyurtmalarga oʻtish',
+              label: tr(lang, 'Buyurtmalarga oʻtish', 'Перейти к заказам', 'Go to requests'),
               onPressed: () {
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const MasterHomeScreen()),

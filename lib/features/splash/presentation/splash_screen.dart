@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
-import 'package:fixleo/features/language/presentation/language_screen.dart';
+import 'package:fixleo/core/network/auth_session.dart';
+import 'package:fixleo/features/home/presentation/home_screen.dart';
+import 'package:fixleo/features/master/data/master_service.dart';
+import 'package:fixleo/features/master/presentation/master_home_screen.dart';
+import 'package:fixleo/features/master/presentation/master_startup_router.dart';
+import 'package:fixleo/features/welcome/presentation/intro_screen.dart';
 
-/// First screen shown on launch. Displays the FixLeo logo, then
-/// navigates to [LanguageScreen] after a short delay — language is the
-/// first choice for both client and master.
+/// First screen shown on launch. Displays the FixLeo logo, then routes:
+///   * a persisted client session → client home;
+///   * a persisted master session → master home (or onboarding if KYC isn't
+///     approved yet);
+///   * otherwise → the onboarding intro (first-run flow).
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -20,15 +27,39 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _goToWelcome();
+    _route();
   }
 
-  Future<void> _goToWelcome() async {
+  Future<void> _route() async {
     await Future.delayed(_splashDuration);
     if (!mounted) return;
+
+    final session = AuthSession.instance;
+    final next = await _destination(session);
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LanguageScreen()),
+      MaterialPageRoute(builder: (_) => next),
     );
+  }
+
+  Future<Widget> _destination(AuthSession session) async {
+    if (!session.isLoggedIn) return const IntroScreen();
+
+    switch (session.role) {
+      case AuthRole.client:
+        return const HomeScreen();
+      case AuthRole.master:
+        try {
+          final service = MasterService();
+          final master = await service.me();
+          return resolveMasterStartupScreen(service, master);
+        } catch (_) {
+          return const MasterHomeScreen();
+        }
+      case AuthRole.admin:
+      case null:
+        return const IntroScreen();
+    }
   }
 
   @override

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
-import 'package:fixleo/features/request/presentation/order_en_route_screen.dart';
+import 'package:fixleo/features/request/presentation/order_waiting_screen.dart';
 
 /// Order confirmation — the final step after picking a master.
 /// Shows the chosen master, a summary of the request and a confirm button.
@@ -43,7 +43,7 @@ class ConfirmationScreen extends StatelessWidget {
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => const OrderEnRouteScreen(),
+                      builder: (_) => const OrderWaitingScreen(),
                     ),
                   );
                 },

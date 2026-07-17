@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/categories/data/category_model.dart';
+import 'package:fixleo/features/categories/data/category_service.dart';
+import 'package:fixleo/features/master/data/master_service.dart';
 import 'package:fixleo/features/master/presentation/master_work_zone_screen.dart';
 
 /// Final master onboarding step — pick which job categories to receive
@@ -16,88 +21,180 @@ class MasterCategoriesScreen extends StatefulWidget {
 }
 
 class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
-  static const _categories = [
-    'Santexnika',
-    'Elektrika',
-    'Mayda taʼmir',
-    'Mebel yigʻish',
-    'Montajchilar',
-    'Tozalash',
-    'Maishiy texnika',
-    'Koʻchishda yordam',
-    'Maysazor oʻroqchi',
-    'Enaga',
-  ];
+  final _categoryService = CategoryService();
+  final _masterService = MasterService();
 
-  // Сантехника is pre-selected to match the design.
-  final _selected = <int>{0};
+  List<Category> _categories = const [];
+  final _selectedIds = <int>{};
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
 
-  void _toggle(int i) {
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
     setState(() {
-      if (!_selected.remove(i)) _selected.add(i);
+      _loading = true;
+      _error = null;
     });
+    try {
+      final categories = await _categoryService.getAll();
+      if (!mounted) return;
+      setState(() {
+        _categories = categories;
+        _loading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Tarmoq xatosi';
+      });
+    }
+  }
+
+  void _toggle(int id) {
+    setState(() {
+      if (!_selectedIds.remove(id)) _selectedIds.add(id);
+    });
+  }
+
+  /// Saves the selected categories (`PUT /masters/me/categories`) then moves on.
+  Future<void> _saveAndContinue() async {
+    if (_selectedIds.isEmpty || _saving) return;
+    setState(() => _saving = true);
+    try {
+      await _masterService.setCategories(_selectedIds.toList());
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const MasterWorkZoneScreen()),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tarmoq xatosi')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Xizmat turlari',
+      title: tr(lang, 'Xizmat turlari', 'Виды услуг', 'Service types'),
       showBack: true,
       body: Column(
         children: [
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(10, 14, 20, 14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 10, bottom: 4),
-                      child: Text(
-                        'Qaysi buyurtmalarni olishni tanlang.',
-                        style: TextStyle(fontSize: 14, color: AppColors.muted),
-                      ),
-                    ),
-                    for (var i = 0; i < _categories.length; i++) ...[
-                      if (i != 0)
-                        const Divider(
-                          height: 1,
-                          thickness: 1,
-                          color: Color(0xFFE2E8F0),
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? _ErrorState(message: _error!, onRetry: _load)
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(10, 14, 20, 14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding:
+                                    const EdgeInsets.only(left: 10, bottom: 4),
+                                child: Text(
+                                  tr(
+                                    lang,
+                                    'Qaysi buyurtmalarni olishni tanlang.',
+                                    'Выберите, какие заказы получать.',
+                                    'Choose which requests to receive.',
+                                  ),
+                                  style: TextStyle(
+                                      fontSize: 14, color: AppColors.muted),
+                                ),
+                              ),
+                              for (var i = 0; i < _categories.length; i++) ...[
+                                if (i != 0)
+                                  const Divider(
+                                    height: 1,
+                                    thickness: 1,
+                                    color: Color(0xFFE2E8F0),
+                                  ),
+                                _CategoryRow(
+                                  name: _categories[i].name,
+                                  selected:
+                                      _selectedIds.contains(_categories[i].id),
+                                  onTap: () => _toggle(_categories[i].id),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
-                      _CategoryRow(
-                        name: _categories[i],
-                        selected: _selected.contains(i),
-                        onTap: () => _toggle(i),
                       ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
             child: PrimaryButton(
-              label: 'Davom etish',
-              onPressed: _selected.isEmpty
-                  ? null
-                  : () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const MasterWorkZoneScreen(),
-                        ),
-                      );
-                    },
+              label: _saving
+                  ? tr(lang, 'Saqlanmoqda...', 'Сохранение...', 'Saving...')
+                  : tr(lang, 'Davom etish', 'Продолжить', 'Continue'),
+              onPressed:
+                  _selectedIds.isEmpty || _saving ? null : _saveAndContinue,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Simple centered error message with a retry button.
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, color: AppColors.muted),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: onRetry,
+              child: Text(tr(LocaleController.language.value, 'Qayta urinish',
+                  'Повторить', 'Retry')),
+            ),
+          ],
+        ),
       ),
     );
   }

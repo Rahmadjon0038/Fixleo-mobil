@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/master/data/master_document_model.dart';
+import 'package:fixleo/features/master/data/master_service.dart';
 import 'package:fixleo/features/master/presentation/master_selfie_screen.dart';
 
 class _Doc {
-  _Doc(this.name, this.icon, {required this.uploaded});
-  final String name;
+  _Doc(this.nameUz, this.nameRu, this.nameEn, this.icon, this.type);
+  final String nameUz;
+  final String nameRu;
+  final String nameEn;
   final IconData icon;
-  bool uploaded;
+  final MasterDocumentType type;
+  bool uploaded = false;
+  bool uploading = false;
+
+  String name(AppLanguage lang) => tr(lang, nameUz, nameRu, nameEn);
 }
 
 /// Master onboarding — upload verification documents. Uploaded items show a
@@ -25,28 +35,56 @@ class MasterDocumentsScreen extends StatefulWidget {
 
 class _MasterDocumentsScreenState extends State<MasterDocumentsScreen> {
   final _picker = ImagePicker();
+  final _service = MasterService();
 
   final _docs = [
-    _Doc('oneID', Icons.badge_outlined, uploaded: true),
-    _Doc('Pasport — old tomoni', Icons.verified_outlined, uploaded: true),
-    _Doc('Pasport — orqa tomoni', Icons.photo_camera_outlined,
-        uploaded: false),
+    _Doc('Pasport — old tomoni', 'Паспорт — лицевая сторона', 'Passport - front side',
+        Icons.verified_outlined,
+        MasterDocumentType.passportFront),
+    _Doc('Pasport — orqa tomoni', 'Паспорт — оборотная сторона', 'Passport - back side',
+        Icons.photo_camera_outlined,
+        MasterDocumentType.passportBack),
   ];
 
+  bool get _allRequiredUploaded => _docs.every((d) => d.uploaded);
+
+  /// Picks an image and uploads it as that document type
+  /// (`POST /masters/me/documents`). Re-uploading replaces the previous file.
   Future<void> _upload(_Doc doc) async {
-    if (doc.uploaded) return;
+    if (doc.uploading) return;
     final file = await _picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 80,
     );
     if (file == null) return;
-    setState(() => doc.uploaded = true);
+    setState(() => doc.uploading = true);
+    try {
+      await _service.uploadDocument(type: doc.type, filePath: file.path);
+      if (!mounted) return;
+      setState(() {
+        doc.uploaded = true;
+        doc.uploading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => doc.uploading = false);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => doc.uploading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tarmoq xatosi')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Hujjatlar',
+      title: tr(lang, 'Hujjatlar', 'Документы', 'Documents'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
@@ -65,9 +103,14 @@ class _MasterDocumentsScreenState extends State<MasterDocumentsScreen> {
                 color: const Color(0xFFDBEAFE),
                 borderRadius: BorderRadius.circular(30),
               ),
-              child: const Text(
-                'Tekshiruv 24 soat davom etadi.',
-                style: TextStyle(
+              child: Text(
+                tr(
+                  lang,
+                  'Tekshiruv 24 soat davom etadi.',
+                  'Проверка занимает 24 часа.',
+                  'Verification takes 24 hours.',
+                ),
+                style: const TextStyle(
                   fontSize: 14,
                   height: 20 / 14,
                   letterSpacing: -0.16,
@@ -77,14 +120,16 @@ class _MasterDocumentsScreenState extends State<MasterDocumentsScreen> {
             ),
             const Spacer(),
             PrimaryButton(
-              label: 'Davom etish',
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const MasterSelfieScreen(),
-                  ),
-                );
-              },
+              label: tr(lang, 'Davom etish', 'Продолжить', 'Continue'),
+              onPressed: _allRequiredUploaded
+                  ? () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MasterSelfieScreen(),
+                        ),
+                      );
+                    }
+                  : null,
             ),
           ],
         ),
@@ -103,6 +148,7 @@ class _DocRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     final row = Container(
       height: 74,
       padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -128,7 +174,7 @@ class _DocRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  doc.name,
+                  doc.name(lang),
                   style: const TextStyle(
                     fontSize: 16,
                     height: 22 / 16,
@@ -139,7 +185,11 @@ class _DocRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  doc.uploaded ? 'Yuklandi' : 'Yuklash uchun bosing',
+                  doc.uploading
+                      ? tr(lang, 'Yuklanmoqda...', 'Загружается...', 'Uploading...')
+                      : doc.uploaded
+                          ? tr(lang, 'Yuklandi', 'Загружено', 'Uploaded')
+                          : tr(lang, 'Yuklash uchun bosing', 'Нажмите, чтобы загрузить', 'Tap to upload'),
                   style: TextStyle(
                     fontSize: 14,
                     height: 20 / 14,

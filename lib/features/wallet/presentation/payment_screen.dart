@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/features/request/presentation/rate_master_screen.dart';
@@ -12,10 +13,41 @@ class _Card {
   final String brand;
 }
 
-/// Order payment — shows the amount due and a single-select list of saved
-/// cards. Mock data for now.
+/// Shared payment screen for:
+/// - order payment in the client flow;
+/// - wallet top-up from the balance screen.
+///
+/// The screen stays mock-driven for now, but the layout is reusable and the
+/// success action can be customized per entry point.
 class PaymentScreen extends StatefulWidget {
-  const PaymentScreen({super.key});
+  const PaymentScreen({
+    super.key,
+    this.title,
+    this.amountLabel,
+    this.amount = '60 000 soʻm',
+    this.subtitle = 'Smesitel almashtirish · buyurtma #1024',
+    this.primaryLabel,
+    this.onSuccess,
+  });
+
+  /// Optional title for the top pill.
+  final String? title;
+
+  /// Small label above the amount, e.g. "K toʻlov" or "Balansni toʻldirish".
+  final String? amountLabel;
+
+  /// Amount shown in the header card.
+  final String amount;
+
+  /// Smaller descriptive line under the amount.
+  final String subtitle;
+
+  /// Optional label for the primary action button.
+  final String? primaryLabel;
+
+  /// Optional custom success action.
+  /// When absent, the existing order-payment flow continues to rating.
+  final VoidCallback? onSuccess;
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
@@ -30,18 +62,34 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   static const _cards = <_Card>[
     _Card(number: 'Karta **** 4267', brand: 'Visa'),
-    _Card(number: 'Karta **** 4242', brand: 'Uzcard'),
-    _Card(number: 'Karta **** 4242', brand: 'Humo'),
+    _Card(number: 'Karta **** 4267', brand: 'Uzcard'),
+    _Card(number: 'Karta **** 4267', brand: 'Humo'),
   ];
 
   int _selected = 0;
 
   void _pay() {
+    final lang = LocaleController.language.value;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(content: Text('Toʻlov amalga oshirildi')),
+        SnackBar(
+          content: Text(
+            tr(
+              lang,
+              'Toʻlov amalga oshirildi',
+              'Оплата выполнена',
+              'Payment completed',
+            ),
+          ),
+        ),
       );
+
+    if (widget.onSuccess != null) {
+      widget.onSuccess!.call();
+      return;
+    }
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const RateMasterScreen()),
     );
@@ -49,8 +97,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Toʻlov',
+      title: widget.title ?? tr(lang, 'Toʻlov', 'Оплата', 'Payment'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -60,11 +109,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    _amountCard(),
+                    _amountCard(lang),
                     const SizedBox(height: 10),
-                    _methodsCard(),
+                    _methodsCard(lang),
                     const SizedBox(height: 10),
-                    _infoBanner(),
+                    _infoBanner(lang),
                   ],
                 ),
               ),
@@ -82,9 +131,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     borderRadius: BorderRadius.circular(40),
                   ),
                 ),
-                child: const Text(
-                  'Toʻlash',
-                  style: TextStyle(
+                child: Text(
+                  widget.primaryLabel ??
+                      tr(lang, 'Toʻlash', 'Оплатить', 'Pay'),
+                  style: const TextStyle(
                     fontSize: 16,
                     height: 22 / 16,
                     letterSpacing: -0.18,
@@ -99,8 +149,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  /// Amount due card.
-  Widget _amountCard() {
+  Widget _amountCard(AppLanguage lang) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -109,20 +158,20 @@ class _PaymentScreenState extends State<PaymentScreen> {
         borderRadius: BorderRadius.circular(30),
       ),
       child: Column(
-        children: const [
+        children: [
           Text(
-            'Toʻlovga',
-            style: TextStyle(
+            widget.amountLabel ?? tr(lang, 'Toʻlovga', 'К оплате', 'To pay'),
+            style: const TextStyle(
               fontSize: 16,
               height: 22 / 16,
               letterSpacing: -0.18,
               color: _gray,
             ),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
-            '60 000 soʻm',
-            style: TextStyle(
+            widget.amount,
+            style: const TextStyle(
               fontSize: 32,
               height: 38 / 32,
               letterSpacing: -0.2,
@@ -130,10 +179,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
               color: AppColors.navy,
             ),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
-            'Smesitel almashtirish · buyurtma #1024',
-            style: TextStyle(
+            widget.subtitle,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
               fontSize: 14,
               height: 20 / 14,
               letterSpacing: -0.16,
@@ -145,8 +195,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  /// Payment method picker.
-  Widget _methodsCard() {
+  Widget _methodsCard(AppLanguage lang) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
@@ -157,9 +206,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Toʻlov usuli',
-            style: TextStyle(
+          Text(
+            tr(lang, 'Toʻlov usuli', 'Способ оплаты', 'Payment method'),
+            style: const TextStyle(
               fontSize: 20,
               height: 24 / 20,
               fontWeight: FontWeight.w600,
@@ -239,8 +288,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  /// Light-blue notice: money is only charged after work is confirmed.
-  Widget _infoBanner() {
+  Widget _infoBanner(AppLanguage lang) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -248,9 +296,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
         color: _blue100,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: const Text(
-        'Pul faqat ish bajarilgani tasdiqlangandan soʻng yechiladi.',
-        style: TextStyle(
+      child: Text(
+        tr(
+          lang,
+          'Pul faqat ish bajarilgani tasdiqlangandan soʻng yechiladi.',
+          'Списание только после подтверждения выполнения работы.',
+          'Money is charged only after the work is confirmed.',
+        ),
+        style: const TextStyle(
           fontSize: 14,
           height: 20 / 14,
           letterSpacing: -0.16,

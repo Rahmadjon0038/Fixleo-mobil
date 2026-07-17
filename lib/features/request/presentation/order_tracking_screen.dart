@@ -59,7 +59,7 @@ class OrderTrackingScreen extends StatelessWidget {
                   ),
                 ),
                 child: const Text(
-                  'Xaritada koʻrish',
+                  'Buyurtma statusiga oʻtish',
                   style: TextStyle(
                     fontSize: 16,
                     height: 22 / 16,

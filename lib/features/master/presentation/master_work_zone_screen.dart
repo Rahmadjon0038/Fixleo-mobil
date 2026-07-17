@@ -6,7 +6,10 @@ import 'package:latlong2/latlong.dart';
 
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/master/data/master_service.dart';
 import 'package:fixleo/features/master/presentation/master_documents_screen.dart';
+import 'package:fixleo/features/work_radius/data/work_radius_service.dart';
 
 /// Master onboarding — pick the work zone on a real, movable map. The map
 /// slides under a fixed center pin; a translucent circle shows the chosen
@@ -21,13 +24,49 @@ class MasterWorkZoneScreen extends StatefulWidget {
 class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
   /// Tashkent center as a sensible starting point.
   static const _start = LatLng(41.311081, 69.279737);
-  static const _radii = [3, 5, 10];
+
+  /// Used until the backend's allowed radii load (and as offline fallback).
+  /// Mirrors the backend seed (see `api/WorkRadius.md`).
+  static const _fallbackRadii = [3, 5, 10];
 
   final _mapController = MapController();
+  final _workRadiusService = WorkRadiusService();
+  final _masterService = MasterService();
+  bool _saving = false;
+
+  /// Allowed service radii — fetched from `GET /work-radiuses` so the picker
+  /// only ever offers values the backend accepts.
+  List<int> _radii = _fallbackRadii;
 
   LatLng _center = _start;
   int _radiusKm = 5;
   bool _dragging = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRadii();
+  }
+
+  /// Pulls the allowed radii from the backend. On any failure we silently keep
+  /// the fallback list so onboarding is never blocked by a network hiccup.
+  Future<void> _loadRadii() async {
+    try {
+      final options = await _workRadiusService.getOptions();
+      if (!mounted || options.isEmpty) return;
+      final kms = options.map((o) => o.km).toList(growable: false);
+      setState(() {
+        _radii = kms;
+        // Keep the current selection if still allowed, otherwise default to
+        // the previously-selected 5 km when present, else the first option.
+        if (!kms.contains(_radiusKm)) {
+          _radiusKm = kms.contains(5) ? 5 : kms.first;
+        }
+      });
+    } on Object {
+      // Network / parse error — keep the fallback radii.
+    }
+  }
 
   @override
   void dispose() {
@@ -48,10 +87,33 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
 
   void _recenter() => _mapController.move(_start, 12);
 
-  void _save() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const MasterDocumentsScreen()),
-    );
+  /// Saves the base location + radius (`PUT /masters/me/work-zone`) then moves on.
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await _masterService.setWorkZone(
+        latitude: _center.latitude,
+        longitude: _center.longitude,
+        workRadiusKm: _radiusKm,
+      );
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const MasterDocumentsScreen()),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tarmoq xatosi')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override

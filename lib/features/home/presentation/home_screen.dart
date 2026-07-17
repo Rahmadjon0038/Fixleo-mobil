@@ -6,8 +6,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
+import 'package:fixleo/features/categories/data/category_service.dart';
 import 'package:fixleo/features/profile/presentation/profile_screen.dart';
-import 'package:fixleo/features/request/presentation/chat_screen.dart';
+import 'package:fixleo/features/request/presentation/chats_list_screen.dart';
 import 'package:fixleo/features/request/presentation/my_orders_screen.dart';
 import 'package:fixleo/features/wallet/presentation/wallet_screen.dart';
 import 'package:fixleo/features/request/presentation/new_request_screen.dart';
@@ -23,6 +24,27 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _navIndex = 0;
+
+  // Client-side conversations (with masters). Mock data for now.
+  static const _clientConversations = <Conversation>[
+    Conversation(
+      name: 'Aleksey Ivanov',
+      last: 'Yaqinlashyapman, bir daqiqada yetaman!',
+      time: '14:41',
+      unread: 2,
+    ),
+    Conversation(
+      name: 'Aleksandr Petrov',
+      last: 'Ish tugadi, hammasini tekshirib koʻring.',
+      time: 'Kecha',
+      unread: 1,
+    ),
+    Conversation(
+      name: 'Rustam Qodirov',
+      last: 'Rahmat, yaxshi kunlar!',
+      time: 'Dush',
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +101,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 } else if (i == 2) {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ChatScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const ClientChatsScreen(
+                        conversations: _clientConversations,
+                      ),
+                    ),
                   );
                 } else if (i == 3) {
                   Navigator.of(context).push(
@@ -413,10 +439,16 @@ class _Category {
   final String label;
 }
 
-class _CategoriesCard extends StatelessWidget {
+class _CategoriesCard extends StatefulWidget {
   const _CategoriesCard();
 
-  static const _items = [
+  @override
+  State<_CategoriesCard> createState() => _CategoriesCardState();
+}
+
+class _CategoriesCardState extends State<_CategoriesCard> {
+  // Shown until the backend list loads (and as offline fallback).
+  static const _fallback = [
     _Category('Santexnika'),
     _Category('Elektrika'),
     _Category('Tozalash'),
@@ -425,10 +457,33 @@ class _CategoriesCard extends StatelessWidget {
     _Category('Yigʻish'),
   ];
 
+  final _service = CategoryService();
+  List<_Category> _items = _fallback;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final categories = await _service.getAll();
+      if (!mounted || categories.isEmpty) return;
+      setState(() {
+        _items =
+            categories.map((c) => _Category(c.name)).toList(growable: false);
+      });
+    } catch (_) {
+      // Keep the fallback list on any error.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final row1 = _items.take(3).toList();
-    final row2 = _items.skip(3).toList();
+    final half = (_items.length / 2).ceil();
+    final row1 = _items.take(half).toList();
+    final row2 = _items.skip(half).toList();
 
     return _Card(
       child: Column(

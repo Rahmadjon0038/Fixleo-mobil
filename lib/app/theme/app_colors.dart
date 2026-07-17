@@ -10,4 +10,7 @@ class AppColors {
 
   /// Muted text color (subtitles, hints).
   static const muted = Color(0xFF94A3B8);
+
+  /// Error/danger color (invalid input, inline error messages).
+  static const danger = Color(0xFFEF4444);
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
@@ -26,8 +27,9 @@ class MasterRequestDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Buyurtma #1042',
+      title: tr(lang, 'Buyurtma #1042', 'Заказ #1042', 'Request #1042'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
@@ -56,16 +58,16 @@ class MasterRequestDetailScreen extends StatelessWidget {
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         Icon(
                           Icons.water_drop_outlined,
                           size: 18,
                           color: AppColors.blue,
                         ),
-                        SizedBox(width: 6),
+                        const SizedBox(width: 6),
                         Text(
-                          'Santexnika',
-                          style: TextStyle(
+                          tr(lang, 'Santexnika', 'Сантехника', 'Plumbing'),
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: AppColors.blue,
@@ -75,10 +77,14 @@ class MasterRequestDetailScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Oshxonada smesitel oqyapti, kartrij almashtirish kerak. '
-                    'Zaxira bor.',
-                    style: TextStyle(
+                  Text(
+                    tr(
+                      lang,
+                      'Oshxonada smesitel oqyapti, kartrij almashtirish kerak. Zaxira bor.',
+                      'На кухне течет смеситель, нужно заменить картридж. Запасной есть.',
+                      'The kitchen mixer is leaking, the cartridge needs to be replaced. There is a spare one.',
+                    ),
+                    style: const TextStyle(
                       fontSize: 14,
                       height: 20 / 14,
                       fontWeight: FontWeight.w500,
@@ -103,26 +109,31 @@ class MasterRequestDetailScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  const _InfoRow(
+                  _InfoRow(
                     icon: Icons.location_on_outlined,
-                    text: 'Yunusobod, Amir Temur 12',
+                    text: tr(
+                      lang,
+                      'Yunusobod, Amir Temur 12',
+                      'Юнусабад, Амира Темура 12',
+                      'Yunusabad, Amir Temur 12',
+                    ),
                   ),
                   const SizedBox(height: 6),
-                  const _InfoRow(
+                  _InfoRow(
                     icon: Icons.person_outline,
-                    text: 'Mijoz — Arslan K.',
+                    text: tr(lang, 'Mijoz — Arslan K.', 'Клиент — Арслан К.', 'Client — Arslan K.'),
                   ),
                   const SizedBox(height: 6),
-                  const _InfoRow(
+                  _InfoRow(
                     icon: Icons.schedule,
-                    text: 'Bugun, 12:00–15:00',
+                    text: tr(lang, 'Bugun, 12:00–15:00', 'Сегодня, 12:00–15:00', 'Today, 12:00–15:00'),
                   ),
                 ],
               ),
             ),
             const Spacer(),
             PrimaryButton(
-              label: 'Javob berish',
+              label: tr(lang, 'Javob berish', 'Ответить', 'Respond'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => const MasterOfferScreen(),
@@ -133,9 +144,9 @@ class MasterRequestDetailScreen extends StatelessWidget {
             Center(
               child: GestureDetector(
                 onTap: () => _showDeclineSheet(context),
-                child: const Text(
-                  'Buyurtmani rad etish',
-                  style: TextStyle(fontSize: 16, color: Color(0xFF8D96A4)),
+                child: Text(
+                  tr(lang, 'Buyurtmani rad etish', 'Отклонить заявку', 'Decline request'),
+                  style: const TextStyle(fontSize: 16, color: Color(0xFF8D96A4)),
                 ),
               ),
             ),
@@ -156,16 +167,17 @@ class _DeclineSheet extends StatefulWidget {
 
 class _DeclineSheetState extends State<_DeclineSheet> {
   static const _reasons = [
-    'Bu vaqtda bandman',
-    'Uzoq borish kerak',
-    'Mening profilim emas',
-    'Past byudjet',
+    _Reason('Bu vaqtda bandman', 'Сейчас занят', 'Busy at this time'),
+    _Reason('Uzoq borish kerak', 'Далеко ехать', 'Too far to travel'),
+    _Reason('Mening profilim emas', 'Не мой профиль', 'Not my specialty'),
+    _Reason('Past byudjet', 'Низкий бюджет', 'Low budget'),
   ];
 
   int _selected = 0;
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -187,9 +199,9 @@ class _DeclineSheetState extends State<_DeclineSheet> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Buyurtmani rad etish?',
-                style: TextStyle(
+              Text(
+                tr(lang, 'Buyurtmani rad etish?', 'Отклонить заявку?', 'Decline the request?'),
+                style: const TextStyle(
                   fontSize: 20,
                   height: 24 / 20,
                   fontWeight: FontWeight.w700,
@@ -198,7 +210,12 @@ class _DeclineSheetState extends State<_DeclineSheet> {
               ),
               const SizedBox(height: 2),
               Text(
-                'Sababini koʻrsating — bu tanlovga yordam beradi',
+                tr(
+                  lang,
+                  'Sababini koʻrsating — bu tanlovga yordam beradi',
+                  'Укажите причину — это поможет выбору',
+                  'Specify the reason - it helps with selection',
+                ),
                 style: TextStyle(fontSize: 14, color: AppColors.muted),
               ),
               const SizedBox(height: 12),
@@ -213,7 +230,7 @@ class _DeclineSheetState extends State<_DeclineSheet> {
                     for (var i = 0; i < _reasons.length; i++) ...[
                       if (i != 0) const SizedBox(height: 8),
                       _ReasonRow(
-                        label: _reasons[i],
+                        label: _reasons[i].text(lang),
                         selected: _selected == i,
                         onTap: () => setState(() => _selected = i),
                       ),
@@ -226,7 +243,7 @@ class _DeclineSheetState extends State<_DeclineSheet> {
                 children: [
                   Expanded(
                     child: _SheetButton(
-                      label: 'Orqaga',
+                      label: tr(lang, 'Orqaga', 'Назад', 'Back'),
                       filled: false,
                       onTap: () => Navigator.of(context).pop(),
                     ),
@@ -234,7 +251,7 @@ class _DeclineSheetState extends State<_DeclineSheet> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: _SheetButton(
-                      label: 'Rad etish',
+                      label: tr(lang, 'Rad etish', 'Отклонить', 'Decline'),
                       filled: true,
                       onTap: () => Navigator.of(context).pop(true),
                     ),
@@ -366,4 +383,14 @@ class _InfoRow extends StatelessWidget {
       ],
     );
   }
+}
+
+class _Reason {
+  const _Reason(this.uz, this.ru, this.en);
+
+  final String uz;
+  final String ru;
+  final String en;
+
+  String text(AppLanguage lang) => tr(lang, uz, ru, en);
 }

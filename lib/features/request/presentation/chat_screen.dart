@@ -37,7 +37,6 @@ class _ChatScreenState extends State<ChatScreen> {
   static const _bubbleText = Color(0xFF23232E);
   static const _incomingTime = Color(0xFF9494A3);
   static const _outgoingTime = Color(0xFFEBE8FA);
-  static const _slate200 = Color(0xFFE2E8F0);
   static const _slate500 = Color(0xFF64748B);
 
   // Default seed conversation (client side) shown when no [seed] is passed.
@@ -224,14 +223,28 @@ class _ChatScreenState extends State<ChatScreen> {
               const SizedBox(height: 3),
               Align(
                 alignment: Alignment.centerRight,
-                child: Text(
-                  m.time,
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 16 / 12,
-                    letterSpacing: -0.12,
-                    color: m.isMine ? _outgoingTime : _incomingTime,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      m.time,
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 16 / 12,
+                        letterSpacing: -0.12,
+                        color: m.isMine ? _outgoingTime : _incomingTime,
+                      ),
+                    ),
+                    // Delivery ticks — only on the user's own messages.
+                    if (m.isMine) ...[
+                      const SizedBox(width: 3),
+                      const Icon(
+                        Icons.done_all,
+                        size: 13,
+                        color: _outgoingTime,
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
@@ -241,21 +254,21 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  /// Bottom input bar: camera, working text field and send button.
+  /// Bottom input bar: camera, working text field and send button — floating
+  /// on the page background like the Figma design.
   Widget _inputBar() {
-    return Container(
-      color: Colors.white,
+    return Padding(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => showAttachPhotosSheet(context),
             child: Container(
-              width: 42,
-              height: 42,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: _slate200,
-                borderRadius: BorderRadius.circular(30),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
               ),
               child: const Icon(
                 Icons.photo_camera_outlined,
@@ -269,7 +282,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
-                color: _slate200,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(999),
               ),
               child: TextField(

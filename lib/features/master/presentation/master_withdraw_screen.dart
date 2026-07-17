@@ -1,9 +1,12 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/features/master/presentation/master_withdraw_result_screen.dart';
 
 /// A card the master can withdraw funds to.
 class _Card {
@@ -67,7 +70,19 @@ class _MasterWithdrawScreenState extends State<MasterWithdrawScreen> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
             child: PrimaryButton(
               label: 'Yechish 125 000',
-              onPressed: () {},
+              onPressed: () {
+                final success = Random().nextBool();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => MasterWithdrawResultScreen(
+                      success: success,
+                      amount: _amount.text.trim().isEmpty
+                          ? '125 000 soʻm'
+                          : '${_amount.text.trim()} soʻm',
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],

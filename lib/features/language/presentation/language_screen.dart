@@ -4,7 +4,7 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
-import 'package:fixleo/features/welcome/presentation/welcome_screen.dart';
+import 'package:fixleo/features/auth/presentation/phone_screen.dart';
 
 class _Language {
   const _Language(this.lang, this.name, this.script);
@@ -13,11 +13,14 @@ class _Language {
   final String script;
 }
 
-/// Language selection — the first onboarding step for both client and master.
-/// Picking a language sets it app-wide immediately, so the rest of the flow is
-/// already translated.
+/// Language selection — shown after the role picker for both client and
+/// master. Picking a language sets it app-wide immediately, so the rest of
+/// the flow is already translated. [isMaster] carries the role chosen on the
+/// previous screen into the phone auth flow.
 class LanguageScreen extends StatefulWidget {
-  const LanguageScreen({super.key});
+  const LanguageScreen({super.key, this.isMaster = false});
+
+  final bool isMaster;
 
   @override
   State<LanguageScreen> createState() => _LanguageScreenState();
@@ -69,7 +72,9 @@ class _LanguageScreenState extends State<LanguageScreen> {
               label: tr(lang, 'Davom etish', 'Продолжить', 'Continue'),
               onPressed: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => PhoneScreen(isMaster: widget.isMaster),
+                  ),
                 );
               },
             ),

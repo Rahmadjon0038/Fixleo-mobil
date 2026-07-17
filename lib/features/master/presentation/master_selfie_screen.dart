@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/master/data/master_document_model.dart';
+import 'package:fixleo/features/master/data/master_service.dart';
 import 'package:fixleo/features/master/presentation/master_verification_screen.dart';
 
 /// Master onboarding — selfie-with-passport verification. Tapping the circle
@@ -25,22 +29,70 @@ class _MasterSelfieScreenState extends State<MasterSelfieScreen> {
   ];
 
   final _picker = ImagePicker();
+  final _service = MasterService();
   XFile? _selfie;
+  bool _uploading = false;
 
-  /// Try to capture a selfie from the front camera, then continue. Camera
-  /// may be unavailable on some platforms — proceed regardless.
+  /// TEMP (dev only): on desktop there is no camera flow, so the screen
+  /// auto-advances after 3 seconds to let onboarding be clicked through
+  /// (e.g. when running on macOS). Phones keep the real selfie flow.
+  Timer? _autoSkip;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      _autoSkip = Timer(const Duration(seconds: 3), _goNext);
+    }
+  }
+
+  @override
+  void dispose() {
+    _autoSkip?.cancel();
+    super.dispose();
+  }
+
+  /// Captures a selfie, uploads it as `selfie_with_passport`
+  /// (`POST /masters/me/documents`), then advances to the verification screen.
   Future<void> _takeSelfie() async {
+    if (_uploading) return;
+    XFile? file;
     try {
-      final file = await _picker.pickImage(
+      file = await _picker.pickImage(
         source: ImageSource.camera,
         preferredCameraDevice: CameraDevice.front,
         imageQuality: 80,
       );
-      if (file == null) return; // user canceled
-      setState(() => _selfie = file);
-      _goNext();
     } on Exception {
+      // Camera unavailable (e.g. desktop) — fall back to the gallery.
+      file = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+    }
+    if (file == null) return; // user canceled
+    setState(() {
+      _selfie = file;
+      _uploading = true;
+    });
+    try {
+      await _service.uploadDocument(
+        type: MasterDocumentType.selfieWithPassport,
+        filePath: file.path,
+      );
       _goNext();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _uploading = false);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _uploading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tarmoq xatosi')),
+      );
     }
   }
 
@@ -122,9 +174,10 @@ class _MasterSelfieScreenState extends State<MasterSelfieScreen> {
               ),
             ),
             const Spacer(),
-            // For now the button just advances to the verification screen
-            // (camera capture still works by tapping the circle above).
-            PrimaryButton(label: 'Selfi olish', onPressed: _goNext),
+            PrimaryButton(
+              label: _uploading ? 'Yuklanmoqda...' : 'Selfi olish',
+              onPressed: _uploading ? null : _takeSelfie,
+            ),
           ],
         ),
       ),

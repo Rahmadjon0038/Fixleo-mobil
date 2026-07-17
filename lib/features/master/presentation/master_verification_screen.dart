@@ -1,14 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/core/realtime/master_realtime_service.dart';
+import 'package:fixleo/features/master/data/master_service.dart';
 import 'package:fixleo/features/master/presentation/master_verified_screen.dart';
 
-/// Verification status — shown after the selfie step while the moderator
-/// reviews the master's documents. After a short wait it advances to the
-/// "verified" success screen automatically.
+/// Verification status — shown after the selfie step. On entry it submits the
+/// application (`POST /masters/me/verification/submit`) and then waits for the
+/// moderator's decision, which arrives live over WebSocket
+/// (`verification:update`). Approved → success screen; rejected → reason shown.
 class MasterVerificationScreen extends StatefulWidget {
   const MasterVerificationScreen({super.key});
 
@@ -18,22 +23,78 @@ class MasterVerificationScreen extends StatefulWidget {
 }
 
 class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
-  Timer? _timer;
+  final _service = MasterService();
+  final _realtime = MasterRealtimeService();
+
+  bool _decided = false;
+
+  /// TEMP (dev only): on desktop (e.g. macOS runs) there is no real
+  /// moderator flow, so auto-advance to the "verified" screen after a few
+  /// seconds. Phones keep waiting for the real WebSocket decision.
+  Timer? _autoSkip;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer(const Duration(seconds: 3), () {
+    _submit();
+    _listenForDecision();
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      _autoSkip = Timer(const Duration(seconds: 3), () {
+        if (_decided || !mounted) return;
+        _decided = true;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const MasterVerifiedScreen()),
+        );
+      });
+    }
+  }
+
+  /// Submits the KYC application. If it was already submitted (409/400) we just
+  /// keep waiting for the decision.
+  Future<void> _submit() async {
+    try {
+      await _service.submitVerification();
+    } on ApiException catch (e) {
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MasterVerifiedScreen()),
-      );
-    });
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      // Network hiccup — the moderator decision still arrives via WS / re-login.
+    }
+  }
+
+  void _listenForDecision() {
+    _realtime.connect(
+      onUpdate: (update) {
+        if (_decided || !mounted) return;
+        _decided = true;
+        if (update.isApproved) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const MasterVerifiedScreen()),
+          );
+        } else {
+          // Rejected — let the master fix documents and resubmit.
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(
+              content: Text(update.rejectionReason ??
+                  'Hujjatlar rad etildi. Qayta yuklang.'),
+            ));
+          Navigator.of(context).maybePop();
+        }
+      },
+      onForcedLogout: (_) {
+        if (!mounted) return;
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      },
+    );
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _autoSkip?.cancel();
+    _realtime.disconnect();
     super.dispose();
   }
 

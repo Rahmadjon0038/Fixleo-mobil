@@ -3,11 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/features/auth/data/client_auth_service.dart';
+import 'package:fixleo/features/auth/data/client_model.dart';
+import 'package:fixleo/features/welcome/presentation/intro_screen.dart';
 import 'package:fixleo/features/request/presentation/my_orders_screen.dart';
+import 'package:fixleo/features/settings/presentation/settings_screen.dart';
 
-/// User profile — account header plus grouped settings rows and logout.
-/// Mock data for now.
-class ProfileScreen extends StatelessWidget {
+/// User profile — account header (live `GET /clients/me`) plus grouped settings
+/// rows and logout.
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   static const _gray = Color(0xFF8D96A4);
@@ -16,10 +20,68 @@ class ProfileScreen extends StatelessWidget {
   static const _red700 = Color(0xFFB91C1C);
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  static const _gray = ProfileScreen._gray;
+  static const _red50 = ProfileScreen._red50;
+  static const _red700 = ProfileScreen._red700;
+
+  final _authService = ClientAuthService();
+  Client? _client;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final client = await _authService.me();
+      if (mounted) setState(() => _client = client);
+    } catch (_) {
+      // Keep placeholder header if the profile can't be fetched.
+    }
+  }
+
+  Future<void> _confirmLogout(AppLanguage lang) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr(lang, 'Chiqish', 'Выход', 'Sign out')),
+        content: Text(tr(
+            lang,
+            'Akkauntdan chiqmoqchimisiz?',
+            'Выйти из аккаунта?',
+            'Sign out of your account?')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(tr(lang, 'Bekor qilish', 'Отмена', 'Cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(tr(lang, 'Chiqish', 'Выйти', 'Sign out')),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await _authService.logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const IntroScreen()),
+      (route) => false,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: tr(lang, 'Profil', 'Профиль'),
+      title: tr(lang, 'Profil', 'Профиль', 'Profile'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -28,17 +90,15 @@ class ProfileScreen extends StatelessWidget {
             children: [
               _userCard(),
               const SizedBox(height: 8),
-              _languageCard(lang),
-              const SizedBox(height: 8),
               _group([
                 _MenuItem(
                   icon: Icons.location_on_outlined,
-                  label: tr(lang, 'Mening manzillarim', 'Мои адреса'),
+                  label: tr(lang, 'Mening manzillarim', 'Мои адреса', 'My addresses'),
                   onTap: () {},
                 ),
                 _MenuItem(
                   icon: Icons.history,
-                  label: tr(lang, 'Buyurtmalar tarixi', 'История заказов'),
+                  label: tr(lang, 'Buyurtmalar tarixi', 'История заказов', 'Order history'),
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -49,25 +109,31 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 _MenuItem(
                   icon: Icons.settings_outlined,
-                  label: tr(lang, 'Sozlamalar', 'Настройки'),
-                  onTap: () {},
+                  label: tr(lang, 'Sozlamalar', 'Настройки', 'Settings'),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const SettingsScreen(),
+                      ),
+                    );
+                  },
                 ),
               ]),
               const SizedBox(height: 8),
               _group([
                 _MenuItem(
                   icon: Icons.notifications_outlined,
-                  label: tr(lang, 'Bildirishnomalar', 'Уведомления'),
+                  label: tr(lang, 'Bildirishnomalar', 'Уведомления', 'Notifications'),
                   onTap: () {},
                 ),
                 _MenuItem(
                   icon: Icons.headset_mic_outlined,
-                  label: tr(lang, 'Qoʻllab-quvvatlash', 'Поддержка'),
+                  label: tr(lang, 'Qoʻllab-quvvatlash', 'Поддержка', 'Support'),
                   onTap: () {},
                 ),
                 _MenuItem(
                   icon: Icons.shield_outlined,
-                  label: tr(lang, 'Maxfiylik siyosati', 'Политика конфиденциальности'),
+                  label: tr(lang, 'Maxfiylik siyosati', 'Политика конфиденциальности', 'Privacy policy'),
                   onTap: () {},
                 ),
               ]),
@@ -76,45 +142,6 @@ class ProfileScreen extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  /// Language switcher card (O‘zbekcha / Русский).
-  Widget _languageCard(AppLanguage lang) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            tr(lang, 'Til', 'Язык'),
-            style: const TextStyle(
-              fontSize: 16,
-              height: 22 / 16,
-              letterSpacing: -0.18,
-              fontWeight: FontWeight.w700,
-              color: AppColors.navy,
-            ),
-          ),
-          const SizedBox(height: 10),
-          _LangOption(
-            title: 'O‘zbekcha',
-            selected: lang == AppLanguage.uz,
-            onTap: () => LocaleController.set(AppLanguage.uz),
-          ),
-          const SizedBox(height: 8),
-          _LangOption(
-            title: 'Русский',
-            selected: lang == AppLanguage.ru,
-            onTap: () => LocaleController.set(AppLanguage.ru),
-          ),
-        ],
       ),
     );
   }
@@ -142,9 +169,9 @@ class ProfileScreen extends StatelessWidget {
             child: const Icon(Icons.person, size: 38, color: _gray),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Arslan Koʻpletulov',
-            style: TextStyle(
+          Text(
+            _client?.name ?? '—',
+            style: const TextStyle(
               fontSize: 16,
               height: 22 / 16,
               letterSpacing: -0.18,
@@ -152,9 +179,9 @@ class ProfileScreen extends StatelessWidget {
               color: AppColors.navy,
             ),
           ),
-          const Text(
-            '+998 90 000 00 00',
-            style: TextStyle(
+          Text(
+            _client?.phone ?? '',
+            style: const TextStyle(
               fontSize: 14,
               height: 20 / 14,
               letterSpacing: -0.16,
@@ -190,7 +217,7 @@ class ProfileScreen extends StatelessWidget {
   /// Red logout pill.
   Widget _logout(BuildContext context, AppLanguage lang) {
     return GestureDetector(
-      onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
+      onTap: () => _confirmLogout(lang),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -211,7 +238,7 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Text(
-              tr(lang, 'Akkauntdan chiqish', 'Выйти из аккаунта'),
+              tr(lang, 'Akkauntdan chiqish', 'Выйти из аккаунта', 'Sign out'),
               style: const TextStyle(
                 fontSize: 16,
                 height: 22 / 16,
@@ -219,73 +246,6 @@ class ProfileScreen extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: _red700,
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// One selectable language row with a radio dot.
-class _LangOption extends StatelessWidget {
-  const _LangOption({
-    required this.title,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String title;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFF0F9FF) : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  height: 22 / 16,
-                  letterSpacing: -0.18,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.navy,
-                ),
-              ),
-            ),
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: selected ? AppColors.blue : Colors.transparent,
-                border: Border.all(
-                  color: selected ? AppColors.blue : const Color(0xFFCBD5E1),
-                  width: 2,
-                ),
-              ),
-              child: selected
-                  ? Center(
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                        ),
-                      ),
-                    )
-                  : null,
             ),
           ],
         ),

@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/app.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/core/network/api_exception.dart';
@@ -74,11 +75,9 @@ class _ChatScreenState extends State<ChatScreen> {
       _scrollToBottom();
       unawaited(_service.markRead(widget.conversationId).catchError((_) {}));
     });
-    // Voice-call signalling: connect so an incoming call from the peer rings
-    // while this chat is open, and present the call UI when it does.
-    CallService.instance.connect(widget.kind, onIncoming: () {
-      if (mounted) _openCallScreen();
-    });
+    // Voice-call signalling: ensure connected (home already connects it app-wide);
+    // incoming calls present the call UI globally via showIncomingCallUi.
+    CallService.instance.connect(widget.kind, onIncoming: showIncomingCallUi);
   }
 
   void _openCallScreen() {

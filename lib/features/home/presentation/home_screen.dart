@@ -3,11 +3,13 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'package:fixleo/app/app.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
 import 'package:fixleo/core/network/current_user.dart';
+import 'package:fixleo/core/realtime/call_service.dart';
 import 'package:fixleo/features/categories/data/category_service.dart';
 import 'package:fixleo/features/profile/presentation/profile_screen.dart';
 import 'package:fixleo/features/request/presentation/chats_list_screen.dart';
@@ -32,6 +34,8 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     // Load the real signed-in profile so the greeting shows the actual name.
     CurrentUser.instance.refresh();
+    // Voice-call signalling app-wide: an incoming call rings on any screen.
+    CallService.instance.connect('client', onIncoming: showIncomingCallUi);
   }
 
   @override

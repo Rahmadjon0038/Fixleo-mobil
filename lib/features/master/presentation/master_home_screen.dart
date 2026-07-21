@@ -3,9 +3,11 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'package:fixleo/app/app.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
+import 'package:fixleo/core/realtime/call_service.dart';
 import 'package:fixleo/features/master/presentation/master_chats_screen.dart';
 import 'package:fixleo/features/master/presentation/master_filters_screen.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -78,6 +80,9 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
     super.initState();
     CurrentUser.instance.refresh();
     _loadFeed();
+    // Voice-call signalling app-wide: an incoming call now rings on any screen,
+    // not only inside a chat.
+    CallService.instance.connect('master', onIncoming: showIncomingCallUi);
   }
 
   Future<void> _loadFeed() async {

@@ -4,6 +4,7 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/features/master/data/master_marketplace_models.dart';
 import 'package:fixleo/features/master/data/master_marketplace_service.dart';
+import 'package:fixleo/features/master/presentation/master_order_status_screen.dart';
 
 /// Order status shown as a colored pill on each history card.
 enum _OrderStatus { done, cancelled }
@@ -38,10 +39,11 @@ class MasterOrdersScreen extends StatefulWidget {
 
 class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
   final MasterMarketplaceService _market = MasterMarketplaceService();
-  List<MasterOrder> _real = const [];
+  List<MasterOrder> _current = const [];
+  List<MasterOrder> _historyOrders = const [];
   bool _loading = true;
 
-  int _segment = 0; // 0 = Tarix, 1 = Sharhlar.
+  int _segment = 0; // 0 = Faol, 1 = Tarix, 2 = Sharhlar.
 
   @override
   void initState() {
@@ -50,16 +52,31 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
   }
 
   Future<void> _load() async {
+    if (mounted) setState(() => _loading = true);
     try {
-      final items = await _market.orders(status: 'history');
-      if (mounted) setState(() {
-        _real = items;
-        _loading = false;
-      });
+      final results = await Future.wait([
+        _market.orders(status: 'current'),
+        _market.orders(status: 'history'),
+      ]);
+      if (mounted) {
+        setState(() {
+          _current = results[0];
+          _historyOrders = results[1];
+          _loading = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
   }
+
+  String _statusLabel(AppLanguage lang, String status) => switch (status) {
+        'assigned' => tr(lang, 'Tayinlandi', 'Назначен', 'Assigned'),
+        'on_the_way' => tr(lang, 'Yoʻlda', 'В пути', 'On the way'),
+        'arrived' => tr(lang, 'Yetib keldi', 'На месте', 'Arrived'),
+        'work_done' => tr(lang, 'Tasdiq kutilmoqda', 'Ждёт подтверждения', 'Awaiting confirmation'),
+        _ => tr(lang, 'Ish jarayonida', 'В работе', 'In progress'),
+      };
 
   static String _money(int? v) {
     if (v == null) return '—';
@@ -90,7 +107,6 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
-    final orders = _real.map((o) => _toOrder(o, lang)).toList();
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
       child: Column(
@@ -98,7 +114,13 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
           _segmentedControl(lang),
           const SizedBox(height: 10),
           Expanded(
-            child: _segment == 0 ? _history(orders) : _reviews(lang),
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : switch (_segment) {
+                    0 => _active(lang),
+                    1 => _history(_historyOrders.map((o) => _toOrder(o, lang)).toList()),
+                    _ => _reviews(lang),
+                  },
           ),
         ],
       ),
@@ -123,8 +145,9 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
       ),
       child: Row(
         children: [
-          _segmentButton(tr(lang, 'Tarix', 'История', 'History'), 0),
-          _segmentButton(tr(lang, 'Sharhlar', 'Отзывы', 'Reviews'), 1),
+          _segmentButton(tr(lang, 'Faol', 'Активные', 'Active'), 0),
+          _segmentButton(tr(lang, 'Tarix', 'История', 'History'), 1),
+          _segmentButton(tr(lang, 'Sharhlar', 'Отзывы', 'Reviews'), 2),
         ],
       ),
     );
@@ -153,6 +176,53 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Active (in-progress) jobs — each opens the status machine to advance the
+  /// order (on the way → arrived → finish). This is where the master actually
+  /// works a job after being selected by the client.
+  Widget _active(AppLanguage lang) {
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: _current.isEmpty
+          ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                const SizedBox(height: 80),
+                Center(
+                  child: Text(
+                    tr(lang, 'Faol buyurtmalar yoʻq', 'Нет активных заказов', 'No active orders'),
+                    style: const TextStyle(color: Color(0xFF8D96A4)),
+                  ),
+                ),
+              ],
+            )
+          : ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 100),
+              itemCount: _current.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (context, i) {
+                final o = _current[i];
+                return _ActiveOrderCard(
+                  title: o.title,
+                  desc: o.description,
+                  statusLabel: _statusLabel(lang, o.status),
+                  address: [o.addressText, if (o.addressDetails != null) o.addressDetails!]
+                      .where((s) => s.isNotEmpty)
+                      .join(', '),
+                  price: '${_money(o.price)} ${tr(lang, 'soʻm', 'сум', 'sum')}',
+                  actionLabel: tr(lang, 'Statusni oʻzgartirish', 'Изменить статус', 'Change status'),
+                  onTap: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => MasterOrderStatusScreen(orderId: o.id)),
+                    );
+                    if (mounted) _load();
+                  },
+                );
+              },
+            ),
     );
   }
 
@@ -190,6 +260,126 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
           text: tr(lang, 'Yaxshi usta, lekin biroz kechikdi.', 'Хороший мастер, но немного опоздал.', 'Good master, but a bit late.'),
         ),
       ],
+    );
+  }
+}
+
+/// A tappable active-job card — status pill + details + a "change status" hint.
+/// Tapping opens the status machine so the master can advance / finish the job.
+class _ActiveOrderCard extends StatelessWidget {
+  const _ActiveOrderCard({
+    required this.title,
+    required this.desc,
+    required this.statusLabel,
+    required this.address,
+    required this.price,
+    required this.actionLabel,
+    required this.onTap,
+  });
+
+  final String title;
+  final String desc;
+  final String statusLabel;
+  final String address;
+  final String price;
+  final String actionLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navy,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.blue,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (desc.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                desc,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 14, height: 20 / 14, color: Color(0xFF64748B)),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF8D96A4)),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    address,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF8D96A4)),
+                  ),
+                ),
+                Text(
+                  price,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navy,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    actionLabel,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.blue,
+                    ),
+                  ),
+                ),
+                const Icon(Icons.chevron_right, size: 20, color: AppColors.blue),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

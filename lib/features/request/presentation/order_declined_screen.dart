@@ -10,7 +10,9 @@ import 'package:fixleo/features/request/presentation/masters_responses_screen.da
 /// client is sent back to the other responses to pick a new master
 /// (Figma node 997:9884).
 class OrderDeclinedScreen extends StatelessWidget {
-  const OrderDeclinedScreen({super.key});
+  const OrderDeclinedScreen({super.key, this.orderId});
+
+  final int? orderId;
 
   static const _red100 = Color(0xFFFEE2E2);
   static const _red400 = Color(0xFFF87171);
@@ -93,11 +95,15 @@ class OrderDeclinedScreen extends StatelessWidget {
               label: tr(lang, 'Javoblarga oʻtish', 'Перейти к откликам',
                   'Go to responses'),
               onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const MastersResponsesScreen(),
-                  ),
-                );
+                if (orderId != null) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => MastersResponsesScreen(orderId: orderId!),
+                    ),
+                  );
+                } else {
+                  Navigator.of(context).maybePop();
+                }
               },
             ),
           ],

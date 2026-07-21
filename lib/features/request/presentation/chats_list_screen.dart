@@ -3,7 +3,99 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/request/data/chat_service.dart' as api_chat;
 import 'package:fixleo/features/request/presentation/chat_screen.dart';
+
+/// Self-loading chats screen — fetches the real conversations for [kind]
+/// ('client' | 'master') and renders them with the shared [ChatsList].
+class LiveChatsScreen extends StatefulWidget {
+  const LiveChatsScreen({super.key, required this.kind, this.showBack = true});
+
+  final String kind;
+  final bool showBack;
+
+  @override
+  State<LiveChatsScreen> createState() => _LiveChatsScreenState();
+}
+
+class _LiveChatsScreenState extends State<LiveChatsScreen> {
+  late final api_chat.ChatService _service = api_chat.ChatService(kind: widget.kind);
+  List<Conversation> _items = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final convs = await _service.conversations();
+      if (!mounted) return;
+      setState(() {
+        _items = convs.map(_toRow).toList();
+        _loading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _loading = false;
+      });
+    }
+  }
+
+  Conversation _toRow(api_chat.Conversation c) {
+    final t = c.lastMessageType;
+    final preview = t == 'image'
+        ? '📷'
+        : t == 'call'
+            ? '📞'
+            : (c.lastMessageText ?? c.orderTitle);
+    return Conversation(
+      name: c.peerName ?? c.orderTitle,
+      last: preview,
+      time: '',
+      unread: c.unreadCount,
+      conversationId: c.id,
+      kind: widget.kind,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
+    return BrandedScaffold(
+      title: tr(lang, 'Chatlar', 'Чаты', 'Chats'),
+      showBack: widget.showBack,
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(child: Text(_error!, style: const TextStyle(color: Color(0xFF8D96A4))))
+              : _items.isEmpty
+                  ? Center(
+                      child: Text(
+                        tr(lang, 'Suhbatlar yoʻq', 'Чатов нет', 'No chats yet'),
+                        style: const TextStyle(color: Color(0xFF8D96A4)),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: ChatsList(
+                        conversations: _items,
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                      ),
+                    ),
+    );
+  }
+}
 
 /// One conversation in a chats list (Figma node 963:7387).
 class Conversation {

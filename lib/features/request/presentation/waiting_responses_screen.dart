@@ -6,13 +6,15 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/presentation/masters_responses_screen.dart';
 
-/// Step 6 of the "new request" flow — the request has been sent and we are
-/// waiting for masters nearby to respond. After a short delay (simulating
-/// incoming responses) it advances to the masters list.
+/// Step 6 of the "new request" flow — the request is live; we poll for master
+/// responses and move to the responses list as soon as any arrive.
 class WaitingResponsesScreen extends StatefulWidget {
-  const WaitingResponsesScreen({super.key});
+  const WaitingResponsesScreen({super.key, required this.orderId});
+
+  final int orderId;
 
   @override
   State<WaitingResponsesScreen> createState() => _WaitingResponsesScreenState();
@@ -23,18 +25,40 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
   static const _blue400 = Color(0xFF60A5FA);
   static const _slate200 = Color(0xFFE2E8F0);
 
+  final OrderService _orders = OrderService();
   Timer? _timer;
+  bool _navigated = false;
 
   @override
   void initState() {
     super.initState();
-    // Simulate masters responding after a few seconds.
-    _timer = Timer(const Duration(seconds: 3), () {
-      if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const MastersResponsesScreen()),
-      );
-    });
+    // Poll for offers; jump to the responses list once any master replies.
+    _timer = Timer.periodic(const Duration(seconds: 3), (_) => _poll());
+    _poll();
+  }
+
+  Future<void> _poll() async {
+    try {
+      final offers = await _orders.offers(widget.orderId);
+      if (!mounted || _navigated) return;
+      if (offers.isNotEmpty) {
+        _navigated = true;
+        _timer?.cancel();
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => MastersResponsesScreen(orderId: widget.orderId)),
+        );
+      }
+    } catch (_) {
+      // keep waiting; a transient failure shouldn't drop the user out
+    }
+  }
+
+  Future<void> _cancel() async {
+    _timer?.cancel();
+    try {
+      await _orders.cancel(widget.orderId, reason: 'changed_mind');
+    } catch (_) {}
+    if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   @override
@@ -72,7 +96,7 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
               width: double.infinity,
               height: 52,
               child: FilledButton(
-                onPressed: () => Navigator.of(context).maybePop(),
+                onPressed: _cancel,
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: AppColors.blue,

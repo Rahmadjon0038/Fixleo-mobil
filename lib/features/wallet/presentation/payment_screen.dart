@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/presentation/rate_master_screen.dart';
+import 'package:fixleo/features/wallet/data/payment_service.dart';
 
 /// A saved payment card option.
 class _Card {
@@ -22,6 +24,7 @@ class _Card {
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({
     super.key,
+    this.orderId,
     this.title,
     this.amountLabel,
     this.amount = '60 000 soʻm',
@@ -29,6 +32,9 @@ class PaymentScreen extends StatefulWidget {
     this.primaryLabel,
     this.onSuccess,
   });
+
+  /// When set, this is a real order payment (`POST /clients/me/orders/:id/pay`).
+  final int? orderId;
 
   /// Optional title for the top pill.
   final String? title;
@@ -67,23 +73,62 @@ class _PaymentScreenState extends State<PaymentScreen> {
   ];
 
   int _selected = 0;
+  final PaymentService _payments = PaymentService();
+  List<SavedCard> _realCards = const [];
+  bool _busy = false;
 
-  void _pay() {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.orderId != null) _loadCards();
+  }
+
+  Future<void> _loadCards() async {
+    try {
+      var cards = await _payments.cards();
+      if (cards.isEmpty) {
+        // Auto-provision a test card so the flow works end-to-end (mock provider).
+        cards = [await _payments.addCard(brand: 'uzcard', last4: '4242')];
+      }
+      if (mounted) setState(() => _realCards = cards);
+    } on ApiException {
+      // fall back to the mock card list for display
+    }
+  }
+
+  Future<void> _pay() async {
     final lang = LocaleController.language.value;
+
+    // Real order payment.
+    if (widget.orderId != null) {
+      if (_realCards.isEmpty) {
+        await _loadCards();
+        if (_realCards.isEmpty) return;
+      }
+      setState(() => _busy = true);
+      try {
+        final card = _realCards[_selected.clamp(0, _realCards.length - 1)];
+        final status = await _payments.pay(widget.orderId!, card.id);
+        if (!mounted) return;
+        setState(() => _busy = false);
+        if (status != 'succeeded') {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(tr(lang, 'Toʻlov amalga oshmadi', 'Оплата не прошла', 'Payment failed'))));
+          return;
+        }
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        setState(() => _busy = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        return;
+      }
+    }
+
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            tr(
-              lang,
-              'Toʻlov amalga oshirildi',
-              'Оплата выполнена',
-              'Payment completed',
-            ),
-          ),
-        ),
-      );
+      ..showSnackBar(SnackBar(
+        content: Text(tr(lang, 'Toʻlov amalga oshirildi', 'Оплата выполнена', 'Payment completed')),
+      ));
 
     if (widget.onSuccess != null) {
       widget.onSuccess!.call();
@@ -91,7 +136,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const RateMasterScreen()),
+      MaterialPageRoute(builder: (_) => RateMasterScreen(orderId: widget.orderId)),
     );
   }
 

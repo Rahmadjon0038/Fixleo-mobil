@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/features/request/data/new_order_draft.dart';
 import 'package:fixleo/features/request/presentation/review_request_screen.dart';
 
 /// Step 4 of the "new request" flow — choose how urgently the master is
 /// needed and (optionally) a time slot for today.
 class TimeUrgencyScreen extends StatefulWidget {
-  const TimeUrgencyScreen({super.key});
+  const TimeUrgencyScreen({super.key, this.draft});
+
+  final NewOrderDraft? draft;
 
   @override
   State<TimeUrgencyScreen> createState() => _TimeUrgencyScreenState();
@@ -21,9 +24,38 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
     '15:00–18:00',
     '18:00–21:00',
   ];
+  static const _slotCodes = ['s10_12', 's12_15', 's15_18', 's18_21'];
 
   int _option = 0;
   int _slot = 1;
+
+  static String _ymd(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  void _continue() {
+    final draft = widget.draft ?? NewOrderDraft();
+    final now = DateTime.now();
+    switch (_option) {
+      case 0: // urgent — now
+        draft
+          ..timing = 'asap'
+          ..slot = null
+          ..scheduledDate = null;
+      case 1: // today, pick a slot
+        draft
+          ..timing = 'today'
+          ..slot = _slotCodes[_slot]
+          ..scheduledDate = _ymd(now);
+      default: // tomorrow or later
+        draft
+          ..timing = 'scheduled'
+          ..slot = _slotCodes[_slot]
+          ..scheduledDate = _ymd(now.add(const Duration(days: 1)));
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ReviewRequestScreen(draft: draft)),
+    );
+  }
 
   List<({String title, String subtitle})> _options(AppLanguage lang) => [
         (
@@ -97,13 +129,7 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
               width: double.infinity,
               height: 52,
               child: FilledButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const ReviewRequestScreen(),
-                    ),
-                  );
-                },
+                onPressed: _continue,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.blue,
                   foregroundColor: AppColors.background,

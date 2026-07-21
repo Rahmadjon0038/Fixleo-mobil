@@ -10,6 +10,7 @@ import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/core/location/reverse_geocoder.dart';
 import 'package:fixleo/features/home/presentation/home_screen.dart';
+import 'package:fixleo/features/request/data/new_order_draft.dart';
 import 'package:fixleo/features/request/presentation/time_urgency_screen.dart';
 
 /// A real, draggable map where the user pins a location. The map moves under
@@ -19,11 +20,14 @@ import 'package:fixleo/features/request/presentation/time_urgency_screen.dart';
 /// - the "new request" flow (default): confirm → time/urgency step;
 /// - client onboarding ([isOnboarding]): "Saqlash" → main screen.
 class AddressScreen extends StatefulWidget {
-  const AddressScreen({super.key, this.isOnboarding = false});
+  const AddressScreen({super.key, this.isOnboarding = false, this.draft});
 
   /// True right after registration — the button says "Saqlash" and leads to
   /// the home screen instead of continuing the request flow.
   final bool isOnboarding;
+
+  /// The in-progress order (null during onboarding).
+  final NewOrderDraft? draft;
 
   @override
   State<AddressScreen> createState() => _AddressScreenState();
@@ -214,9 +218,21 @@ class _AddressScreenState extends State<AddressScreen> {
                     (route) => false,
                   );
                 } else {
+                  final draft = widget.draft ?? NewOrderDraft();
+                  draft
+                    ..latitude = _center.latitude
+                    ..longitude = _center.longitude
+                    ..addressText = [
+                      if (_placeLabel != null) _placeLabel!,
+                      if (_placeSubtitle != null) _placeSubtitle!,
+                    ].join(', ').trim();
+                  if (draft.addressText.isEmpty) {
+                    draft.addressText =
+                        '${_center.latitude.toStringAsFixed(5)}, ${_center.longitude.toStringAsFixed(5)}';
+                  }
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => const TimeUrgencyScreen(),
+                      builder: (_) => TimeUrgencyScreen(draft: draft),
                     ),
                   );
                 }

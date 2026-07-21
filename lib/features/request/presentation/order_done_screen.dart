@@ -134,7 +134,7 @@ class OrderDoneScreen extends StatelessWidget {
           child: FilledButton(
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const PaymentScreen()),
+                MaterialPageRoute(builder: (_) => PaymentScreen(orderId: orderId)),
               );
             },
             style: FilledButton.styleFrom(
@@ -164,7 +164,7 @@ class OrderDoneScreen extends StatelessWidget {
         GestureDetector(
           onTap: () {
             Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const OrderComplaintScreen()),
+              MaterialPageRoute(builder: (_) => OrderComplaintScreen(orderId: orderId)),
             );
           },
           child: Text(

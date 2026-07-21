@@ -3,11 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/request/data/feedback_service.dart';
 
 /// Report a problem with a completed order — pick a reason and describe the
-/// issue. Reached from the "Buyurtmada muammo bor" link. Mock data for now.
+/// issue, submitted via `POST /clients/me/orders/:id/complaint`.
 class OrderComplaintScreen extends StatefulWidget {
-  const OrderComplaintScreen({super.key});
+  const OrderComplaintScreen({super.key, this.orderId});
+
+  final int? orderId;
 
   @override
   State<OrderComplaintScreen> createState() => _OrderComplaintScreenState();
@@ -19,9 +23,12 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
   static const _slate100 = Color(0xFFF1F5F9);
   static const _slate300 = Color(0xFFCBD5E1);
   static const _gray = Color(0xFF8D96A4);
+  static const _reasonCodes = ['master_late', 'work_quality', 'overpriced', 'other'];
 
   final _controller = TextEditingController();
+  final FeedbackService _feedback = FeedbackService();
   int _selected = 0;
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -29,22 +36,34 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    final lang = LocaleController.language.value;
+    final desc = _controller.text.trim();
+    if (widget.orderId != null) {
+      if (desc.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(tr(lang, 'Muammoni tavsiflang', 'Опишите проблему', 'Describe the issue'))));
+        return;
+      }
+      setState(() => _busy = true);
+      try {
+        await _feedback.complaint(widget.orderId!,
+            reason: _reasonCodes[_selected.clamp(0, _reasonCodes.length - 1)], description: desc);
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        setState(() => _busy = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        return;
+      }
+    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            tr(
-              LocaleController.language.value,
-              'Shikoyatingiz yuborildi',
-              'Ваша жалоба отправлена',
-              'Your complaint has been sent',
-            ),
-          ),
-        ),
-      );
-    Navigator.of(context).maybePop();
+      ..showSnackBar(SnackBar(
+        content: Text(tr(lang, 'Shikoyatingiz yuborildi', 'Ваша жалоба отправлена',
+            'Your complaint has been sent')),
+      ));
+    Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   @override
@@ -79,7 +98,7 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
               width: double.infinity,
               height: 52,
               child: FilledButton(
-                onPressed: _submit,
+                onPressed: _busy ? null : _submit,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.blue,
                   foregroundColor: AppColors.background,

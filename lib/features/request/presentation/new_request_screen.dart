@@ -10,14 +10,21 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/categories/data/category_model.dart';
+import 'package:fixleo/features/categories/data/category_service.dart';
+import 'package:fixleo/features/request/data/new_order_draft.dart';
+import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/presentation/address_screen.dart';
 
-/// Step 1 of the "new request" flow — one screen with the task description,
-/// up to 6 problem photos and an address preview card (per the Figma design
-/// the old separate photo screen was merged in here). "Keyingi" moves on to
-/// the location-picking map.
+/// Step 1 of the "new request" flow — the category, task description and up to
+/// 6 problem photos. "Next" uploads the photos and carries a [NewOrderDraft]
+/// on to the location-picking map.
 class NewRequestScreen extends StatefulWidget {
-  const NewRequestScreen({super.key});
+  const NewRequestScreen({super.key, this.categoryId, this.categoryName});
+
+  final int? categoryId;
+  final String? categoryName;
 
   @override
   State<NewRequestScreen> createState() => _NewRequestScreenState();
@@ -29,8 +36,38 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   final _description = TextEditingController();
   final _picker = ImagePicker();
   final List<XFile?> _photos = List.filled(_maxPhotos, null);
+  final OrderService _orders = OrderService();
+
+  int? _categoryId;
+  String? _categoryName;
+  List<Category> _categories = const [];
+  bool _submitting = false;
 
   int get _firstEmpty => _photos.indexWhere((p) => p == null);
+
+  @override
+  void initState() {
+    super.initState();
+    _categoryId = widget.categoryId;
+    _categoryName = widget.categoryName;
+    if (_categoryId == null) _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final cats = await CategoryService().getAll();
+      if (!mounted) return;
+      setState(() {
+        _categories = cats;
+        if (_categoryId == null && cats.isNotEmpty) {
+          _categoryId = cats.first.id;
+          _categoryName = cats.first.name;
+        }
+      });
+    } on ApiException {
+      // keep the placeholder pill; create will surface a clear error
+    }
+  }
 
   @override
   void dispose() {
@@ -49,11 +86,71 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
 
   void _remove(int index) => setState(() => _photos[index] = null);
 
-  void _openAddress() {
+  Future<void> _pickCategory() async {
+    if (_categories.isEmpty) return;
+    final lang = LocaleController.language.value;
+    final chosen = await showModalBottomSheet<Category>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(tr(lang, 'Kategoriya', 'Категория', 'Category'),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            ),
+            for (final c in _categories)
+              ListTile(title: Text(c.name), onTap: () => Navigator.of(ctx).pop(c)),
+          ],
+        ),
+      ),
+    );
+    if (chosen != null) {
+      setState(() {
+        _categoryId = chosen.id;
+        _categoryName = chosen.name;
+      });
+    }
+  }
+
+  Future<void> _next() async {
+    final lang = LocaleController.language.value;
+    final desc = _description.text.trim();
+    if (_categoryId == null) {
+      _snack(tr(lang, 'Kategoriyani tanlang', 'Выберите категорию', 'Pick a category'));
+      return;
+    }
+    if (desc.length < 10) {
+      _snack(tr(lang, 'Vazifani batafsilroq yozing (min 10 belgi)',
+          'Опишите задачу подробнее (мин. 10 символов)', 'Describe the task (min 10 chars)'));
+      return;
+    }
+    setState(() => _submitting = true);
+    final draft = NewOrderDraft(categoryId: _categoryId, categoryName: _categoryName)
+      ..description = desc;
+    try {
+      for (final p in _photos) {
+        if (p != null) {
+          final uploaded = await _orders.uploadPhoto(p.path);
+          draft.photoKeys.add(uploaded.fileKey);
+        }
+      }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      _snack(e.message);
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _submitting = false);
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AddressScreen()),
+      MaterialPageRoute(builder: (_) => AddressScreen(draft: draft)),
     );
   }
+
+  void _snack(String msg) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
   @override
   Widget build(BuildContext context) {
@@ -71,23 +168,27 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _CategoryPill(
-                      label: tr(lang, 'Santexnika', 'Сантехника', 'Plumbing'),
+                    GestureDetector(
+                      onTap: widget.categoryId == null ? _pickCategory : null,
+                      child: _CategoryPill(
+                        label: _categoryName ??
+                            tr(lang, 'Kategoriya tanlang', 'Выберите категорию', 'Pick a category'),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     _DescribeCard(controller: _description, lang: lang),
                     const SizedBox(height: 12),
                     _photosCard(),
                     const SizedBox(height: 12),
-                    _AddressCard(onTap: _openAddress, lang: lang),
-                    const SizedBox(height: 12),
                   ],
                 ),
               ),
             ),
             PrimaryButton(
-              label: tr(lang, 'Keyingi', 'Далее', 'Next'),
-              onPressed: _openAddress,
+              label: _submitting
+                  ? tr(lang, 'Yuklanmoqda…', 'Загрузка…', 'Uploading…')
+                  : tr(lang, 'Keyingi', 'Далее', 'Next'),
+              onPressed: _submitting ? null : _next,
             ),
           ],
         ),

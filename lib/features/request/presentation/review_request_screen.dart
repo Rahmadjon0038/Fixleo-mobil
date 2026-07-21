@@ -4,16 +4,70 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/request/data/new_order_draft.dart';
+import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/presentation/waiting_responses_screen.dart';
 
-/// Step 5 (final) of the "new request" flow — review the assembled request
-/// before sending it out to masters.
-class ReviewRequestScreen extends StatelessWidget {
-  const ReviewRequestScreen({super.key});
+const _slotLabels = {
+  's10_12': '10:00–12:00',
+  's12_15': '12:00–15:00',
+  's15_18': '15:00–18:00',
+  's18_21': '18:00–21:00',
+};
 
-  /// blue/100 from the design system.
+/// Step 5 (final) of the "new request" flow — review the assembled request,
+/// then submit it via `POST /clients/me/orders`.
+class ReviewRequestScreen extends StatefulWidget {
+  const ReviewRequestScreen({super.key, required this.draft});
+
+  final NewOrderDraft draft;
+
+  @override
+  State<ReviewRequestScreen> createState() => _ReviewRequestScreenState();
+}
+
+class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
   static const _blue100 = Color(0xFFDBEAFE);
   static const _gray = Color(0xFF8D96A4);
+
+  final OrderService _orders = OrderService();
+  bool _sending = false;
+
+  Future<void> _send() async {
+    final lang = LocaleController.language.value;
+    final d = widget.draft;
+    if (!d.hasLocation || d.categoryId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr(lang, 'Maʼlumot yetarli emas', 'Недостаточно данных', 'Missing data'))));
+      return;
+    }
+    setState(() => _sending = true);
+    try {
+      final order = await _orders.create(
+        categoryId: d.categoryId!,
+        description: d.description,
+        addressText: d.addressText,
+        district: d.district,
+        latitude: d.latitude!,
+        longitude: d.longitude!,
+        addressDetails: d.addressDetails,
+        timing: d.timing,
+        scheduledDate: d.scheduledDate,
+        slot: d.slot,
+        budgetMax: d.budgetMax,
+        photoKeys: d.photoKeys,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => WaitingResponsesScreen(orderId: order.id)),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _sending = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,18 +92,11 @@ class ReviewRequestScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            // "Arizani yuborish" — Figma pill: 52px tall, fully rounded.
             SizedBox(
               width: double.infinity,
               height: 52,
               child: FilledButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const WaitingResponsesScreen(),
-                    ),
-                  );
-                },
+                onPressed: _sending ? null : _send,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.blue,
                   foregroundColor: AppColors.background,
@@ -57,15 +104,20 @@ class ReviewRequestScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(40),
                   ),
                 ),
-                child: Text(
-                  tr(lang, 'Arizani yuborish', 'Отправить заявку', 'Send request'),
-                  style: TextStyle(
-                    fontSize: 16,
-                    height: 22 / 16,
-                    letterSpacing: -0.18,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                child: _sending
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Text(
+                        tr(lang, 'Arizani yuborish', 'Отправить заявку', 'Send request'),
+                        style: TextStyle(
+                          fontSize: 16,
+                          height: 22 / 16,
+                          letterSpacing: -0.18,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -76,6 +128,10 @@ class ReviewRequestScreen extends StatelessWidget {
 
   Widget _summaryCard() {
     final lang = LocaleController.language.value;
+    final d = widget.draft;
+    final timeLabel = d.timing == 'asap'
+        ? tr(lang, 'Shoshilinch', 'Срочно — сейчас', 'Urgent — now')
+        : '${d.timing == 'today' ? tr(lang, 'Bugun', 'Сегодня', 'Today') : (d.scheduledDate ?? '')}${d.slot != null ? ', ${_slotLabels[d.slot]}' : ''}';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -107,7 +163,7 @@ class ReviewRequestScreen extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  tr(lang, 'Santexnika', 'Сантехника', 'Plumbing'),
+                  d.categoryName ?? tr(lang, 'Xizmat', 'Услуга', 'Service'),
                   style: TextStyle(
                     fontSize: 14,
                     height: 20 / 14,
@@ -121,12 +177,7 @@ class ReviewRequestScreen extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            tr(
-              lang,
-              'Oshxonadagi smesitel oqyapti, kartrijni almashtirish kerak. Zaxiradagisi bor.',
-              'На кухне течёт смеситель, нужно заменить картридж. Запасной есть.',
-              'The kitchen faucet is leaking; the cartridge needs to be replaced. A spare is available.',
-            ),
+            d.description,
             style: TextStyle(
               fontSize: 14,
               height: 20 / 14,
@@ -135,32 +186,17 @@ class ReviewRequestScreen extends StatelessWidget {
               color: AppColors.navy,
             ),
           ),
+          if (d.photoKeys.isNotEmpty) const SizedBox(height: 6),
+          if (d.photoKeys.isNotEmpty)
+            Text(
+              tr(lang, '${d.photoKeys.length} ta rasm', '${d.photoKeys.length} фото',
+                  '${d.photoKeys.length} photos'),
+              style: const TextStyle(fontSize: 13, color: _gray),
+            ),
           const SizedBox(height: 6),
-          // Photo thumbnails (placeholders).
-          Row(
-            children: [
-              for (var i = 0; i < 4; i++) ...[
-                if (i != 0) const SizedBox(width: 8),
-                Expanded(
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: _blue100,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
+          _infoRow(Icons.location_on_outlined, d.addressText),
           const SizedBox(height: 6),
-          _infoRow(Icons.location_on_outlined,
-              tr(lang, 'Yunusobod, Amir Temur 12', 'Юнусабад, Амир Темур 12', 'Yunusobod, Amir Temur 12')),
-          const SizedBox(height: 6),
-          _infoRow(Icons.access_time_rounded,
-              tr(lang, 'Bugun, 12:00–15:00', 'Сегодня, 12:00–15:00', 'Today, 12:00–15:00')),
+          _infoRow(Icons.access_time_rounded, timeLabel),
         ],
       ),
     );

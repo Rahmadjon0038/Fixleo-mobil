@@ -3,11 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/request/data/feedback_service.dart';
 
 /// Rate the master after a completed order — star rating, quality tags and a
-/// free-text review. All selections are kept in state. Mock data for now.
+/// free-text review, submitted via `POST /clients/me/orders/:id/review`.
 class RateMasterScreen extends StatefulWidget {
-  const RateMasterScreen({super.key});
+  const RateMasterScreen({super.key, this.orderId});
+
+  final int? orderId;
 
   @override
   State<RateMasterScreen> createState() => _RateMasterScreenState();
@@ -17,11 +21,22 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
   static const _star = Color(0xFFFBBF24);
   static const _slate200 = Color(0xFFE2E8F0);
   static const _gray = Color(0xFF8D96A4);
+  static const _tagCodes = ['punctuality', 'quality', 'politeness', 'cleanliness', 'speed'];
 
   final _controller = TextEditingController();
+  final FeedbackService _feedback = FeedbackService();
 
-  int _rating = 4;
+  int _rating = 5;
+  bool _busy = false;
   final _selectedTags = <String>{};
+
+  List<String> _tagLabels(AppLanguage lang) => [
+        tr(lang, 'Punktuallik', 'Пунктуальность', 'Punctuality'),
+        tr(lang, 'Sifat', 'Качество', 'Quality'),
+        tr(lang, 'Xushmuomalalik', 'Вежливость', 'Courtesy'),
+        tr(lang, 'Tozalik', 'Чистота', 'Cleanliness'),
+        tr(lang, 'Tezlik', 'Скорость', 'Speed'),
+      ];
 
   @override
   void dispose() {
@@ -29,35 +44,39 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    final lang = LocaleController.language.value;
+    if (widget.orderId != null) {
+      final labels = _tagLabels(lang);
+      final codes = <String>[
+        for (var i = 0; i < labels.length; i++)
+          if (_selectedTags.contains(labels[i])) _tagCodes[i],
+      ];
+      setState(() => _busy = true);
+      try {
+        await _feedback.review(widget.orderId!,
+            rating: _rating, tags: codes, text: _controller.text.trim());
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        setState(() => _busy = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        return;
+      }
+    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            tr(
-              LocaleController.language.value,
-              'Sharhingiz uchun rahmat!',
-              'Спасибо за ваш отзыв!',
-              'Thanks for your review!',
-            ),
-          ),
-        ),
-      );
-    Navigator.of(context).maybePop();
+      ..showSnackBar(SnackBar(
+        content: Text(tr(lang, 'Sharhingiz uchun rahmat!', 'Спасибо за ваш отзыв!',
+            'Thanks for your review!')),
+      ));
+    Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
-    final tags = [
-      tr(lang, 'Punktuallik', 'Пунктуальность', 'Punctuality'),
-      tr(lang, 'Sifat', 'Качество', 'Quality'),
-      tr(lang, 'Xushmuomalalik', 'Вежливость', 'Courtesy'),
-      tr(lang, 'Tozalik', 'Чистота', 'Cleanliness'),
-      tr(lang, 'Tezlik', 'Скорость', 'Speed'),
-    ];
-    _selectedTags.addAll({tags[0], tags[1], tags[3]});
+    final tags = _tagLabels(lang);
     return BrandedScaffold(
       title: tr(lang, 'Ustani baholang', 'Оцените мастера', 'Rate the master'),
       showBack: true,
@@ -81,7 +100,7 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
               width: double.infinity,
               height: 52,
               child: FilledButton(
-                onPressed: _submit,
+                onPressed: _busy ? null : _submit,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.blue,
                   foregroundColor: AppColors.background,

@@ -7,6 +7,7 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
+import 'package:fixleo/core/network/current_user.dart';
 import 'package:fixleo/features/categories/data/category_service.dart';
 import 'package:fixleo/features/profile/presentation/profile_screen.dart';
 import 'package:fixleo/features/request/presentation/chats_list_screen.dart';
@@ -27,42 +28,15 @@ class _HomeScreenState extends State<HomeScreen> {
   int _navIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    // Load the real signed-in profile so the greeting shows the actual name.
+    CurrentUser.instance.refresh();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
-    final clientConversations = <Conversation>[
-      Conversation(
-        name: 'Aleksey Ivanov',
-        last: tr(
-          lang,
-          'Yaqinlashyapman, bir daqiqada yetaman!',
-          'Скоро буду, через минуту!',
-          'I am nearby, I’ll be there in a minute!',
-        ),
-        time: '14:41',
-        unread: 2,
-      ),
-      Conversation(
-        name: 'Aleksandr Petrov',
-        last: tr(
-          lang,
-          'Ish tugadi, hammasini tekshirib koʻring.',
-          'Работа закончена, проверьте всё.',
-          'The job is done, please check everything.',
-        ),
-        time: tr(lang, 'Kecha', 'Вчера', 'Yesterday'),
-        unread: 1,
-      ),
-      Conversation(
-        name: 'Rustam Qodirov',
-        last: tr(
-          lang,
-          'Rahmat, yaxshi kunlar!',
-          'Спасибо, хорошего дня!',
-          'Thanks, have a great day!',
-        ),
-        time: tr(lang, 'Dush', 'Пн', 'Mon'),
-      ),
-    ];
     return BrandedScaffold(
       body: Stack(
         children: [
@@ -130,8 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 } else if (i == 2) {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) =>
-                          ClientChatsScreen(conversations: clientConversations),
+                      builder: (_) => const LiveChatsScreen(kind: 'client'),
                     ),
                   );
                 } else if (i == 3) {
@@ -346,18 +319,23 @@ class _GreetingCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  tr(
-                    lang,
-                    'Xayrli kun, Arslan!',
-                    'Добрый день, Арслан!',
-                    'Good day, Arslan!',
-                  ),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.navy,
-                  ),
+                ValueListenableBuilder<UserProfile?>(
+                  valueListenable: CurrentUser.instance.profile,
+                  builder: (context, profile, _) {
+                    final name = profile?.firstName;
+                    final text = name == null
+                        ? tr(lang, 'Xayrli kun!', 'Добрый день!', 'Good day!')
+                        : tr(lang, 'Xayrli kun, $name!', 'Добрый день, $name!',
+                            'Good day, $name!');
+                    return Text(
+                      text,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.navy,
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 6),
                 Row(

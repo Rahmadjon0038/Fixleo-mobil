@@ -3,19 +3,56 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
-import 'package:fixleo/features/request/presentation/confirmation_screen.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/request/data/feedback_service.dart';
 
 /// Master profile — opened when the user taps "Tanlash" on a response.
 /// Shows the master's stats, bio, rating breakdown, a review and work photos
 /// before final confirmation (Figma node 361:11694).
-class MasterProfileScreen extends StatelessWidget {
-  const MasterProfileScreen({super.key});
+class MasterProfileScreen extends StatefulWidget {
+  const MasterProfileScreen({super.key, required this.masterId});
+
+  final int masterId;
 
   static const _gray = Color(0xFF8D96A4);
   static const _slate100 = Color(0xFFF1F5F9);
   static const _slate200 = Color(0xFFE2E8F0);
   static const _slate600 = Color(0xFF475569);
   static const _starOrange = Color(0xFFF59E0B);
+
+  @override
+  State<MasterProfileScreen> createState() => _MasterProfileScreenState();
+}
+
+class _MasterProfileScreenState extends State<MasterProfileScreen> {
+  static const _gray = MasterProfileScreen._gray;
+  static const _slate100 = MasterProfileScreen._slate100;
+  static const _slate200 = MasterProfileScreen._slate200;
+  static const _slate600 = MasterProfileScreen._slate600;
+  static const _starOrange = MasterProfileScreen._starOrange;
+
+  final MasterPublicService _service = MasterPublicService();
+  MasterPublicProfile? _p;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final p = await _service.profile(widget.masterId);
+      if (!mounted) return;
+      setState(() {
+        _p = p;
+        _loading = false;
+      });
+    } on ApiException {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,59 +62,53 @@ class MasterProfileScreen extends StatelessWidget {
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _profileCard(lang),
-                    const SizedBox(height: 10),
-                    _aboutCard(lang),
-                    const SizedBox(height: 10),
-                    _ratingCard(lang),
-                    const SizedBox(height: 10),
-                    _reviewCard(lang),
-                    const SizedBox(height: 10),
-                    _photosCard(lang),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // "Ustani tanlash" — Figma pill: 52px tall, fully rounded.
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: FilledButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const ConfirmationScreen(),
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          _profileCard(lang),
+                          const SizedBox(height: 10),
+                          _aboutCard(lang),
+                          const SizedBox(height: 10),
+                          _ratingCard(lang),
+                          const SizedBox(height: 10),
+                          _reviewCard(lang),
+                          const SizedBox(height: 10),
+                          _photosCard(lang),
+                        ],
+                      ),
                     ),
-                  );
-                },
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.blue,
-                  foregroundColor: AppColors.background,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(40),
                   ),
-                ),
-                child: Text(
-                  tr(lang, 'Ustani tanlash', 'Выбрать мастера',
-                      'Choose master'),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    height: 22 / 16,
-                    letterSpacing: -0.18,
-                    fontWeight: FontWeight.w500,
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.blue,
+                        foregroundColor: AppColors.background,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(40),
+                        ),
+                      ),
+                      child: Text(
+                        tr(lang, 'Javoblarga qaytish', 'Назад к откликам', 'Back to responses'),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          height: 22 / 16,
+                          letterSpacing: -0.18,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -112,7 +143,7 @@ class MasterProfileScreen extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            'Aleksey Ivanov',
+                            _p?.name ?? tr(lang, 'Usta', 'Мастер', 'Master'),
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 20,

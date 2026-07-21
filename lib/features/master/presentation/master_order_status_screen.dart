@@ -4,10 +4,17 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/master/data/master_marketplace_models.dart';
+import 'package:fixleo/features/master/data/master_marketplace_service.dart';
+import 'package:fixleo/features/master/presentation/master_order_completion_screen.dart';
 
-/// Order status screen shown after the master is already on the job.
+/// The master drives the live order status machine here — on_the_way → arrived
+/// → complete (POST /masters/me/orders/:id/status + /complete).
 class MasterOrderStatusScreen extends StatefulWidget {
-  const MasterOrderStatusScreen({super.key});
+  const MasterOrderStatusScreen({super.key, required this.orderId});
+
+  final int orderId;
 
   @override
   State<MasterOrderStatusScreen> createState() =>
@@ -15,12 +22,78 @@ class MasterOrderStatusScreen extends StatefulWidget {
 }
 
 class _MasterOrderStatusScreenState extends State<MasterOrderStatusScreen> {
-  int _selectedIndex = 1;
+  final MasterMarketplaceService _market = MasterMarketplaceService();
+  MasterOrderDetail? _order;
+  bool _loading = true;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final o = await _market.orderDetail(widget.orderId);
+      if (mounted) setState(() {
+        _order = o;
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Timeline index from the live status.
+  int get _selectedIndex => switch (_order?.status) {
+        'assigned' => 0,
+        'on_the_way' => 1,
+        'arrived' => 2,
+        'work_done' || 'completed' || 'disputed' => 3,
+        _ => 0,
+      };
+
+  Future<void> _advance() async {
+    final o = _order;
+    if (o == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      if (o.status == 'assigned') {
+        final u = await _market.setStatus(widget.orderId, 'on_the_way');
+        if (mounted) setState(() { _order = u; _busy = false; });
+      } else if (o.status == 'on_the_way') {
+        final u = await _market.setStatus(widget.orderId, 'arrived');
+        if (mounted) setState(() { _order = u; _busy = false; });
+      } else {
+        // arrived → complete the job
+        if (!mounted) return;
+        setState(() => _busy = false);
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => MasterOrderCompletionScreen(orderId: widget.orderId),
+          ),
+        );
+        if (mounted) _load();
+      }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
     final statuses = _statuses(lang);
+    if (_loading) {
+      return BrandedScaffold(
+        title: tr(lang, 'Buyurtma holati', 'Статус заказа', 'Order status'),
+        showBack: true,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
     return BrandedScaffold(
       title: tr(lang, 'Buyurtma holati', 'Статус заказа', 'Order status'),
       showBack: true,
@@ -35,8 +108,8 @@ class _MasterOrderStatusScreenState extends State<MasterOrderStatusScreen> {
                   for (var i = 0; i < statuses.length; i++) ...[
                     if (i != 0) const SizedBox(height: 10),
                     _StatusRow(
-                      status: statuses[i].copyWith(selected: i == _selectedIndex),
-                      onTap: i == 0 ? null : () => setState(() => _selectedIndex = i),
+                      status: statuses[i].copyWith(selected: i <= _selectedIndex),
+                      onTap: null,
                     ),
                   ],
                 ],
@@ -62,14 +135,8 @@ class _MasterOrderStatusScreenState extends State<MasterOrderStatusScreen> {
             ),
             const Spacer(),
             PrimaryButton(
-              label: _buttonLabel(lang),
-              onPressed: () {
-                if (_selectedIndex < statuses.length - 1) {
-                  setState(() => _selectedIndex += 1);
-                  return;
-                }
-                Navigator.of(context).maybePop();
-              },
+              label: _busy ? '…' : _buttonLabel(lang),
+              onPressed: _busy ? null : _advance,
             ),
           ],
         ),
@@ -80,12 +147,7 @@ class _MasterOrderStatusScreenState extends State<MasterOrderStatusScreen> {
   String _buttonLabel(AppLanguage lang) {
     final statuses = _statuses(lang);
     if (_selectedIndex >= statuses.length - 1) {
-      return tr(
-        lang,
-        'Statusni “Bajarildi” deb belgilash',
-        'Отметить статус “Выполнено”',
-        'Mark status as "Completed"',
-      );
+      return tr(lang, 'Ishni yakunlash', 'Завершить работу', 'Finish the job');
     }
     return tr(
       lang,

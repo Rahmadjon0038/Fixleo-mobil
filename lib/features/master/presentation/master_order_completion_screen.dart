@@ -4,13 +4,42 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/master/data/master_marketplace_service.dart';
 import 'package:fixleo/features/master/presentation/master_home_screen.dart';
 
-/// Master's "finish the job" screen — order summary, up to six "done work"
-/// photos and a button to mark the order completed. The client then confirms
-/// on their side.
-class MasterOrderCompletionScreen extends StatelessWidget {
-  const MasterOrderCompletionScreen({super.key});
+/// Master's "finish the job" screen — order summary + a button to mark the
+/// order completed (POST /masters/me/orders/:id/complete). The client then
+/// confirms on their side.
+class MasterOrderCompletionScreen extends StatefulWidget {
+  const MasterOrderCompletionScreen({super.key, required this.orderId});
+
+  final int orderId;
+
+  @override
+  State<MasterOrderCompletionScreen> createState() =>
+      _MasterOrderCompletionScreenState();
+}
+
+class _MasterOrderCompletionScreenState extends State<MasterOrderCompletionScreen> {
+  final MasterMarketplaceService _market = MasterMarketplaceService();
+  bool _busy = false;
+
+  Future<void> _complete() async {
+    setState(() => _busy = true);
+    try {
+      await _market.complete(widget.orderId);
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MasterHomeScreen()),
+        (route) => false,
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,13 +53,10 @@ class MasterOrderCompletionScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               children: [
-                // Order summary card.
                 _SummaryCard(lang: lang),
                 const SizedBox(height: 10),
-                // Photos of the completed work.
                 _PhotosCard(lang: lang),
                 const SizedBox(height: 10),
-                // Info banner.
                 _InfoBanner(
                   tr(
                     lang,
@@ -45,20 +71,11 @@ class MasterOrderCompletionScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
             child: PrimaryButton(
-              label: tr(
-                lang,
-                'Bajarildi deb belgilash',
-                'Отметить выполненным',
-                'Mark as completed',
-              ),
-              onPressed: () {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(
-                    builder: (_) => const MasterHomeScreen(),
-                  ),
-                  (route) => false,
-                );
-              },
+              label: _busy
+                  ? '…'
+                  : tr(lang, 'Bajarildi deb belgilash', 'Отметить выполненным',
+                      'Mark as completed'),
+              onPressed: _busy ? null : _complete,
             ),
           ),
         ],

@@ -4,13 +4,36 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/features/master/data/master_marketplace_service.dart';
 import 'package:fixleo/features/master/presentation/master_order_status_screen.dart';
 
 /// The master's active job — current status, client, address, the task
 /// itself and a quick "go to client now" action, with a button to change
 /// the order status at the bottom.
-class MasterCurrentRequestScreen extends StatelessWidget {
+class MasterCurrentRequestScreen extends StatefulWidget {
   const MasterCurrentRequestScreen({super.key});
+
+  @override
+  State<MasterCurrentRequestScreen> createState() =>
+      _MasterCurrentRequestScreenState();
+}
+
+class _MasterCurrentRequestScreenState extends State<MasterCurrentRequestScreen> {
+  final MasterMarketplaceService _market = MasterMarketplaceService();
+  int? _orderId;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final orders = await _market.orders(status: 'current');
+      if (mounted && orders.isNotEmpty) setState(() => _orderId = orders.first.id);
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -201,11 +224,13 @@ class MasterCurrentRequestScreen extends StatelessWidget {
             const Spacer(),
             PrimaryButton(
               label: tr(lang, 'Statusni oʻzgartirish', 'Изменить статус', 'Change status'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const MasterOrderStatusScreen(),
-                ),
-              ),
+              onPressed: _orderId == null
+                  ? null
+                  : () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => MasterOrderStatusScreen(orderId: _orderId!),
+                        ),
+                      ),
             ),
           ],
         ),

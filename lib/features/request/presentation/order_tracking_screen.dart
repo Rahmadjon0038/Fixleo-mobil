@@ -7,6 +7,7 @@ import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/presentation/chat_screen.dart';
+import 'package:fixleo/features/request/presentation/masters_responses_screen.dart';
 import 'package:fixleo/features/request/presentation/order_status_screen.dart';
 
 /// Live order tracking — a map preview, a 4-step progress bar, the assigned
@@ -151,9 +152,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         height: 52,
                         child: FilledButton(
                           onPressed: () async {
+                            // While still searching, the client needs to pick a
+                            // master from the received offers — route to the
+                            // responses screen, not the (not-yet-started) status
+                            // timeline. Once assigned, go to the status timeline.
+                            final searching = _order?.status == 'searching';
                             await Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => OrderStatusScreen(orderId: widget.orderId),
+                                builder: (_) => searching
+                                    ? MastersResponsesScreen(orderId: widget.orderId)
+                                    : OrderStatusScreen(orderId: widget.orderId),
                               ),
                             );
                             if (mounted) _load();
@@ -166,8 +174,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                             ),
                           ),
                           child: Text(
-                            tr(lang, 'Buyurtma statusiga oʻtish', 'Перейти к статусу заказа',
-                                'Go to order status'),
+                            _order?.status == 'searching'
+                                ? tr(lang, 'Ustani tanlash', 'Выбрать мастера', 'Choose a master')
+                                : tr(lang, 'Buyurtma statusiga oʻtish',
+                                    'Перейти к статусу заказа', 'Go to order status'),
                             style: TextStyle(
                               fontSize: 16,
                               height: 22 / 16,

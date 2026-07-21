@@ -102,7 +102,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => const MyOrdersScreen(),
+                        // "History" opens on the Completed tab, not Active.
+                        builder: (_) => const MyOrdersScreen(initialTab: 1),
                       ),
                     );
                   },

@@ -11,7 +11,10 @@ import 'package:fixleo/features/request/presentation/order_tracking_screen.dart'
 /// "My orders" — the user's orders split into Active and Completed tabs.
 /// Live data from `GET /clients/me/orders?status=active|done`.
 class MyOrdersScreen extends StatefulWidget {
-  const MyOrdersScreen({super.key});
+  const MyOrdersScreen({super.key, this.initialTab = 0});
+
+  /// 0 = Active, 1 = Completed. Profile → "Order history" opens on Completed.
+  final int initialTab;
 
   @override
   State<MyOrdersScreen> createState() => _MyOrdersScreenState();
@@ -27,7 +30,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   final OrderService _service = OrderService();
 
   /// 0 = Active, 1 = Completed.
-  int _tab = 0;
+  late int _tab = widget.initialTab;
   List<OrderSummary> _items = const [];
   bool _loading = true;
   String? _error;
@@ -186,7 +189,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     final selected = _tab == index;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _tab = index),
+        // Use _switchTab so the list actually refetches for the chosen tab
+        // (active vs completed) — a bare setState left the data stale.
+        onTap: () => _switchTab(index),
         child: Container(
           height: 35,
           alignment: Alignment.center,

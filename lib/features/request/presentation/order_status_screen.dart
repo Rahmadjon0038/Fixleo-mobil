@@ -84,7 +84,22 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
         _ => 0,
       };
 
+  /// True once a master is actually assigned — the 4-step timeline (assigned →
+  /// … → work_done) only begins then. While the order is still `searching`
+  /// (or expired/cancelled), none of these steps has started.
+  bool get _started => const {
+        'assigned',
+        'on_the_way',
+        'arrived',
+        'work_done',
+        'completed',
+        'disputed',
+      }.contains(_order?.status);
+
   _StepState _stepState(int i) {
+    // Don't light up "Мастер назначен" as current while still searching — no
+    // master is assigned yet, so every step is pending.
+    if (!_started) return _StepState.pending;
     final d = _doneSteps;
     if (d >= i + 1) return _StepState.done;
     if (d == i) return _StepState.current;

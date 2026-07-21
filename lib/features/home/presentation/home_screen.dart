@@ -94,28 +94,29 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
               currentIndex: _navIndex,
-              onTap: (i) {
-                setState(() => _navIndex = i);
-                // "Buyurtmalar" tab → orders list; "Profil" tab → profile.
-                if (i == 1) {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
-                  );
-                } else if (i == 2) {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const LiveChatsScreen(kind: 'client'),
-                    ),
-                  );
-                } else if (i == 3) {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const WalletScreen()),
-                  );
-                } else if (i == 4) {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                  );
+              onTap: (i) async {
+                if (i == 0) {
+                  setState(() => _navIndex = 0);
+                  return;
                 }
+                setState(() => _navIndex = i);
+                // Tabs 1–4 push a full screen. Await it and reset the highlight
+                // back to Home on return, so the selected tab never desyncs from
+                // the visible screen.
+                Widget dest;
+                if (i == 1) {
+                  dest = const MyOrdersScreen();
+                } else if (i == 2) {
+                  dest = const LiveChatsScreen(kind: 'client');
+                } else if (i == 3) {
+                  dest = const WalletScreen();
+                } else {
+                  dest = const ProfileScreen();
+                }
+                await Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => dest),
+                );
+                if (mounted) setState(() => _navIndex = 0);
               },
             ),
           ),
@@ -162,12 +163,10 @@ class _Card extends StatelessWidget {
 class _CircleIconButton extends StatelessWidget {
   const _CircleIconButton({
     required this.asset,
-    this.badge,
     this.iconSize = 22,
   });
 
   final String asset;
-  final String? badge;
   final double iconSize;
 
   @override
@@ -217,29 +216,6 @@ class _CircleIconButton extends StatelessWidget {
             ),
           ),
         ),
-        if (badge != null)
-          Positioned(
-            right: -2,
-            top: -2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF4444),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-              child: Text(
-                badge!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -291,8 +267,10 @@ class _HomeHeader extends StatelessWidget {
         ),
         const Spacer(),
         const _CircleIconButton(
+          // No fabricated unread badge: there's no unread-count source wired yet,
+          // so showing a fixed "21" to every user was misleading. Re-add `badge`
+          // once a real notifications count endpoint exists.
           asset: 'assets/icon/notificationicon.svg',
-          badge: '21',
           iconSize: 21,
         ),
         const SizedBox(width: 12),

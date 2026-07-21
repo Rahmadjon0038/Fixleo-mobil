@@ -46,10 +46,12 @@ class _Request {
   final String locationRu;
   final String locationEn;
 
-  String category(AppLanguage lang) => tr(lang, categoryUz, categoryRu, categoryEn);
+  String category(AppLanguage lang) =>
+      tr(lang, categoryUz, categoryRu, categoryEn);
   String time(AppLanguage lang) => tr(lang, timeUz, timeRu, timeEn);
   String text(AppLanguage lang) => tr(lang, textUz, textRu, textEn);
-  String location(AppLanguage lang) => tr(lang, locationUz, locationRu, locationEn);
+  String location(AppLanguage lang) =>
+      tr(lang, locationUz, locationRu, locationEn);
 }
 
 /// Master dashboard — "nearby requests" feed with the shared liquid-glass
@@ -66,15 +68,25 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
 
   List<LiquidGlassNavItem> _navItems(AppLanguage lang) => [
     LiquidGlassNavItem(
-        tr(lang, 'Buyurtmalar', 'Заявки', 'Requests'), 'assets/icon/Home.svg'),
+      tr(lang, 'Buyurtmalar', 'Заявки', 'Requests'),
+      'assets/icon/Home.svg',
+    ),
     LiquidGlassNavItem(
-        tr(lang, 'Zakazlar', 'Заказы', 'Orders'), 'assets/icon/History.svg'),
+      tr(lang, 'Zakazlar', 'Заказы', 'Orders'),
+      'assets/icon/History.svg',
+    ),
     LiquidGlassNavItem(
-        tr(lang, 'Chatlar', 'Чаты', 'Chats'), 'assets/icon/chat.svg'),
+      tr(lang, 'Chatlar', 'Чаты', 'Chats'),
+      'assets/icon/chat.svg',
+    ),
     LiquidGlassNavItem(
-        tr(lang, 'Hamyon', 'Кошелек', 'Wallet'), 'assets/icon/wallet.svg'),
+      tr(lang, 'Hamyon', 'Кошелек', 'Wallet'),
+      'assets/icon/wallet.svg',
+    ),
     LiquidGlassNavItem(
-        tr(lang, 'Profil', 'Профиль', 'Profile'), 'assets/icon/usericon.svg'),
+      tr(lang, 'Profil', 'Профиль', 'Profile'),
+      'assets/icon/usericon.svg',
+    ),
   ];
 
   static const _requests = [
@@ -133,6 +145,7 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final showBrand = shouldShowBrandBar();
     return ValueListenableBuilder<AppLanguage>(
       valueListenable: LocaleController.language,
       builder: (context, lang, _) {
@@ -145,7 +158,7 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
                 Column(
                   children: [
                     const SizedBox(height: 8),
-                    const Center(child: BrandBar()),
+                    if (showBrand) const Center(child: BrandBar()),
                     const SizedBox(height: 8),
                     _header(lang, navItems),
                     Expanded(
@@ -164,13 +177,13 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
                   left: 12,
                   right: 12,
                   bottom: 8,
-                child: LiquidGlassNavBar(
-                  items: navItems,
-                  currentIndex: _navIndex,
-                  onTap: _setTab,
+                  child: LiquidGlassNavBar(
+                    items: navItems,
+                    currentIndex: _navIndex,
+                    onTap: _setTab,
+                  ),
                 ),
-              ),
-            ],
+              ],
             ),
           ),
         );
@@ -190,8 +203,12 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
             _Pill(
               child: Text(
                 switch (_navIndex) {
-                  0 => tr(lang, 'Yoningizdagi buyurtmalar', 'Заявки рядом',
-                      'Requests nearby'),
+                  0 => tr(
+                    lang,
+                    'Yoningizdagi buyurtmalar',
+                    'Заявки рядом',
+                    'Requests nearby',
+                  ),
                   1 => tr(lang, 'Mening ishlarim', 'Моя работа', 'My work'),
                   _ => navItems[_navIndex].label,
                 },
@@ -366,7 +383,10 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.blue,
                     borderRadius: BorderRadius.circular(40),
@@ -467,10 +487,7 @@ class _RequestCard extends StatelessWidget {
               const SizedBox(width: 5),
               Text(
                 request.location(LocaleController.language.value),
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF8D96A4),
-                ),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF8D96A4)),
               ),
             ],
           ),

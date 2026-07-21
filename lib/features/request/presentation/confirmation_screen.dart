@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/features/request/presentation/order_waiting_screen.dart';
@@ -14,8 +15,9 @@ class ConfirmationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Tasdiqlash',
+      title: tr(lang, 'Tasdiqlash', 'Подтверждение', 'Confirmation'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -54,8 +56,13 @@ class ConfirmationScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(40),
                   ),
                 ),
-                child: const Text(
-                  'Tanlovni tasdiqlash',
+                child: Text(
+                  tr(
+                    lang,
+                    'Tanlovni tasdiqlash',
+                    'Подтвердить выбор',
+                    'Confirm selection',
+                  ),
                   style: TextStyle(
                     fontSize: 16,
                     height: 22 / 16,
@@ -201,6 +208,7 @@ class ConfirmationScreen extends StatelessWidget {
 
   /// Request summary: label/value rows separated by flexible spacing.
   Widget _summaryCard() {
+    final lang = LocaleController.language.value;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -209,12 +217,21 @@ class ConfirmationScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(30),
       ),
       child: Column(
-        children: const [
-          _SummaryRow(label: 'Xizmat', value: 'Smesitel almashtirish'),
-          SizedBox(height: 8),
-          _SummaryRow(label: 'Vaqt', value: 'Bugun, 12:00–15:00'),
-          SizedBox(height: 8),
-          _SummaryRow(label: 'Usta taklifi', value: '50 000 soʻm'),
+        children: [
+          _SummaryRow(
+            label: tr(lang, 'Xizmat', 'Услуга', 'Service'),
+            value: tr(lang, 'Smesitel almashtirish', 'Замена смесителя', 'Mixer replacement'),
+          ),
+          const SizedBox(height: 8),
+          _SummaryRow(
+            label: tr(lang, 'Vaqt', 'Время', 'Time'),
+            value: tr(lang, 'Bugun, 12:00–15:00', 'Сегодня, 12:00–15:00', 'Today, 12:00–15:00'),
+          ),
+          const SizedBox(height: 8),
+          _SummaryRow(
+            label: tr(lang, 'Usta taklifi', 'Предложение мастера', 'Master offer'),
+            value: tr(lang, '50 000 soʻm', '50 000 сум', '50 000 sum'),
+          ),
         ],
       ),
     );
@@ -229,8 +246,13 @@ class ConfirmationScreen extends StatelessWidget {
         color: _blue100,
         borderRadius: BorderRadius.circular(30),
       ),
-      child: const Text(
-        'Tasdiqlangach usta bildirishnoma oladi',
+      child: Text(
+        tr(
+          LocaleController.language.value,
+          'Tasdiqlangach usta bildirishnoma oladi',
+          'После подтверждения мастер получит уведомление',
+          'Once confirmed, the master will receive a notification',
+        ),
         style: TextStyle(
           fontSize: 14,
           height: 20 / 14,

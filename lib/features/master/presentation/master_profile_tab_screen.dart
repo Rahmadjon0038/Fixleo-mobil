@@ -156,7 +156,7 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
     );
   }
 
-  /// Language switcher card (O‘zbekcha / Русский / English).
+  /// Language switcher card (English / O‘zbekcha / Русский).
   Widget _languageCard(AppLanguage lang) {
     return Container(
       width: double.infinity,
@@ -180,19 +180,19 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
           ),
           const SizedBox(height: 10),
           _LangOption(
-            title: 'O‘zbekcha',
+            title: tr(lang, 'O‘zbekcha', 'Узбекский', 'Uzbek'),
             selected: lang == AppLanguage.uz,
             onTap: () => LocaleController.set(AppLanguage.uz),
           ),
           const SizedBox(height: 8),
           _LangOption(
-            title: 'Русский',
+            title: tr(lang, 'Rus tili', 'Русский', 'Russian'),
             selected: lang == AppLanguage.ru,
             onTap: () => LocaleController.set(AppLanguage.ru),
           ),
           const SizedBox(height: 8),
           _LangOption(
-            title: 'English',
+            title: tr(lang, 'Ingliz tili', 'Английский', 'English'),
             selected: lang == AppLanguage.en,
             onTap: () => LocaleController.set(AppLanguage.en),
           ),

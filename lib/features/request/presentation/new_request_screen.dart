@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
@@ -56,8 +57,9 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Yangi buyurtma',
+      title: tr(lang, 'Yangi buyurtma', 'Новый заказ', 'New request'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
@@ -69,20 +71,22 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const _CategoryPill(label: 'Santexnika'),
+                    _CategoryPill(
+                      label: tr(lang, 'Santexnika', 'Сантехника', 'Plumbing'),
+                    ),
                     const SizedBox(height: 16),
-                    _DescribeCard(controller: _description),
+                    _DescribeCard(controller: _description, lang: lang),
                     const SizedBox(height: 12),
                     _photosCard(),
                     const SizedBox(height: 12),
-                    _AddressCard(onTap: _openAddress),
+                    _AddressCard(onTap: _openAddress, lang: lang),
                     const SizedBox(height: 12),
                   ],
                 ),
               ),
             ),
             PrimaryButton(
-              label: 'Keyingi',
+              label: tr(lang, 'Keyingi', 'Далее', 'Next'),
               onPressed: _openAddress,
             ),
           ],
@@ -111,7 +115,12 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '6 tagacha rasm qoʻshing — ustaga vazifani baholash osonroq boʻladi',
+            tr(
+              LocaleController.language.value,
+              '6 tagacha rasm qoʻshing — ustaga vazifani baholash osonroq boʻladi',
+              'Добавьте до 6 фото — мастеру будет проще оценить задачу',
+              'Add up to 6 photos so the master can estimate the job more easily',
+            ),
             style: TextStyle(
               fontSize: 14,
               height: 1.35,
@@ -177,9 +186,10 @@ class _CategoryPill extends StatelessWidget {
 }
 
 class _DescribeCard extends StatelessWidget {
-  const _DescribeCard({required this.controller});
+  const _DescribeCard({required this.controller, required this.lang});
 
   final TextEditingController controller;
+  final AppLanguage lang;
 
   @override
   Widget build(BuildContext context) {
@@ -200,8 +210,8 @@ class _DescribeCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Vazifani tasvirlang',
+          Text(
+            tr(lang, 'Vazifani tasvirlang', 'Опишите задачу', 'Describe the task'),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -219,13 +229,16 @@ class _DescribeCard extends StatelessWidget {
               controller: controller,
               maxLines: 4,
               style: const TextStyle(fontSize: 14, color: AppColors.navy),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 isCollapsed: true,
                 border: InputBorder.none,
-                hintText:
-                    'Masalan: oshxonadagi smesitel oqyapti, kartrijni '
-                    'almashtirish kerak...',
-                hintStyle: TextStyle(
+                hintText: tr(
+                  lang,
+                  'Masalan: oshxonadagi smesitel oqyapti, kartrijni almashtirish kerak...',
+                  'Например: на кухне течёт смеситель, нужно заменить картридж...',
+                  'For example: the kitchen faucet is leaking; the cartridge needs to be replaced...',
+                ),
+                hintStyle: const TextStyle(
                   color: AppColors.muted,
                   fontSize: 14,
                   height: 1.4,
@@ -242,9 +255,10 @@ class _DescribeCard extends StatelessWidget {
 /// Address preview card — a static mini-map with a pin and a
 /// "Manzilni tasdiqlash" row; tapping it opens the map picker.
 class _AddressCard extends StatelessWidget {
-  const _AddressCard({required this.onTap});
+  const _AddressCard({required this.onTap, required this.lang});
 
   final VoidCallback onTap;
+  final AppLanguage lang;
 
   /// Tashkent center, same starting point as the picker map.
   static const _center = LatLng(41.311081, 69.279737);
@@ -308,9 +322,9 @@ class _AddressCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(10, 10, 6, 6),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Manzilni tasdiqlash',
+                      tr(lang, 'Manzilni tasdiqlash', 'Подтвердить адрес', 'Confirm address'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,

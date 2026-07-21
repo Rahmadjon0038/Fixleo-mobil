@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/features/request/presentation/order_done_screen.dart';
@@ -26,17 +27,33 @@ class OrderStatusScreen extends StatelessWidget {
   static const _text = Color(0xFF23232E);
   static const _muted = Color(0xFF9494A3);
 
-  static const _steps = <_Step>[
-    _Step(title: 'Buyurtma qabul qilindi', subtitle: 'Bugun, 14:05', state: _StepState.done),
-    _Step(title: 'Usta yoʻlda', subtitle: 'Bugun, 14:20', state: _StepState.done),
-    _Step(title: 'Usta yetib keldi', subtitle: 'Kutilmoqda', state: _StepState.current),
-    _Step(title: 'Ish bajarildi', subtitle: 'Kutilmoqda', state: _StepState.pending),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
+    final steps = <_Step>[
+      _Step(
+        title: tr(lang, 'Buyurtma qabul qilindi', 'Заказ принят', 'Request accepted'),
+        subtitle: tr(lang, 'Bugun, 14:05', 'Сегодня, 14:05', 'Today, 14:05'),
+        state: _StepState.done,
+      ),
+      _Step(
+        title: tr(lang, 'Usta yoʻlda', 'Мастер в пути', 'Master on the way'),
+        subtitle: tr(lang, 'Bugun, 14:20', 'Сегодня, 14:20', 'Today, 14:20'),
+        state: _StepState.done,
+      ),
+      _Step(
+        title: tr(lang, 'Usta yetib keldi', 'Мастер прибыл', 'Master arrived'),
+        subtitle: tr(lang, 'Kutilmoqda', 'Ожидается', 'Pending'),
+        state: _StepState.current,
+      ),
+      _Step(
+        title: tr(lang, 'Ish bajarildi', 'Работа выполнена', 'Work completed'),
+        subtitle: tr(lang, 'Kutilmoqda', 'Ожидается', 'Pending'),
+        state: _StepState.pending,
+      ),
+    ];
     return BrandedScaffold(
-      title: 'Buyurtma holati',
+      title: tr(lang, 'Buyurtma holati', 'Статус заказа', 'Order status'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -46,7 +63,7 @@ class OrderStatusScreen extends StatelessWidget {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    _timelineCard(),
+                    _timelineCard(steps),
                     const SizedBox(height: 10),
                     _noticeBanner(),
                   ],
@@ -75,8 +92,8 @@ class OrderStatusScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(40),
                   ),
                 ),
-                child: const Text(
-                  'Usta ishni yakunladi',
+                child: Text(
+                  tr(lang, 'Usta ishni yakunladi', 'Мастер завершил работу', 'The master finished the job'),
                   style: TextStyle(
                     fontSize: 16,
                     height: 22 / 16,
@@ -92,7 +109,7 @@ class OrderStatusScreen extends StatelessWidget {
     );
   }
 
-  Widget _timelineCard() {
+  Widget _timelineCard(List<_Step> steps) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -102,8 +119,8 @@ class OrderStatusScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          for (int i = 0; i < _steps.length; i++)
-            _stepRow(_steps[i], isLast: i == _steps.length - 1),
+          for (int i = 0; i < steps.length; i++)
+            _stepRow(steps[i], isLast: i == steps.length - 1),
         ],
       ),
     );
@@ -210,8 +227,13 @@ class OrderStatusScreen extends StatelessWidget {
         color: _blue100,
         borderRadius: BorderRadius.circular(30),
       ),
-      child: const Text(
-        'Holat oʻzgarganda bildirishnoma yuboramiz',
+      child: Text(
+        tr(
+          LocaleController.language.value,
+          'Holat oʻzgarganda bildirishnoma yuboramiz',
+          'Мы отправим уведомление при изменении статуса',
+          'We will notify you when the status changes',
+        ),
         style: TextStyle(
           fontSize: 14,
           height: 20 / 14,

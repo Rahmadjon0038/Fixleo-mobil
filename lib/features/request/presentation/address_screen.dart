@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/core/location/reverse_geocoder.dart';
 import 'package:fixleo/features/home/presentation/home_screen.dart';
 import 'package:fixleo/features/request/presentation/time_urgency_screen.dart';
 
@@ -31,12 +34,30 @@ class _AddressScreenState extends State<AddressScreen> {
   static const _start = LatLng(41.311081, 69.279737);
 
   final _mapController = MapController();
+  final _geocoder = ReverseGeocoder();
+
+  /// Current selected map center.
+  LatLng _center = _start;
+  String? _placeLabel;
+  String? _placeSubtitle;
+  bool _resolvingPlace = false;
+  Timer? _geocodeDebounce;
+  int _geocodeToken = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scheduleReverseGeocode(_center, immediate: true);
+    });
+  }
 
   /// Whether the map is mid-drag (used to lift the pin a touch for feedback).
   bool _dragging = false;
 
   @override
   void dispose() {
+    _geocodeDebounce?.cancel();
     _mapController.dispose();
     super.dispose();
   }
@@ -48,10 +69,53 @@ class _AddressScreenState extends State<AddressScreen> {
     }
   }
 
-  void _recenter() => _mapController.move(_start, 15);
+  void _onPositionChanged(MapCamera position, bool hasGesture) {
+    setState(() => _center = position.center);
+    _scheduleReverseGeocode(position.center);
+  }
+
+  void _recenter() {
+    setState(() => _center = _start);
+    _mapController.move(_start, 15);
+    _scheduleReverseGeocode(_start, immediate: true);
+  }
+
+  void _scheduleReverseGeocode(LatLng point, {bool immediate = false}) {
+    _geocodeDebounce?.cancel();
+    if (immediate) {
+      _resolvePlace(point);
+      return;
+    }
+    _geocodeDebounce = Timer(
+      const Duration(milliseconds: 450),
+      () => _resolvePlace(point),
+    );
+  }
+
+  Future<void> _resolvePlace(LatLng point) async {
+    final token = ++_geocodeToken;
+    if (mounted) setState(() => _resolvingPlace = true);
+    try {
+      final result = await _geocoder.resolve(point);
+      if (!mounted || token != _geocodeToken) return;
+      setState(() {
+        _placeLabel = result?.label;
+        _placeSubtitle = result?.subtitle;
+        _resolvingPlace = false;
+      });
+    } catch (_) {
+      if (!mounted || token != _geocodeToken) return;
+      setState(() {
+        _placeLabel = null;
+        _placeSubtitle = null;
+        _resolvingPlace = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
@@ -65,14 +129,14 @@ class _AddressScreenState extends State<AddressScreen> {
               minZoom: 3,
               maxZoom: 18,
               onMapEvent: _onMapEvent,
+              onPositionChanged: _onPositionChanged,
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
             ),
             children: [
               TileLayer(
-                urlTemplate:
-                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.fixleo.app',
               ),
             ],
@@ -97,10 +161,15 @@ class _AddressScreenState extends State<AddressScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 8),
-                const Center(child: BrandBar()),
+                if (shouldShowBrandBar()) const Center(child: BrandBar()),
                 const SizedBox(height: 18),
                 Text(
-                  'Xaritani siljitish mumkin',
+                  tr(
+                    lang,
+                    'Xaritani siljitish mumkin',
+                    'Карту можно двигать',
+                    'You can move the map',
+                  ),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 20,
@@ -123,10 +192,20 @@ class _AddressScreenState extends State<AddressScreen> {
           Align(
             alignment: Alignment.bottomCenter,
             child: _AddressSheet(
+              currentCenter: _center,
+              placeLabel: _placeLabel,
+              placeSubtitle: _placeSubtitle,
+              resolvingPlace: _resolvingPlace,
               onBack: () => Navigator.of(context).maybePop(),
               onRecenter: _recenter,
-              confirmLabel:
-                  widget.isOnboarding ? 'Saqlash' : 'Manzilni tasdiqlash',
+              confirmLabel: widget.isOnboarding
+                  ? tr(lang, 'Saqlash', 'Сохранить', 'Save')
+                  : tr(
+                      lang,
+                      'Manzilni tasdiqlash',
+                      'Подтвердить адрес',
+                      'Confirm address',
+                    ),
               showDetailsField: !widget.isOnboarding,
               onConfirm: () {
                 if (widget.isOnboarding) {
@@ -264,6 +343,10 @@ class _MapButton extends StatelessWidget {
 /// Bottom card: floating map controls + the picked-address sheet.
 class _AddressSheet extends StatelessWidget {
   const _AddressSheet({
+    required this.currentCenter,
+    required this.placeLabel,
+    required this.placeSubtitle,
+    required this.resolvingPlace,
     required this.onBack,
     required this.onRecenter,
     required this.onConfirm,
@@ -271,6 +354,10 @@ class _AddressSheet extends StatelessWidget {
     this.showDetailsField = true,
   });
 
+  final LatLng currentCenter;
+  final String? placeLabel;
+  final String? placeSubtitle;
+  final bool resolvingPlace;
   final VoidCallback onBack;
   final VoidCallback onRecenter;
   final VoidCallback onConfirm;
@@ -282,6 +369,7 @@ class _AddressSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -309,8 +397,13 @@ class _AddressSheet extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Sizning joylashuvingiz',
+                Text(
+                  tr(
+                    lang,
+                    'Sizning joylashuvingiz',
+                    'Ваше местоположение',
+                    'Your location',
+                  ),
                   style: TextStyle(
                     fontSize: 14,
                     height: 20 / 14,
@@ -348,8 +441,14 @@ class _AddressSheet extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Maxtumquli 11 A',
+                            Text(
+                              placeLabel ??
+                                  tr(
+                                    lang,
+                                    'Tanlangan joy',
+                                    'Выбранное место',
+                                    'Selected place',
+                                  ),
                               style: TextStyle(
                                 fontSize: 16,
                                 height: 22 / 16,
@@ -358,8 +457,21 @@ class _AddressSheet extends StatelessWidget {
                                 color: AppColors.navy,
                               ),
                             ),
-                            const Text(
-                              'Mavjud yetkazib berish',
+                            Text(
+                              resolvingPlace
+                                  ? tr(
+                                      lang,
+                                      'Aniqlanmoqda...',
+                                      'Определяем...',
+                                      'Resolving...',
+                                    )
+                                  : placeSubtitle ??
+                                        tr(
+                                          lang,
+                                          'Koordinata bo‘yicha tanlandi',
+                                          'Выбрано по координатам',
+                                          'Selected by coordinates',
+                                        ),
                               style: TextStyle(
                                 fontSize: 14,
                                 height: 20 / 14,
@@ -373,6 +485,16 @@ class _AddressSheet extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  '${currentCenter.latitude.toStringAsFixed(6)}, ${currentCenter.longitude.toStringAsFixed(6)}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 16 / 12,
+                    letterSpacing: -0.08,
+                    color: Color(0xFF8D96A4),
+                  ),
+                ),
                 if (showDetailsField) ...[
                   const SizedBox(height: 10),
                   // Optional apartment / entrance / floor field.
@@ -384,13 +506,18 @@ class _AddressSheet extends StatelessWidget {
                       color: AppColors.background,
                       borderRadius: BorderRadius.circular(40),
                     ),
-                    child: const TextField(
+                    child: TextField(
                       style: TextStyle(fontSize: 14, color: AppColors.navy),
                       decoration: InputDecoration(
                         isCollapsed: true,
                         border: InputBorder.none,
-                        hintText: 'Kvartira / podyezd / qavat (ixtiyoriy)',
-                        hintStyle: TextStyle(
+                        hintText: tr(
+                          lang,
+                          'Kvartira / podyezd / qavat (ixtiyoriy)',
+                          'Квартира / подъезд / этаж (необязательно)',
+                          'Apartment / entrance / floor (optional)',
+                        ),
+                        hintStyle: const TextStyle(
                           color: Color(0xFF9494A3),
                           fontSize: 14,
                         ),

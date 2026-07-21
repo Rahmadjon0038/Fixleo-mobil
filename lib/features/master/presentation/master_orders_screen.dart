@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 
 /// Order status shown as a colored pill on each history card.
@@ -34,37 +35,37 @@ class MasterOrdersScreen extends StatefulWidget {
 }
 
 class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
-  static const _orders = <_Order>[
+  List<_Order> _orders(AppLanguage lang) => [
     _Order(
-      title: 'Rozetka tuzatildi',
-      desc: 'Rozetka ishlamay qoldi, uchqun chiqyapti.',
-      address: 'Lenin koʻchasi, 123, 12-xonadon',
-      date: '22-iyun 2026, 15:40',
-      price: '50 000 soʻm',
+      title: tr(lang, 'Rozetka tuzatildi', 'Розетка отремонтирована', 'Socket fixed'),
+      desc: tr(lang, 'Rozetka ishlamay qoldi, uchqun chiqyapti.', 'Розетка перестала работать, были искры.', 'The socket stopped working and was sparking.'),
+      address: tr(lang, 'Lenin koʻchasi, 123, 12-xonadon', 'Ул. Ленина, 123, кв. 12', 'Lenin St. 123, apt. 12'),
+      date: tr(lang, '22-iyun 2026, 15:40', '22 июня 2026, 15:40', 'June 22, 2026, 15:40'),
+      price: tr(lang, '50 000 soʻm', '50 000 сум', '50 000 sum'),
       status: _OrderStatus.done,
     ),
     _Order(
-      title: 'Rozetka tuzatildi',
-      desc: 'Rozetka ishlamay qoldi, uchqun chiqyapti.',
-      address: 'Lenin koʻchasi, 123, 12-xonadon',
-      date: '22-iyun 2026, 15:40',
-      price: '50 000 soʻm',
+      title: tr(lang, 'Rozetka tuzatildi', 'Розетка отремонтирована', 'Socket fixed'),
+      desc: tr(lang, 'Rozetka ishlamay qoldi, uchqun chiqyapti.', 'Розетка перестала работать, были искры.', 'The socket stopped working and was sparking.'),
+      address: tr(lang, 'Lenin koʻchasi, 123, 12-xonadon', 'Ул. Ленина, 123, кв. 12', 'Lenin St. 123, apt. 12'),
+      date: tr(lang, '22-iyun 2026, 15:40', '22 июня 2026, 15:40', 'June 22, 2026, 15:40'),
+      price: tr(lang, '50 000 soʻm', '50 000 сум', '50 000 sum'),
       status: _OrderStatus.cancelled,
     ),
     _Order(
-      title: 'Smesitel almashtirildi',
-      desc: 'Oshxonada smesitel oqyapti, kartrij almashtirildi.',
-      address: 'Amir Temur 12, 45-xonadon',
-      date: '20-iyun 2026, 13:10',
-      price: '80 000 soʻm',
+      title: tr(lang, 'Smesitel almashtirildi', 'Смеситель заменён', 'Mixer replaced'),
+      desc: tr(lang, 'Oshxonada smesitel oqyapti, kartrij almashtirildi.', 'На кухне тек смеситель, заменён картридж.', 'The kitchen mixer was leaking, cartridge replaced.'),
+      address: tr(lang, 'Amir Temur 12, 45-xonadon', 'Амир Темур 12, кв. 45', 'Amir Temur 12, apt. 45'),
+      date: tr(lang, '20-iyun 2026, 13:10', '20 июня 2026, 13:10', 'June 20, 2026, 13:10'),
+      price: tr(lang, '80 000 soʻm', '80 000 сум', '80 000 sum'),
       status: _OrderStatus.cancelled,
     ),
     _Order(
-      title: 'Lyustra oʻrnatildi',
-      desc: 'Zalda yangi lyustra oʻrnatib berildi.',
-      address: 'Chilonzor 9, 3-xonadon',
-      date: '18-iyun 2026, 11:25',
-      price: '60 000 soʻm',
+      title: tr(lang, 'Lyustra oʻrnatildi', 'Люстра установлена', 'Chandelier installed'),
+      desc: tr(lang, 'Zalda yangi lyustra oʻrnatib berildi.', 'В зале установили новую люстру.', 'A new chandelier was installed in the hall.'),
+      address: tr(lang, 'Chilonzor 9, 3-xonadon', 'Чиланзар 9, кв. 3', 'Chilanzar 9, apt. 3'),
+      date: tr(lang, '18-iyun 2026, 11:25', '18 июня 2026, 11:25', 'June 18, 2026, 11:25'),
+      price: tr(lang, '60 000 soʻm', '60 000 сум', '60 000 sum'),
       status: _OrderStatus.done,
     ),
   ];
@@ -73,14 +74,16 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
+    final orders = _orders(lang);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
       child: Column(
         children: [
-          _segmentedControl(),
+          _segmentedControl(lang),
           const SizedBox(height: 10),
           Expanded(
-            child: _segment == 0 ? _history() : _reviews(),
+            child: _segment == 0 ? _history(orders) : _reviews(lang),
           ),
         ],
       ),
@@ -88,7 +91,7 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
   }
 
   /// Pill-shaped two-segment control (Tarix / Sharhlar).
-  Widget _segmentedControl() {
+  Widget _segmentedControl(AppLanguage lang) {
     return Container(
       height: 41,
       padding: const EdgeInsets.all(3),
@@ -105,8 +108,8 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
       ),
       child: Row(
         children: [
-          _segmentButton('Tarix', 0),
-          _segmentButton('Sharhlar', 1),
+          _segmentButton(tr(lang, 'Tarix', 'История', 'History'), 0),
+          _segmentButton(tr(lang, 'Sharhlar', 'Отзывы', 'Reviews'), 1),
         ],
       ),
     );
@@ -138,37 +141,38 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
     );
   }
 
-  Widget _history() {
+  Widget _history(List<_Order> orders) {
     return ListView.separated(
       padding: const EdgeInsets.only(bottom: 100),
-      itemCount: _orders.length,
+      itemCount: orders.length,
       separatorBuilder: (context, index) => const SizedBox(height: 10),
-      itemBuilder: (context, index) => _OrderCard(order: _orders[index]),
+      itemBuilder: (context, index) => _OrderCard(order: orders[index]),
     );
   }
 
-  Widget _reviews() {
+  Widget _reviews(AppLanguage lang) {
     return ListView(
       padding: const EdgeInsets.only(bottom: 100),
-      children: const [
+      children: [
         _RatingSummary(),
         SizedBox(height: 10),
         _ReviewCard(
           name: 'Dilshod R.',
           stars: 5,
-          text: 'Vaqtida keldi, hammasini ozoda qildi. Tavsiya qilaman!',
+          text: tr(lang, 'Vaqtida keldi, hammasini ozoda qildi. Tavsiya qilaman!',
+              'Пришёл вовремя, всё аккуратно сделал. Рекомендую!', 'Arrived on time and cleaned up everything. Recommended!'),
         ),
         SizedBox(height: 10),
         _ReviewCard(
           name: 'Nigora A.',
           stars: 5,
-          text: 'Juda tez va sifatli ishladi. Rahmat!',
+          text: tr(lang, 'Juda tez va sifatli ishladi. Rahmat!', 'Очень быстро и качественно. Спасибо!', 'Very fast and high quality. Thanks!'),
         ),
         SizedBox(height: 10),
         _ReviewCard(
           name: 'Bekzod T.',
           stars: 4,
-          text: 'Yaxshi usta, lekin biroz kechikdi.',
+          text: tr(lang, 'Yaxshi usta, lekin biroz kechikdi.', 'Хороший мастер, но немного опоздал.', 'Good master, but a bit late.'),
         ),
       ],
     );
@@ -184,6 +188,7 @@ class _RatingSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -211,7 +216,7 @@ class _RatingSummary extends StatelessWidget {
               const _Stars(count: 5, size: 12),
               const SizedBox(height: 2),
               Text(
-                '124 sharh',
+                tr(lang, '124 sharh', '124 отзыва', '124 reviews'),
                 style: const TextStyle(
                   fontSize: 12,
                   height: 16 / 12,
@@ -460,6 +465,7 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final done = status == _OrderStatus.done;
+    final lang = LocaleController.language.value;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -467,7 +473,9 @@ class _StatusPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        done ? 'Bajarildi' : 'Bekor qilindi',
+        done
+            ? tr(lang, 'Bajarildi', 'Выполнено', 'Done')
+            : tr(lang, 'Bekor qilindi', 'Отменено', 'Cancelled'),
         style: TextStyle(
           fontSize: 14,
           height: 20 / 14,

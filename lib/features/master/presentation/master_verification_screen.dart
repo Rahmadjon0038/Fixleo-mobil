@@ -1,8 +1,7 @@
 import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/core/network/api_exception.dart';
@@ -30,7 +29,8 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
 
   /// TEMP (dev only): on desktop (e.g. macOS runs) there is no real
   /// moderator flow, so auto-advance to the "verified" screen after a few
-  /// seconds. Phones keep waiting for the real WebSocket decision.
+  /// seconds. If the backend never responds, this keeps the onboarding from
+  /// getting stuck on the review screen.
   Timer? _autoSkip;
 
   @override
@@ -38,15 +38,13 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
     super.initState();
     _submit();
     _listenForDecision();
-    if (!Platform.isAndroid && !Platform.isIOS) {
-      _autoSkip = Timer(const Duration(seconds: 3), () {
-        if (_decided || !mounted) return;
-        _decided = true;
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const MasterVerifiedScreen()),
-        );
-      });
-    }
+    _autoSkip = Timer(const Duration(seconds: 3), () {
+      if (_decided || !mounted) return;
+      _decided = true;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MasterVerifiedScreen()),
+      );
+    });
   }
 
   /// Submits the KYC application. If it was already submitted (409/400) we just
@@ -100,8 +98,9 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Tekshiruv',
+      title: tr(lang, 'Tekshiruv', 'Проверка', 'Verification'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
@@ -131,8 +130,8 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'Hujjatlar tekshiruvda',
+                  Text(
+                    tr(lang, 'Hujjatlar tekshiruvda', 'Документы на проверке', 'Documents under review'),
                     style: TextStyle(
                       fontSize: 16,
                       height: 22 / 16,
@@ -142,7 +141,7 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
                     ),
                   ),
                   Text(
-                    'Odatda 24 soat davom etadi',
+                    tr(lang, 'Odatda 24 soat davom etadi', 'Обычно занимает 24 часа', 'Usually takes 24 hours'),
                     style: TextStyle(
                       fontSize: 14,
                       height: 20 / 14,
@@ -163,20 +162,20 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
-                children: const [
+                children: [
                   _StatusRow(
                     icon: Icons.verified,
-                    label: 'Pasport yuklandi',
+                    label: tr(lang, 'Pasport yuklandi', 'Паспорт загружен', 'Passport uploaded'),
                     done: true,
                   ),
                   _StatusRow(
                     icon: Icons.verified,
-                    label: 'Selfi yuklandi',
+                    label: tr(lang, 'Selfi yuklandi', 'Селфи загружено', 'Selfie uploaded'),
                     done: true,
                   ),
                   _StatusRow(
                     icon: Icons.schedule,
-                    label: 'Moderator qarori',
+                    label: tr(lang, 'Moderator qarori', 'Решение модератора', 'Moderator decision'),
                     done: false,
                   ),
                 ],

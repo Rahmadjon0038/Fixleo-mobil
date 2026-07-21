@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
@@ -25,31 +26,44 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _navIndex = 0;
 
-  // Client-side conversations (with masters). Mock data for now.
-  static const _clientConversations = <Conversation>[
-    Conversation(
-      name: 'Aleksey Ivanov',
-      last: 'Yaqinlashyapman, bir daqiqada yetaman!',
-      time: '14:41',
-      unread: 2,
-    ),
-    Conversation(
-      name: 'Aleksandr Petrov',
-      last: 'Ish tugadi, hammasini tekshirib koʻring.',
-      time: 'Kecha',
-      unread: 1,
-    ),
-    Conversation(
-      name: 'Rustam Qodirov',
-      last: 'Rahmat, yaxshi kunlar!',
-      time: 'Dush',
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
+    final clientConversations = <Conversation>[
+      Conversation(
+        name: 'Aleksey Ivanov',
+        last: tr(
+          lang,
+          'Yaqinlashyapman, bir daqiqada yetaman!',
+          'Скоро буду, через минуту!',
+          'I am nearby, I’ll be there in a minute!',
+        ),
+        time: '14:41',
+        unread: 2,
+      ),
+      Conversation(
+        name: 'Aleksandr Petrov',
+        last: tr(
+          lang,
+          'Ish tugadi, hammasini tekshirib koʻring.',
+          'Работа закончена, проверьте всё.',
+          'The job is done, please check everything.',
+        ),
+        time: tr(lang, 'Kecha', 'Вчера', 'Yesterday'),
+        unread: 1,
+      ),
+      Conversation(
+        name: 'Rustam Qodirov',
+        last: tr(
+          lang,
+          'Rahmat, yaxshi kunlar!',
+          'Спасибо, хорошего дня!',
+          'Thanks, have a great day!',
+        ),
+        time: tr(lang, 'Dush', 'Пн', 'Mon'),
+      ),
+    ];
     return BrandedScaffold(
-      showBrand: false,
       body: Stack(
         children: [
           Positioned.fill(
@@ -57,24 +71,23 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Center(child: BrandBar()),
-                  SizedBox(height: 12),
-                  _HomeHeader(),
-                  SizedBox(height: 14),
-                  _GreetingCard(),
-                  SizedBox(height: 14),
-                  _SearchHero(),
-                  SizedBox(height: 14),
-                  _CategoriesCard(),
-                  SizedBox(height: 14),
-                  _PhotosCard(),
-                  SizedBox(height: 14),
-                  _FeedbackRow(),
-                  SizedBox(height: 14),
-                  _SpecialistCard(),
-                  SizedBox(height: 14),
-                  _ActiveOrderCard(),
+                children: [
+                  const SizedBox(height: 12),
+                  _HomeHeader(lang: lang),
+                  const SizedBox(height: 14),
+                  _GreetingCard(lang: lang),
+                  const SizedBox(height: 14),
+                  _SearchHero(lang: lang),
+                  const SizedBox(height: 14),
+                  _CategoriesCard(lang: lang),
+                  const SizedBox(height: 14),
+                  const _PhotosCard(),
+                  const SizedBox(height: 14),
+                  _FeedbackRow(lang: lang),
+                  const SizedBox(height: 14),
+                  _SpecialistCard(lang: lang),
+                  const SizedBox(height: 14),
+                  _ActiveOrderCard(lang: lang),
                 ],
               ),
             ),
@@ -84,12 +97,27 @@ class _HomeScreenState extends State<HomeScreen> {
             right: 12,
             bottom: 8,
             child: LiquidGlassNavBar(
-              items: const [
-                LiquidGlassNavItem('Asosiy', 'assets/icon/Home.svg'),
-                LiquidGlassNavItem('Buyurtmalar', 'assets/icon/History.svg'),
-                LiquidGlassNavItem('Chatlar', 'assets/icon/chat.svg'),
-                LiquidGlassNavItem('Hamyon', 'assets/icon/wallet.svg'),
-                LiquidGlassNavItem('Profil', 'assets/icon/usericon.svg'),
+              items: [
+                LiquidGlassNavItem(
+                  tr(lang, 'Asosiy', 'Главная', 'Home'),
+                  'assets/icon/Home.svg',
+                ),
+                LiquidGlassNavItem(
+                  tr(lang, 'Buyurtmalar', 'Заказы', 'Orders'),
+                  'assets/icon/History.svg',
+                ),
+                LiquidGlassNavItem(
+                  tr(lang, 'Chatlar', 'Чаты', 'Chats'),
+                  'assets/icon/chat.svg',
+                ),
+                LiquidGlassNavItem(
+                  tr(lang, 'Hamyon', 'Кошелек', 'Wallet'),
+                  'assets/icon/wallet.svg',
+                ),
+                LiquidGlassNavItem(
+                  tr(lang, 'Profil', 'Профиль', 'Profile'),
+                  'assets/icon/usericon.svg',
+                ),
               ],
               currentIndex: _navIndex,
               onTap: (i) {
@@ -102,9 +130,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 } else if (i == 2) {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => const ClientChatsScreen(
-                        conversations: _clientConversations,
-                      ),
+                      builder: (_) =>
+                          ClientChatsScreen(conversations: clientConversations),
                     ),
                   );
                 } else if (i == 3) {
@@ -246,7 +273,9 @@ class _CircleIconButton extends StatelessWidget {
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader();
+  const _HomeHeader({required this.lang});
+
+  final AppLanguage lang;
 
   @override
   Widget build(BuildContext context) {
@@ -304,7 +333,9 @@ class _HomeHeader extends StatelessWidget {
 }
 
 class _GreetingCard extends StatelessWidget {
-  const _GreetingCard();
+  const _GreetingCard({required this.lang});
+
+  final AppLanguage lang;
 
   @override
   Widget build(BuildContext context) {
@@ -315,8 +346,13 @@ class _GreetingCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Xayrli kun, Arslan!',
+                Text(
+                  tr(
+                    lang,
+                    'Xayrli kun, Arslan!',
+                    'Добрый день, Арслан!',
+                    'Good day, Arslan!',
+                  ),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -324,12 +360,17 @@ class _GreetingCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Row(
+                Row(
                   children: [
                     Icon(Icons.location_on, size: 14, color: AppColors.navy),
                     SizedBox(width: 4),
                     Text(
-                      'Yashnobod, Toshkent',
+                      tr(
+                        lang,
+                        'Yashnobod, Toshkent',
+                        'Яшнабад, Ташкент',
+                        'Yashnobod, Tashkent',
+                      ),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -355,8 +396,13 @@ class _GreetingCard extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Text(
-              'Manzilni oʻzgartirish',
+            child: Text(
+              tr(
+                lang,
+                'Manzilni oʻzgartirish',
+                'Изменить адрес',
+                'Change address',
+              ),
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 12,
@@ -371,7 +417,9 @@ class _GreetingCard extends StatelessWidget {
 }
 
 class _SearchHero extends StatelessWidget {
-  const _SearchHero();
+  const _SearchHero({required this.lang});
+
+  final AppLanguage lang;
 
   @override
   Widget build(BuildContext context) {
@@ -385,8 +433,13 @@ class _SearchHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Har qanday vazifa uchun ishonchli\nusta topamiz',
+          Text(
+            tr(
+              lang,
+              'Har qanday vazifa uchun ishonchli\nusta topamiz',
+              'Найдём надёжного мастера\nдля любой задачи',
+              'We’ll find a trusted master\nfor any task',
+            ),
             style: TextStyle(
               color: Colors.white,
               fontSize: 20,
@@ -412,11 +465,16 @@ class _SearchHero extends StatelessWidget {
                         fontSize: 14,
                         color: AppColors.navy,
                       ),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         isCollapsed: true,
                         border: InputBorder.none,
-                        hintText: 'Mutaxassis yoki xizmat',
-                        hintStyle: TextStyle(
+                        hintText: tr(
+                          lang,
+                          'Mutaxassis yoki xizmat',
+                          'Специалист или услуга',
+                          'Specialist or service',
+                        ),
+                        hintStyle: const TextStyle(
                           color: AppColors.muted,
                           fontSize: 14,
                         ),
@@ -440,39 +498,44 @@ class _Category {
 }
 
 class _CategoriesCard extends StatefulWidget {
-  const _CategoriesCard();
+  const _CategoriesCard({required this.lang});
+
+  final AppLanguage lang;
 
   @override
   State<_CategoriesCard> createState() => _CategoriesCardState();
 }
 
 class _CategoriesCardState extends State<_CategoriesCard> {
-  // Shown until the backend list loads (and as offline fallback).
-  static const _fallback = [
-    _Category('Santexnika'),
-    _Category('Elektrika'),
-    _Category('Tozalash'),
-    _Category('Maishiy texnika'),
-    _Category('Boʻyash'),
-    _Category('Yigʻish'),
-  ];
-
   final _service = CategoryService();
-  List<_Category> _items = _fallback;
+  late List<_Category> _items;
 
   @override
   void initState() {
     super.initState();
+    _items = _fallback(widget.lang);
     _load();
   }
+
+  List<_Category> _fallback(AppLanguage lang) => [
+    _Category(tr(lang, 'Santexnika', 'Сантехника', 'Plumbing')),
+    _Category(tr(lang, 'Elektrika', 'Электрика', 'Electrical')),
+    _Category(tr(lang, 'Tozalash', 'Уборка', 'Cleaning')),
+    _Category(
+      tr(lang, 'Maishiy texnika', 'Бытовая техника', 'Home appliances'),
+    ),
+    _Category(tr(lang, 'Boʻyash', 'Покраска', 'Painting')),
+    _Category(tr(lang, 'Yigʻish', 'Сборка', 'Assembly')),
+  ];
 
   Future<void> _load() async {
     try {
       final categories = await _service.getAll();
       if (!mounted || categories.isEmpty) return;
       setState(() {
-        _items =
-            categories.map((c) => _Category(c.name)).toList(growable: false);
+        _items = categories
+            .map((c) => _Category(c.name))
+            .toList(growable: false);
       });
     } catch (_) {
       // Keep the fallback list on any error.
@@ -489,8 +552,8 @@ class _CategoriesCardState extends State<_CategoriesCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Bizning Fix-erlar',
+          Text(
+            tr(widget.lang, 'Bizning Fix-erlar', 'Наши Fix-er', 'Our Fixers'),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -530,8 +593,13 @@ class _CategoriesCardState extends State<_CategoriesCard> {
                 ),
               ),
               icon: const Icon(Icons.add, size: 20),
-              label: const Text(
-                'Vazifa soʻrash',
+              label: Text(
+                tr(
+                  widget.lang,
+                  'Vazifa soʻrash',
+                  'Запросить задачу',
+                  'Request a task',
+                ),
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
               ),
             ),
@@ -608,8 +676,13 @@ class _PhotosCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Ustalar fotosi',
+          Text(
+            tr(
+              LocaleController.language.value,
+              'Ustalar fotosi',
+              'Фото мастеров',
+              'Masters’ photos',
+            ),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -638,8 +711,13 @@ class _PhotosCard extends StatelessWidget {
                     color: AppColors.blue,
                     borderRadius: BorderRadius.circular(18),
                   ),
-                  child: const Text(
-                    'Barcha foto',
+                  child: Text(
+                    tr(
+                      LocaleController.language.value,
+                      'Barcha foto',
+                      'Все фото',
+                      'All photos',
+                    ),
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -685,17 +763,37 @@ class _PhotoRow extends StatelessWidget {
 }
 
 class _FeedbackRow extends StatelessWidget {
-  const _FeedbackRow();
+  const _FeedbackRow({required this.lang});
+
+  final AppLanguage lang;
 
   @override
   Widget build(BuildContext context) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: const [
-          Expanded(child: _FeedbackCard(title: 'Ilova sizga\nyoqdimi?')),
+        children: [
+          Expanded(
+            child: _FeedbackCard(
+              title: tr(
+                lang,
+                'Ilova sizga\nyoqdimi?',
+                'Вам нравится\nприложение?',
+                'Do you like the app?',
+              ),
+            ),
+          ),
           SizedBox(width: 12),
-          Expanded(child: _FeedbackCard(title: 'Qoʻllab-quvvatlashga\nyozish')),
+          Expanded(
+            child: _FeedbackCard(
+              title: tr(
+                lang,
+                'Qoʻllab-quvvatlashga\nyozish',
+                'Написать в поддержку',
+                'Write to support',
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -724,7 +822,9 @@ class _FeedbackCard extends StatelessWidget {
 }
 
 class _SpecialistCard extends StatelessWidget {
-  const _SpecialistCard();
+  const _SpecialistCard({required this.lang});
+
+  final AppLanguage lang;
 
   @override
   Widget build(BuildContext context) {
@@ -732,8 +832,13 @@ class _SpecialistCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Siz mutaxassismisiz?',
+          Text(
+            tr(
+              lang,
+              'Siz mutaxassismisiz?',
+              'Вы специалист?',
+              'Are you a specialist?',
+            ),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -742,7 +847,12 @@ class _SpecialistCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'FixLeo bilan mijozlar toping va daromad qiling',
+            tr(
+              lang,
+              'FixLeo bilan mijozlar toping va daromad qiling',
+              'Находите клиентов и зарабатывайте с FixLeo',
+              'Find clients and earn with FixLeo',
+            ),
             style: TextStyle(
               fontSize: 14,
               height: 1.35,
@@ -756,7 +866,9 @@ class _SpecialistCard extends StatelessWidget {
 }
 
 class _ActiveOrderCard extends StatelessWidget {
-  const _ActiveOrderCard();
+  const _ActiveOrderCard({required this.lang});
+
+  final AppLanguage lang;
 
   @override
   Widget build(BuildContext context) {
@@ -776,9 +888,14 @@ class _ActiveOrderCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Faol buyurtma · Smesitel taʼmiri',
+                  tr(
+                    lang,
+                    'Faol buyurtma · Smesitel taʼmiri',
+                    'Активный заказ · Ремонт смесителя',
+                    'Active order · Faucet repair',
+                  ),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -789,9 +906,14 @@ class _ActiveOrderCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Usta yoʻlda · ~15 daqiqa',
-            style: TextStyle(fontSize: 10, color: Color(0xFF4B5563)),
+          Text(
+            tr(
+              lang,
+              'Usta yoʻlda · ~15 daqiqa',
+              'Мастер в пути · ~15 минут',
+              'Master on the way · ~15 min',
+            ),
+            style: const TextStyle(fontSize: 10, color: Color(0xFF4B5563)),
           ),
         ],
       ),

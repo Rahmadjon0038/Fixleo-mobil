@@ -28,9 +28,9 @@ class LanguageScreen extends StatefulWidget {
 
 class _LanguageScreenState extends State<LanguageScreen> {
   static const _languages = [
+    _Language(AppLanguage.en, 'English', 'Latin'),
     _Language(AppLanguage.uz, 'O‘zbekcha', 'Lotin'),
     _Language(AppLanguage.ru, 'Русский', 'Кириллица'),
-    _Language(AppLanguage.en, 'English', 'Latin'),
   ];
 
   @override

@@ -62,7 +62,7 @@ class _MasterOrderStatusScreenState extends State<MasterOrderStatusScreen> {
             ),
             const Spacer(),
             PrimaryButton(
-              label: _buttonLabel(),
+              label: _buttonLabel(lang),
               onPressed: () {
                 if (_selectedIndex < statuses.length - 1) {
                   setState(() => _selectedIndex += 1);
@@ -77,8 +77,7 @@ class _MasterOrderStatusScreenState extends State<MasterOrderStatusScreen> {
     );
   }
 
-  String _buttonLabel() {
-    final lang = LocaleController.language.value;
+  String _buttonLabel(AppLanguage lang) {
     final statuses = _statuses(lang);
     if (_selectedIndex >= statuses.length - 1) {
       return tr(

@@ -58,7 +58,12 @@ class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Tarmoq xatosi';
+        _error = tr(
+          LocaleController.language.value,
+          'Tarmoq xatosi',
+          'Ошибка сети',
+          'Network error',
+        );
       });
     }
   }
@@ -86,8 +91,13 @@ class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
         ..showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
+      final lang = LocaleController.language.value;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tarmoq xatosi')),
+        SnackBar(
+          content: Text(
+            tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);

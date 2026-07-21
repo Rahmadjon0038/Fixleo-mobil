@@ -17,8 +17,8 @@ import 'package:fixleo/core/network/auth_session.dart';
 /// payload, throwing an [ApiException] (already-localized `message`, plus any
 /// per-field `errors[]`) on any non-success response or transport error. They
 /// also:
-///   * send `Accept-Language` from [LocaleController] so backend messages come
-///     back in the user's language (uz / ru / en);
+  ///   * send `Accept-Language` from [LocaleController] so backend messages come
+  ///     back in the user's language (uz / ru / en);
 ///   * attach `Authorization: Bearer <accessToken>` from [AuthSession];
 ///   * on a `401`, transparently refresh the access token once (using the
 ///     role-appropriate `/refresh` endpoint) and retry the request.
@@ -136,8 +136,14 @@ class ApiClient {
       if (data is Map<String, dynamic> && data['success'] == false) {
         throw ApiException.fromEnvelope(data, fallbackStatus: e.response?.statusCode);
       }
+      if (kDebugMode) {
+        debugPrint('Network failure: ${e.message}');
+        if (e.error != null) {
+          debugPrint('Underlying error: ${e.error}');
+        }
+      }
       throw ApiException(
-        message: e.message ?? 'Network error. Please try again.',
+        message: _friendlyNetworkError(e),
         statusCode: e.response?.statusCode,
         isNetworkError: true,
       );
@@ -170,6 +176,52 @@ class ApiClient {
     throw ApiException(
       message: 'Unexpected response from server',
       statusCode: response.statusCode,
+    );
+  }
+
+  String _friendlyNetworkError(DioException e) {
+    final lang = LocaleController.language.value;
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return tr(
+          lang,
+          'Ulanish vaqti tugadi. Qayta urinib koʻring.',
+          'Время соединения истекло. Попробуйте еще раз.',
+          'Connection timed out. Please try again.',
+        );
+      case DioExceptionType.connectionError:
+        return tr(
+          lang,
+          'Serverga ulanib boʻlmadi. Internet aloqangizni tekshiring.',
+          'Не удается подключиться к серверу. Проверьте интернет-соединение.',
+          'Cannot reach the server. Check your internet connection.',
+        );
+      case DioExceptionType.badCertificate:
+        return tr(
+          lang,
+          'Xavfsiz ulanish amalga oshmadi.',
+          'Не удалось установить безопасное соединение.',
+          'Secure connection failed.',
+        );
+      case DioExceptionType.cancel:
+        return tr(
+          lang,
+          'Soʻrov bekor qilindi.',
+          'Запрос был отменён.',
+          'Request was cancelled.',
+        );
+      case DioExceptionType.badResponse:
+      case DioExceptionType.unknown:
+        break;
+    }
+
+    return tr(
+      lang,
+      'Tarmoq xatosi. Qayta urinib koʻring.',
+      'Ошибка сети. Попробуйте еще раз.',
+      'Network error. Please try again.',
     );
   }
 

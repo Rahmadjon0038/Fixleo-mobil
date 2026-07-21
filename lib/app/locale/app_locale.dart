@@ -15,9 +15,10 @@ class LocaleController {
   static const _kLanguage = 'app_language';
 
   static final ValueNotifier<AppLanguage> language =
-      ValueNotifier<AppLanguage>(AppLanguage.uz);
+      ValueNotifier<AppLanguage>(AppLanguage.ru);
 
   static Future<void> load() async {
+    language.value = AppLanguage.ru;
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_kLanguage);
     for (final lang in AppLanguage.values) {
@@ -25,6 +26,10 @@ class LocaleController {
         language.value = lang;
         break;
       }
+    }
+    if (language.value != AppLanguage.ru) {
+      language.value = AppLanguage.ru;
+      unawaited(_save(AppLanguage.ru));
     }
   }
 

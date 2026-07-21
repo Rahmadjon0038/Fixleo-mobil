@@ -38,6 +38,9 @@ class _MasterRegisterScreenState extends State<MasterRegisterScreen> {
 
   /// Backend/network error shown inline under the form. Cleared on edit.
   String? _error;
+  String? _nameError;
+  String? _cityError;
+  String? _experienceError;
 
   @override
   void initState() {
@@ -62,6 +65,25 @@ class _MasterRegisterScreenState extends State<MasterRegisterScreen> {
       _city.text.trim().isNotEmpty &&
       _experience.text.trim().isNotEmpty;
 
+  void _clearFieldErrors() {
+    _nameError = null;
+    _cityError = null;
+    _experienceError = null;
+  }
+
+  void _applyValidationErrors(ApiException e) {
+    _nameError = e.errorFor('name');
+    _cityError = e.errorFor('city');
+    _experienceError =
+        e.errorFor('experienceYears') ?? e.errorFor('experience');
+
+    // If the backend returns a generic validation message without field
+    // details, keep it visible above the form.
+    final hasFieldErrors =
+        _nameError != null || _cityError != null || _experienceError != null;
+    _error = hasFieldErrors ? null : e.message;
+  }
+
   /// Signs out of the unfinished master account and restarts onboarding —
   /// this screen is the flow's root, so it's the only way out of it.
   Future<void> _logout() async {
@@ -80,6 +102,7 @@ class _MasterRegisterScreenState extends State<MasterRegisterScreen> {
     setState(() {
       _loading = true;
       _error = null;
+      _clearFieldErrors();
     });
     try {
       await _service.updateProfile(
@@ -88,15 +111,22 @@ class _MasterRegisterScreenState extends State<MasterRegisterScreen> {
         experienceYears: int.tryParse(_experience.text.trim()),
       );
       if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const MasterProfileScreen()),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const MasterProfileScreen()));
     } on ApiException catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.message);
+      setState(() => _applyValidationErrors(e));
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Tarmoq xatosi');
+      setState(() {
+        _error = tr(
+          LocaleController.language.value,
+          'Tarmoq xatosi',
+          'Ошибка сети',
+          'Network error',
+        );
+      });
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -104,16 +134,17 @@ class _MasterRegisterScreenState extends State<MasterRegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Roʻyxatdan oʻtish',
+      title: tr(lang, 'Roʻyxatdan oʻtish', 'Регистрация', 'Registration'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Oʻzingiz haqingizda',
+            Text(
+              tr(lang, 'Oʻzingiz haqingizda', 'Расскажите о себе', 'About you'),
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
@@ -122,28 +153,50 @@ class _MasterRegisterScreenState extends State<MasterRegisterScreen> {
             ),
             const SizedBox(height: 16),
             _LabeledField(
-              label: 'Ism va familiya',
+              label: tr(lang, 'Ism va familiya', 'Имя и фамилия', 'Full name'),
               controller: _name,
-              hint: 'Aleksey Ivanov',
+              hint: tr(
+                lang,
+                'Aleksey Ivanov',
+                'Алексей Иванов',
+                'Aleksey Ivanov',
+              ),
               textCapitalization: TextCapitalization.words,
-              onChanged: (_) => setState(() => _error = null),
+              errorText: _nameError,
+              onChanged: (_) => setState(() {
+                _error = null;
+                _nameError = null;
+              }),
             ),
             const SizedBox(height: 12),
             _LabeledField(
-              label: 'Shahar',
+              label: tr(lang, 'Shahar', 'Город', 'City'),
               controller: _city,
-              hint: 'Toshkent',
+              hint: tr(lang, 'Toshkent', 'Ташкент', 'Tashkent'),
               textCapitalization: TextCapitalization.words,
-              onChanged: (_) => setState(() => _error = null),
+              errorText: _cityError,
+              onChanged: (_) => setState(() {
+                _error = null;
+                _cityError = null;
+              }),
             ),
             const SizedBox(height: 12),
             _LabeledField(
-              label: 'Ish tajribasi, yil',
+              label: tr(
+                lang,
+                'Ish tajribasi, yil',
+                'Опыт работы, лет',
+                'Work experience, years',
+              ),
               controller: _experience,
               hint: '5',
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              onChanged: (_) => setState(() => _error = null),
+              errorText: _experienceError,
+              onChanged: (_) => setState(() {
+                _error = null;
+                _experienceError = null;
+              }),
             ),
             if (_error != null) ...[
               const SizedBox(height: 12),
@@ -158,7 +211,9 @@ class _MasterRegisterScreenState extends State<MasterRegisterScreen> {
             ],
             const Spacer(),
             PrimaryButton(
-              label: _loading ? 'Saqlanmoqda...' : 'Davom etish',
+              label: _loading
+                  ? tr(lang, 'Saqlanmoqda...', 'Сохранение...', 'Saving...')
+                  : tr(lang, 'Davom etish', 'Продолжить', 'Continue'),
               onPressed: _isValid && !_loading ? _saveAndContinue : null,
             ),
             const SizedBox(height: 4),
@@ -195,6 +250,7 @@ class _LabeledField extends StatelessWidget {
     required this.controller,
     required this.hint,
     required this.onChanged,
+    this.errorText,
     this.keyboardType,
     this.inputFormatters,
     this.textCapitalization = TextCapitalization.none,
@@ -204,6 +260,7 @@ class _LabeledField extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
   final ValueChanged<String> onChanged;
+  final String? errorText;
   final TextInputType? keyboardType;
   final List<TextInputFormatter>? inputFormatters;
   final TextCapitalization textCapitalization;
@@ -213,10 +270,7 @@ class _LabeledField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 14, color: AppColors.muted),
-        ),
+        Text(label, style: TextStyle(fontSize: 14, color: AppColors.muted)),
         const SizedBox(height: 4),
         Container(
           height: 52,
@@ -248,6 +302,17 @@ class _LabeledField extends StatelessWidget {
             ),
           ),
         ),
+        if (errorText != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            errorText!,
+            style: const TextStyle(
+              fontSize: 12,
+              height: 1.35,
+              color: AppColors.danger,
+            ),
+          ),
+        ],
       ],
     );
   }

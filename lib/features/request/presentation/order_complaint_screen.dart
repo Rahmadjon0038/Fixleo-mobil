@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 
@@ -19,13 +20,6 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
   static const _slate300 = Color(0xFFCBD5E1);
   static const _gray = Color(0xFF8D96A4);
 
-  static const _reasons = [
-    'Usta kechikdi',
-    'Ish sifati',
-    'Oshirilgan narx',
-    'Boshqa',
-  ];
-
   final _controller = TextEditingController();
   int _selected = 0;
 
@@ -39,15 +33,31 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(content: Text('Shikoyatingiz yuborildi')),
+        SnackBar(
+          content: Text(
+            tr(
+              LocaleController.language.value,
+              'Shikoyatingiz yuborildi',
+              'Ваша жалоба отправлена',
+              'Your complaint has been sent',
+            ),
+          ),
+        ),
       );
     Navigator.of(context).maybePop();
   }
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
+    final reasons = [
+      tr(lang, 'Usta kechikdi', 'Мастер опоздал', 'The master was late'),
+      tr(lang, 'Ish sifati', 'Качество работы', 'Work quality'),
+      tr(lang, 'Oshirilgan narx', 'Завышенная цена', 'Overpriced'),
+      tr(lang, 'Boshqa', 'Другое', 'Other'),
+    ];
     return BrandedScaffold(
-      title: 'Buyurtma boʻyicha shikoyat',
+      title: tr(lang, 'Buyurtma boʻyicha shikoyat', 'Жалоба по заказу', 'Order complaint'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -57,7 +67,7 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    _reasonsCard(),
+                    _reasonsCard(reasons),
                     const SizedBox(height: 10),
                     _describeCard(),
                   ],
@@ -77,8 +87,8 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
                     borderRadius: BorderRadius.circular(40),
                   ),
                 ),
-                child: const Text(
-                  'Shikoyat yuborish',
+                child: Text(
+                  tr(lang, 'Shikoyat yuborish', 'Отправить жалобу', 'Send complaint'),
                   style: TextStyle(
                     fontSize: 16,
                     height: 22 / 16,
@@ -97,7 +107,7 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
   }
 
   /// "What went wrong?" — single-select list of reasons.
-  Widget _reasonsCard() {
+  Widget _reasonsCard(List<String> reasons) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -108,10 +118,15 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 2),
             child: Text(
-              'Nima notoʻgʻri ketdi?',
+              tr(
+                LocaleController.language.value,
+                'Nima notoʻgʻri ketdi?',
+                'Что пошло не так?',
+                'What went wrong?',
+              ),
               style: TextStyle(
                 fontSize: 16,
                 height: 22 / 16,
@@ -122,16 +137,16 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          for (var i = 0; i < _reasons.length; i++) ...[
+          for (var i = 0; i < reasons.length; i++) ...[
             if (i != 0) const SizedBox(height: 8),
-            _reasonTile(i),
+            _reasonTile(i, reasons),
           ],
         ],
       ),
     );
   }
 
-  Widget _reasonTile(int index) {
+  Widget _reasonTile(int index, List<String> reasons) {
     final selected = _selected == index;
     return GestureDetector(
       onTap: () => setState(() => _selected = index),
@@ -145,7 +160,7 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
           children: [
             Expanded(
               child: Text(
-                _reasons[index],
+                reasons[index],
                 style: const TextStyle(
                   fontSize: 14,
                   height: 20 / 14,
@@ -192,8 +207,13 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Muammoni tasvirlang',
+          Text(
+            tr(
+              LocaleController.language.value,
+              'Muammoni tasvirlang',
+              'Опишите проблему',
+              'Describe the issue',
+            ),
             style: TextStyle(
               fontSize: 16,
               height: 22 / 16,
@@ -247,7 +267,7 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
         color: _blue50,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: const Text(
+        child: Text(
         'Shikoyatni moderator 24 soat ichida koʻrib chiqadi',
         style: TextStyle(
           fontSize: 12,

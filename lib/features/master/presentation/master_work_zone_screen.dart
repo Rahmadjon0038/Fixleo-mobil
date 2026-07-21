@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/core/location/reverse_geocoder.dart';
 import 'package:fixleo/features/master/data/master_service.dart';
 import 'package:fixleo/features/master/presentation/master_documents_screen.dart';
 import 'package:fixleo/features/work_radius/data/work_radius_service.dart';
@@ -30,6 +33,7 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
   static const _fallbackRadii = [3, 5, 10];
 
   final _mapController = MapController();
+  final _geocoder = ReverseGeocoder();
   final _workRadiusService = WorkRadiusService();
   final _masterService = MasterService();
   bool _saving = false;
@@ -39,6 +43,11 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
   List<int> _radii = _fallbackRadii;
 
   LatLng _center = _start;
+  String? _placeLabel;
+  String? _placeSubtitle;
+  bool _resolvingPlace = false;
+  Timer? _geocodeDebounce;
+  int _geocodeToken = 0;
   int _radiusKm = 5;
   bool _dragging = false;
 
@@ -46,6 +55,9 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
   void initState() {
     super.initState();
     _loadRadii();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scheduleReverseGeocode(_center, immediate: true);
+    });
   }
 
   /// Pulls the allowed radii from the backend. On any failure we silently keep
@@ -70,6 +82,7 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
 
   @override
   void dispose() {
+    _geocodeDebounce?.cancel();
     _mapController.dispose();
     super.dispose();
   }
@@ -83,9 +96,47 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
 
   void _onPositionChanged(MapCamera position, bool hasGesture) {
     setState(() => _center = position.center);
+    _scheduleReverseGeocode(position.center);
   }
 
-  void _recenter() => _mapController.move(_start, 12);
+  void _recenter() {
+    setState(() => _center = _start);
+    _mapController.move(_start, 12);
+    _scheduleReverseGeocode(_start, immediate: true);
+  }
+
+  void _scheduleReverseGeocode(LatLng point, {bool immediate = false}) {
+    _geocodeDebounce?.cancel();
+    if (immediate) {
+      _resolvePlace(point);
+      return;
+    }
+    _geocodeDebounce = Timer(
+      const Duration(milliseconds: 450),
+      () => _resolvePlace(point),
+    );
+  }
+
+  Future<void> _resolvePlace(LatLng point) async {
+    final token = ++_geocodeToken;
+    if (mounted) setState(() => _resolvingPlace = true);
+    try {
+      final result = await _geocoder.resolve(point);
+      if (!mounted || token != _geocodeToken) return;
+      setState(() {
+        _placeLabel = result?.label;
+        _placeSubtitle = result?.subtitle;
+        _resolvingPlace = false;
+      });
+    } catch (_) {
+      if (!mounted || token != _geocodeToken) return;
+      setState(() {
+        _placeLabel = null;
+        _placeSubtitle = null;
+        _resolvingPlace = false;
+      });
+    }
+  }
 
   /// Saves the base location + radius (`PUT /masters/me/work-zone`) then moves on.
   Future<void> _save() async {
@@ -98,9 +149,9 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
         workRadiusKm: _radiusKm,
       );
       if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const MasterDocumentsScreen()),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const MasterDocumentsScreen()));
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -108,8 +159,13 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
         ..showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
+      final lang = LocaleController.language.value;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tarmoq xatosi')),
+        SnackBar(
+          content: Text(
+            tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -118,6 +174,7 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
@@ -173,7 +230,7 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 8),
-                const Center(child: BrandBar()),
+                if (shouldShowBrandBar()) const Center(child: BrandBar()),
                 const SizedBox(height: 8),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -182,7 +239,9 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        const _TitlePill('Ish hududi'),
+                        _TitlePill(
+                          tr(lang, 'Ish hududi', 'Рабочая зона', 'Work zone'),
+                        ),
                         Align(
                           alignment: Alignment.centerLeft,
                           child: _MapButton(
@@ -196,7 +255,12 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'Xaritani siljitish mumkin',
+                  tr(
+                    lang,
+                    'Xaritani siljitish mumkin',
+                    'Карту можно двигать',
+                    'You can move the map',
+                  ),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 20,
@@ -219,6 +283,11 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
           Align(
             alignment: Alignment.bottomCenter,
             child: _WorkZoneSheet(
+              lang: lang,
+              currentCenter: _center,
+              placeLabel: _placeLabel,
+              placeSubtitle: _placeSubtitle,
+              resolvingPlace: _resolvingPlace,
               radii: _radii,
               selectedRadius: _radiusKm,
               onRadiusChanged: (km) => setState(() => _radiusKm = km),
@@ -377,6 +446,11 @@ class _MapButton extends StatelessWidget {
 /// the save button.
 class _WorkZoneSheet extends StatelessWidget {
   const _WorkZoneSheet({
+    required this.lang,
+    required this.currentCenter,
+    required this.placeLabel,
+    required this.placeSubtitle,
+    required this.resolvingPlace,
     required this.radii,
     required this.selectedRadius,
     required this.onRadiusChanged,
@@ -385,6 +459,11 @@ class _WorkZoneSheet extends StatelessWidget {
     required this.onSave,
   });
 
+  final AppLanguage lang;
+  final LatLng currentCenter;
+  final String? placeLabel;
+  final String? placeSubtitle;
+  final bool resolvingPlace;
   final List<int> radii;
   final int selectedRadius;
   final ValueChanged<int> onRadiusChanged;
@@ -420,8 +499,13 @@ class _WorkZoneSheet extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Sizning joylashuvingiz',
+                Text(
+                  tr(
+                    lang,
+                    'Sizning joylashuvingiz',
+                    'Ваше местоположение',
+                    'Your location',
+                  ),
                   style: TextStyle(
                     fontSize: 14,
                     height: 20 / 14,
@@ -459,8 +543,14 @@ class _WorkZoneSheet extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Maxtumquli 11 A',
+                            Text(
+                              placeLabel ??
+                                  tr(
+                                    lang,
+                                    'Tanlangan joy',
+                                    'Выбранное место',
+                                    'Selected place',
+                                  ),
                               style: TextStyle(
                                 fontSize: 16,
                                 height: 22 / 16,
@@ -469,8 +559,21 @@ class _WorkZoneSheet extends StatelessWidget {
                                 color: AppColors.navy,
                               ),
                             ),
-                            const Text(
-                              'Ish hududi markazi',
+                            Text(
+                              resolvingPlace
+                                  ? tr(
+                                      lang,
+                                      'Aniqlanmoqda...',
+                                      'Определяем...',
+                                      'Resolving...',
+                                    )
+                                  : placeSubtitle ??
+                                        tr(
+                                          lang,
+                                          'Koordinata bo‘yicha tanlandi',
+                                          'Выбрано по координатам',
+                                          'Selected by coordinates',
+                                        ),
                               style: TextStyle(
                                 fontSize: 14,
                                 height: 20 / 14,
@@ -482,6 +585,16 @@ class _WorkZoneSheet extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${currentCenter.latitude.toStringAsFixed(6)}, ${currentCenter.longitude.toStringAsFixed(6)}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 16 / 12,
+                    letterSpacing: -0.08,
+                    color: Color(0xFF8D96A4),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -513,8 +626,13 @@ class _WorkZoneSheet extends StatelessWidget {
                         borderRadius: BorderRadius.circular(40),
                       ),
                     ),
-                    child: const Text(
-                      'Hududni saqlash',
+                    child: Text(
+                      tr(
+                        lang,
+                        'Hududni saqlash',
+                        'Сохранить зону',
+                        'Save zone',
+                      ),
                       style: TextStyle(
                         fontSize: 16,
                         height: 22 / 16,

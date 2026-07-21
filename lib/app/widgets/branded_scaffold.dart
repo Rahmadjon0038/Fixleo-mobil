@@ -58,6 +58,18 @@ class BrandBar extends StatelessWidget {
   }
 }
 
+/// Set `--dart-define=FIXLEO_SCREENSHOT_MODE=true` to show the brand badge
+/// while capturing screenshots. Default is `false` everywhere.
+const bool _screenshotMode = bool.fromEnvironment(
+  'FIXLEO_SCREENSHOT_MODE',
+  defaultValue: false,
+);
+
+/// Returns `true` only in screenshot mode.
+bool shouldShowBrandBar() {
+  return _screenshotMode;
+}
+
 /// Round iOS "liquid glass" style back button shown on the left of the
 /// sub-header — translucent frosted glass with a bright edge highlight.
 class _BackButton extends StatelessWidget {
@@ -122,7 +134,7 @@ class BrandedScaffold extends StatelessWidget {
     required this.body,
     this.title,
     this.showBack = false,
-    this.showBrand = true,
+    this.showBrand,
     this.backgroundColor = AppColors.background,
   });
 
@@ -130,21 +142,22 @@ class BrandedScaffold extends StatelessWidget {
   final String? title;
   final bool showBack;
 
-  /// When false, the pinned [BrandBar] is not rendered — the screen is
-  /// expected to include its own (e.g. scrolling with the content).
-  final bool showBrand;
+  /// When null, the brand bar follows screenshot mode.
+  final bool? showBrand;
   final Color backgroundColor;
 
   @override
   Widget build(BuildContext context) {
     final hasSubHeader = title != null || showBack;
+    final showBrandBar = showBrand ?? shouldShowBrandBar();
 
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            if (showBrand)
+            if (!showBrandBar) const SizedBox(height: 32),
+            if (showBrandBar)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: BrandBar(),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/features/request/presentation/masters_responses_screen.dart';
@@ -44,8 +45,9 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Ariza yuborildi',
+      title: tr(lang, 'Ariza yuborildi', 'Заявка отправлена', 'Request sent'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -79,8 +81,8 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
                     borderRadius: BorderRadius.circular(40),
                   ),
                 ),
-                child: const Text(
-                  'Arizani bekor qilish',
+                child: Text(
+                  tr(lang, 'Arizani bekor qilish', 'Отменить заявку', 'Cancel request'),
                   style: TextStyle(
                     fontSize: 16,
                     height: 22 / 16,
@@ -122,8 +124,13 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          const Text(
-            'Yaqin atrofdagi ustalarni qidiryapmiz',
+          Text(
+            tr(
+              LocaleController.language.value,
+              'Yaqin atrofdagi ustalarni qidiryapmiz',
+              'Ищем мастеров поблизости',
+              'Searching for nearby masters',
+            ),
             style: TextStyle(
               fontSize: 16,
               height: 22 / 16,
@@ -133,8 +140,13 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
             ),
           ),
           const SizedBox(height: 2),
-          const Text(
-            'Odatda javoblar 2–5 daqiqada keladi',
+          Text(
+            tr(
+              LocaleController.language.value,
+              'Odatda javoblar 2–5 daqiqada keladi',
+              'Обычно ответы приходят за 2–5 минут',
+              'Replies usually arrive in 2–5 minutes',
+            ),
             style: TextStyle(
               fontSize: 14,
               height: 20 / 14,

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
@@ -90,8 +91,13 @@ class _MasterSelfieScreenState extends State<MasterSelfieScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _uploading = false);
+      final lang = LocaleController.language.value;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tarmoq xatosi')),
+        SnackBar(
+          content: Text(
+            tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'),
+          ),
+        ),
       );
     }
   }
@@ -105,8 +111,9 @@ class _MasterSelfieScreenState extends State<MasterSelfieScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Pasport bilan selfi',
+      title: tr(lang, 'Pasport bilan selfi', 'Селфи с паспортом', 'Selfie with passport'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
@@ -159,7 +166,20 @@ class _MasterSelfieScreenState extends State<MasterSelfieScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          _rules[i],
+                          tr(
+                            lang,
+                            _rules[i],
+                            i == 0
+                                ? 'Лицо в кадре целиком'
+                                : i == 1
+                                    ? 'Паспорт открыт'
+                                    : 'Хорошее освещение',
+                            i == 0
+                                ? 'Face fully in frame'
+                                : i == 1
+                                    ? 'Passport open'
+                                    : 'Good lighting',
+                          ),
                           style: const TextStyle(
                             fontSize: 14,
                             height: 20 / 14,
@@ -175,7 +195,9 @@ class _MasterSelfieScreenState extends State<MasterSelfieScreen> {
             ),
             const Spacer(),
             PrimaryButton(
-              label: _uploading ? 'Yuklanmoqda...' : 'Selfi olish',
+              label: _uploading
+                  ? tr(lang, 'Yuklanmoqda...', 'Загружается...', 'Uploading...')
+                  : tr(lang, 'Selfi olish', 'Сделать селфи', 'Take selfie'),
               onPressed: _uploading ? null : _takeSelfie,
             ),
           ],

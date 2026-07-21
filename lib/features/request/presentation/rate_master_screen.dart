@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 
@@ -17,18 +18,10 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
   static const _slate200 = Color(0xFFE2E8F0);
   static const _gray = Color(0xFF8D96A4);
 
-  static const _tags = [
-    'Punktuallik',
-    'Sifat',
-    'Xushmuomalalik',
-    'Tozalik',
-    'Tezlik',
-  ];
-
   final _controller = TextEditingController();
 
   int _rating = 4;
-  final _selectedTags = <String>{'Punktuallik', 'Sifat', 'Tozalik'};
+  final _selectedTags = <String>{};
 
   @override
   void dispose() {
@@ -40,15 +33,33 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(content: Text('Sharhingiz uchun rahmat!')),
+        SnackBar(
+          content: Text(
+            tr(
+              LocaleController.language.value,
+              'Sharhingiz uchun rahmat!',
+              'Спасибо за ваш отзыв!',
+              'Thanks for your review!',
+            ),
+          ),
+        ),
       );
     Navigator.of(context).maybePop();
   }
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
+    final tags = [
+      tr(lang, 'Punktuallik', 'Пунктуальность', 'Punctuality'),
+      tr(lang, 'Sifat', 'Качество', 'Quality'),
+      tr(lang, 'Xushmuomalalik', 'Вежливость', 'Courtesy'),
+      tr(lang, 'Tozalik', 'Чистота', 'Cleanliness'),
+      tr(lang, 'Tezlik', 'Скорость', 'Speed'),
+    ];
+    _selectedTags.addAll({tags[0], tags[1], tags[3]});
     return BrandedScaffold(
-      title: 'Ustani baholang',
+      title: tr(lang, 'Ustani baholang', 'Оцените мастера', 'Rate the master'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -78,8 +89,8 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
                     borderRadius: BorderRadius.circular(40),
                   ),
                 ),
-                child: const Text(
-                  'Sharh yuborish',
+                child: Text(
+                  tr(lang, 'Sharh yuborish', 'Отправить отзыв', 'Submit review'),
                   style: TextStyle(
                     fontSize: 16,
                     height: 22 / 16,
@@ -97,6 +108,7 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
 
   /// Master header: avatar, name, service, star rating and quality tags.
   Widget _masterCard() {
+    final lang = LocaleController.language.value;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
@@ -118,9 +130,9 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
           const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
+            children: [
               Text(
-                'Aleksey Ivanov',
+                tr(lang, 'Aleksey Ivanov', 'Алексей Иванов', 'Aleksey Ivanov'),
                 style: TextStyle(
                   fontSize: 20,
                   height: 24 / 20,
@@ -128,13 +140,18 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
                   color: AppColors.navy,
                 ),
               ),
-              SizedBox(width: 4),
-              Icon(Icons.verified, size: 18, color: AppColors.blue),
+              const SizedBox(width: 4),
+              const Icon(Icons.verified, size: 18, color: AppColors.blue),
             ],
           ),
           const SizedBox(height: 2),
-          const Text(
-            'Smesitel almashtirish · bugun',
+          Text(
+            tr(
+              lang,
+              'Smesitel almashtirish · bugun',
+              'Замена смесителя · сегодня',
+              'Faucet replacement · today',
+            ),
             style: TextStyle(
               fontSize: 14,
               height: 20 / 14,
@@ -173,12 +190,20 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
 
   /// Selectable quality tags (multi-select chips).
   Widget _tagsWrap() {
+    final lang = LocaleController.language.value;
+    final tags = [
+      tr(lang, 'Punktuallik', 'Пунктуальность', 'Punctuality'),
+      tr(lang, 'Sifat', 'Качество', 'Quality'),
+      tr(lang, 'Xushmuomalalik', 'Вежливость', 'Courtesy'),
+      tr(lang, 'Tozalik', 'Чистота', 'Cleanliness'),
+      tr(lang, 'Tezlik', 'Скорость', 'Speed'),
+    ];
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       alignment: WrapAlignment.center,
       children: [
-        for (final tag in _tags) _tagChip(tag),
+        for (final tag in tags) _tagChip(tag),
       ],
     );
   }
@@ -216,6 +241,7 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
 
   /// Free-text review card.
   Widget _reviewCard() {
+    final lang = LocaleController.language.value;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -226,8 +252,13 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Usta ishi haqida fikr bildiring',
+          Text(
+            tr(
+              lang,
+              'Usta ishi haqida fikr bildiring',
+              'Расскажите о работе мастера',
+              'Share feedback about the master’s work',
+            ),
             style: TextStyle(
               fontSize: 16,
               height: 22 / 16,
@@ -254,13 +285,16 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
                 height: 20 / 14,
                 color: AppColors.navy,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 isCollapsed: true,
                 border: InputBorder.none,
-                hintText:
-                    'Masalan: Usta qoʻyilgan vazifani aʼlo darajada bajardi, '
-                    'hammaga tavsiya qilaman!',
-                hintStyle: TextStyle(
+                hintText: tr(
+                  lang,
+                  'Masalan: Usta qoʻyilgan vazifani aʼlo darajada bajardi, hammaga tavsiya qilaman!',
+                  'Например: мастер отлично выполнил задачу, всем рекомендую!',
+                  'For example: the master did an excellent job; I recommend them to everyone!',
+                ),
+                hintStyle: const TextStyle(
                   fontSize: 14,
                   height: 20 / 14,
                   color: _gray,

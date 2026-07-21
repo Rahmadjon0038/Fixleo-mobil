@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
@@ -16,8 +17,6 @@ class MasterOfferScreen extends StatefulWidget {
 }
 
 class _MasterOfferScreenState extends State<MasterOfferScreen> {
-  static const _types = ['Fiks', 'Diapazon', 'Koʻrgandan keyin'];
-
   final _price = TextEditingController(text: '50 000');
   final _comment = TextEditingController();
   int _type = 1;
@@ -31,8 +30,14 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
+    final types = [
+      tr(lang, 'Fiks', 'Фикс', 'Fixed'),
+      tr(lang, 'Diapazon', 'Диапазон', 'Range'),
+      tr(lang, 'Koʻrgandan keyin', 'После осмотра', 'After inspection'),
+    ];
     return BrandedScaffold(
-      title: 'Sizning taklifingiz',
+      title: tr(lang, 'Sizning taklifingiz', 'Ваше предложение', 'Your offer'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
@@ -41,12 +46,12 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
           children: [
             // Price type.
             _Card(
-              title: 'Narx turi',
+              title: tr(lang, 'Narx turi', 'Тип цены', 'Price type'),
               child: Row(
                 children: [
                   Expanded(
                     child: _TypeChip(
-                      label: _types[0],
+                      label: types[0],
                       selected: _type == 0,
                       onTap: () => setState(() => _type = 0),
                     ),
@@ -54,14 +59,14 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: _TypeChip(
-                      label: _types[1],
+                      label: types[1],
                       selected: _type == 1,
                       onTap: () => setState(() => _type = 1),
                     ),
                   ),
                   const SizedBox(width: 8),
                   _TypeChip(
-                    label: _types[2],
+                    label: types[2],
                     selected: _type == 2,
                     onTap: () => setState(() => _type = 2),
                   ),
@@ -71,7 +76,7 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
             const SizedBox(height: 10),
             // Price amount.
             _Card(
-              title: 'Sizning narxingiz',
+              title: tr(lang, 'Sizning narxingiz', 'Ваша цена', 'Your price'),
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
@@ -102,7 +107,7 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
                       ),
                     ),
                     Text(
-                      'soʻm',
+                      tr(lang, 'soʻm', 'сум', 'sum'),
                       style: TextStyle(fontSize: 14, color: AppColors.muted),
                     ),
                   ],
@@ -112,7 +117,7 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
             const SizedBox(height: 10),
             // Comment.
             _Card(
-              title: 'Mijozga izoh',
+              title: tr(lang, 'Mijozga izoh', 'Комментарий клиенту', 'Note to the client'),
               child: Container(
                 height: 110,
                 padding: const EdgeInsets.all(16),
@@ -134,7 +139,12 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
                   decoration: InputDecoration(
                     isCollapsed: true,
                     border: InputBorder.none,
-                    hintText: 'Masalan: Bir soat ichida yetib bora olaman.',
+                    hintText: tr(
+                      lang,
+                      'Masalan: Bir soat ichida yetib bora olaman.',
+                      'Например: могу подъехать в течение часа.',
+                      'For example: I can arrive within an hour.',
+                    ),
                     hintStyle: TextStyle(fontSize: 14, color: AppColors.muted),
                   ),
                 ),
@@ -142,7 +152,7 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
             ),
             const Spacer(),
             PrimaryButton(
-              label: 'Javobni yuborish',
+              label: tr(lang, 'Javobni yuborish', 'Отправить ответ', 'Send reply'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => const MasterOfferSentScreen(),

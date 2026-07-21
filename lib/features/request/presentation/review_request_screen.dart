@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/features/request/presentation/waiting_responses_screen.dart';
@@ -16,8 +17,9 @@ class ReviewRequestScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Arizani tekshiring',
+      title: tr(lang, 'Arizani tekshiring', 'Проверьте заявку', 'Review the request'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -55,8 +57,8 @@ class ReviewRequestScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(40),
                   ),
                 ),
-                child: const Text(
-                  'Arizani yuborish',
+                child: Text(
+                  tr(lang, 'Arizani yuborish', 'Отправить заявку', 'Send request'),
                   style: TextStyle(
                     fontSize: 16,
                     height: 22 / 16,
@@ -73,6 +75,7 @@ class ReviewRequestScreen extends StatelessWidget {
   }
 
   Widget _summaryCard() {
+    final lang = LocaleController.language.value;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -103,8 +106,8 @@ class ReviewRequestScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Text(
-                  'Santexnika',
+                Text(
+                  tr(lang, 'Santexnika', 'Сантехника', 'Plumbing'),
                   style: TextStyle(
                     fontSize: 14,
                     height: 20 / 14,
@@ -117,9 +120,13 @@ class ReviewRequestScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Oshxonadagi smesitel oqyapti, kartrijni almashtirish kerak. '
-            'Zaxiradagisi bor.',
+          Text(
+            tr(
+              lang,
+              'Oshxonadagi smesitel oqyapti, kartrijni almashtirish kerak. Zaxiradagisi bor.',
+              'На кухне течёт смеситель, нужно заменить картридж. Запасной есть.',
+              'The kitchen faucet is leaking; the cartridge needs to be replaced. A spare is available.',
+            ),
             style: TextStyle(
               fontSize: 14,
               height: 20 / 14,
@@ -149,15 +156,11 @@ class ReviewRequestScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          _infoRow(
-            Icons.location_on_outlined,
-            'Yunusobod, Amir Temur 12',
-          ),
+          _infoRow(Icons.location_on_outlined,
+              tr(lang, 'Yunusobod, Amir Temur 12', 'Юнусабад, Амир Темур 12', 'Yunusobod, Amir Temur 12')),
           const SizedBox(height: 6),
-          _infoRow(
-            Icons.access_time_rounded,
-            'Bugun, 12:00–15:00',
-          ),
+          _infoRow(Icons.access_time_rounded,
+              tr(lang, 'Bugun, 12:00–15:00', 'Сегодня, 12:00–15:00', 'Today, 12:00–15:00')),
         ],
       ),
     );
@@ -182,6 +185,7 @@ class ReviewRequestScreen extends StatelessWidget {
   }
 
   Widget _hintCard() {
+    final lang = LocaleController.language.value;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -189,8 +193,13 @@ class ReviewRequestScreen extends StatelessWidget {
         color: _blue100,
         borderRadius: BorderRadius.circular(30),
       ),
-      child: const Text(
-        'Ustalar javoblarda narx taklif qiladi',
+      child: Text(
+        tr(
+          lang,
+          'Ustalar javoblarda narx taklif qiladi',
+          'Мастера предложат цену в ответах',
+          'Masters will offer prices in their replies',
+        ),
         style: TextStyle(
           fontSize: 14,
           height: 20 / 14,

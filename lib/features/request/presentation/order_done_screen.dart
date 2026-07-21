@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/features/request/presentation/order_complaint_screen.dart';
@@ -15,8 +16,9 @@ class OrderDoneScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Buyurtma bajarildimi?',
+      title: tr(lang, 'Buyurtma bajarildimi?', 'Заказ выполнен?', 'Was the job completed?'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -43,6 +45,7 @@ class OrderDoneScreen extends StatelessWidget {
 
   /// Centered badge + headline confirming the master's report.
   Widget _statusCard() {
+    final lang = LocaleController.language.value;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 20),
@@ -62,10 +65,15 @@ class OrderDoneScreen extends StatelessWidget {
             child: const Icon(Icons.verified, size: 42, color: AppColors.blue),
           ),
           const SizedBox(height: 10),
-          const SizedBox(
+          SizedBox(
             width: 196,
             child: Text(
-              'Usta ishni bajarilgan deb belgiladi',
+              tr(
+                lang,
+                'Usta ishni bajarilgan deb belgiladi',
+                'Мастер отметил работу как выполненную',
+                'The master marked the job as completed',
+              ),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
@@ -83,6 +91,7 @@ class OrderDoneScreen extends StatelessWidget {
 
   /// Order summary rows.
   Widget _detailsCard() {
+    final lang = LocaleController.language.value;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -91,12 +100,21 @@ class OrderDoneScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(30),
       ),
       child: Column(
-        children: const [
-          _DetailRow(label: 'Xizmat', value: 'Smesitel almashtirish'),
-          SizedBox(height: 8),
-          _DetailRow(label: 'Vaqt', value: 'Bugun, 12:00–15:00'),
-          SizedBox(height: 8),
-          _DetailRow(label: 'Usta taklifi', value: '50 000 soʻm'),
+        children: [
+          _DetailRow(
+            label: tr(lang, 'Xizmat', 'Услуга', 'Service'),
+            value: tr(lang, 'Smesitel almashtirish', 'Замена смесителя', 'Mixer replacement'),
+          ),
+          const SizedBox(height: 8),
+          _DetailRow(
+            label: tr(lang, 'Vaqt', 'Время', 'Time'),
+            value: tr(lang, 'Bugun, 12:00–15:00', 'Сегодня, 12:00–15:00', 'Today, 12:00–15:00'),
+          ),
+          const SizedBox(height: 8),
+          _DetailRow(
+            label: tr(lang, 'Usta taklifi', 'Предложение мастера', 'Master offer'),
+            value: tr(lang, '50 000 soʻm', '50 000 сум', '50 000 sum'),
+          ),
         ],
       ),
     );
@@ -104,6 +122,7 @@ class OrderDoneScreen extends StatelessWidget {
 
   /// Primary confirm button + a muted "report a problem" link.
   Widget _actions(BuildContext context) {
+    final lang = LocaleController.language.value;
     return Column(
       children: [
         SizedBox(
@@ -122,8 +141,13 @@ class OrderDoneScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(40),
               ),
             ),
-            child: const Text(
-              'Bajarilganini tasdiqlash',
+            child: Text(
+              tr(
+                lang,
+                'Bajarilganini tasdiqlash',
+                'Подтвердить выполнение',
+                'Confirm completion',
+              ),
               style: TextStyle(
                 fontSize: 16,
                 height: 22 / 16,
@@ -140,8 +164,8 @@ class OrderDoneScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const OrderComplaintScreen()),
             );
           },
-          child: const Text(
-            'Buyurtmada muammo bor',
+          child: Text(
+            tr(lang, 'Buyurtmada muammo bor', 'Есть проблема с заказом', 'There is a problem with the order'),
             style: TextStyle(
               fontSize: 16,
               height: 22 / 16,

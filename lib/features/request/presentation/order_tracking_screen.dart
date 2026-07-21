@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/features/request/presentation/chat_screen.dart';
@@ -19,8 +20,9 @@ class OrderTrackingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Buyurtma №1234',
+      title: tr(lang, 'Buyurtma №1234', 'Заказ №1234', 'Order No. 1234'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -32,9 +34,9 @@ class OrderTrackingScreen extends StatelessWidget {
                   children: [
                     _trackingCard(),
                     const SizedBox(height: 10),
-                    _masterCard(context),
+                    _masterCard(context, lang),
                     const SizedBox(height: 10),
-                    _detailsCard(),
+                    _detailsCard(lang),
                   ],
                 ),
               ),
@@ -58,8 +60,8 @@ class OrderTrackingScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(40),
                   ),
                 ),
-                child: const Text(
-                  'Buyurtma statusiga oʻtish',
+                child: Text(
+                  tr(lang, 'Buyurtma statusiga oʻtish', 'Перейти к статусу заказа', 'Go to order status'),
                   style: TextStyle(
                     fontSize: 16,
                     height: 22 / 16,
@@ -77,6 +79,7 @@ class OrderTrackingScreen extends StatelessWidget {
 
   /// Map preview + status line + 4-step progress.
   Widget _trackingCard() {
+    final lang = LocaleController.language.value;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -91,12 +94,12 @@ class OrderTrackingScreen extends StatelessWidget {
           Row(
             children: [
               Row(
-                children: const [
-                  _Dot(),
-                  SizedBox(width: 4),
+                children: [
+                  const _Dot(),
+                  const SizedBox(width: 4),
                   Text(
-                    'Usta yoʻlda',
-                    style: TextStyle(
+                    tr(lang, 'Usta yoʻlda', 'Мастер в пути', 'Master on the way'),
+                    style: const TextStyle(
                       fontSize: 16,
                       height: 22 / 16,
                       letterSpacing: -0.18,
@@ -115,18 +118,18 @@ class OrderTrackingScreen extends StatelessWidget {
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
+                  children: [
                     Text(
-                      '~15 daqiqa',
-                      style: TextStyle(
+                      tr(lang, '~15 daqiqa', '~15 минут', '~15 minutes'),
+                      style: const TextStyle(
                         fontSize: 14,
                         height: 20 / 14,
                         letterSpacing: -0.16,
                         color: AppColors.blue,
                       ),
                     ),
-                    SizedBox(width: 4),
-                    Icon(Icons.verified_outlined, size: 15, color: AppColors.blue),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.verified_outlined, size: 15, color: AppColors.blue),
                   ],
                 ),
               ),
@@ -219,7 +222,7 @@ class OrderTrackingScreen extends StatelessWidget {
   }
 
   /// Assigned master: avatar, name + role. Tapping it opens the chat.
-  Widget _masterCard(BuildContext context) {
+  Widget _masterCard(BuildContext context, AppLanguage lang) {
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(20),
@@ -244,11 +247,11 @@ class OrderTrackingScreen extends StatelessWidget {
                 child: const Icon(Icons.person_outline, size: 26, color: _gray),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Aleksey Ivanov',
                       style: TextStyle(
                         fontSize: 16,
@@ -259,7 +262,7 @@ class OrderTrackingScreen extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Santexnik · 4.9',
+                      tr(lang, 'Santexnik · 4.9', 'Сантехник · 4.9', 'Plumber · 4.9'),
                       style: TextStyle(
                         fontSize: 14,
                         height: 20 / 14,
@@ -292,7 +295,7 @@ class OrderTrackingScreen extends StatelessWidget {
   }
 
   /// Order summary rows.
-  Widget _detailsCard() {
+  Widget _detailsCard(AppLanguage lang) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -301,12 +304,12 @@ class OrderTrackingScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
-        children: const [
-          _DetailRow(label: 'Xizmat', value: 'Smesitel almashtirish'),
-          SizedBox(height: 8),
-          _DetailRow(label: 'Manzil', value: 'Yunusobod, Amir Temur 12'),
-          SizedBox(height: 8),
-          _DetailRow(label: 'Narx', value: '50 000 soʻmdan'),
+        children: [
+          _DetailRow(label: tr(lang, 'Xizmat', 'Услуга', 'Service'), value: tr(lang, 'Smesitel almashtirish', 'Замена смесителя', 'Mixer replacement')),
+          const SizedBox(height: 8),
+          _DetailRow(label: tr(lang, 'Manzil', 'Адрес', 'Address'), value: tr(lang, 'Yunusobod, Amir Temur 12', 'Юнусабад, Амир Темур 12', 'Yunusabad, Amir Temur 12')),
+          const SizedBox(height: 8),
+          _DetailRow(label: tr(lang, 'Narx', 'Цена', 'Price'), value: tr(lang, '50 000 soʻmdan', 'от 50 000 сум', 'from 50 000 sum')),
         ],
       ),
     );

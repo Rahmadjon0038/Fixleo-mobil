@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/features/request/presentation/review_request_screen.dart';
@@ -14,12 +15,6 @@ class TimeUrgencyScreen extends StatefulWidget {
 }
 
 class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
-  static const _options = [
-    ('Shoshilinch — hozir', 'Usta bir soat ichida yetib keladi'),
-    ('Bugun', 'Qulay vaqtni tanlang'),
-    ('Ertaga yoki keyinroq', 'Sanani rejalashtirish'),
-  ];
-
   static const _slots = [
     '10:00–12:00',
     '12:00–15:00',
@@ -30,10 +25,56 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
   int _option = 0;
   int _slot = 1;
 
+  List<({String title, String subtitle})> _options(AppLanguage lang) => [
+        (
+          title: tr(
+            lang,
+            'Shoshilinch — hozir',
+            'Срочно — сейчас',
+            'Urgent — now',
+          ),
+          subtitle: tr(
+            lang,
+            'Usta bir soat ichida yetib keladi',
+            'Мастер приедет в течение часа',
+            'The master arrives within an hour',
+          ),
+        ),
+        (
+          title: tr(lang, 'Bugun', 'Сегодня', 'Today'),
+          subtitle: tr(
+            lang,
+            'Qulay vaqtni tanlang',
+            'Выберите удобное время',
+            'Choose a convenient time',
+          ),
+        ),
+        (
+          title: tr(
+            lang,
+            'Ertaga yoki keyinroq',
+            'Завтра или позже',
+            'Tomorrow or later',
+          ),
+          subtitle: tr(
+            lang,
+            'Sanani rejalashtirish',
+            'Запланировать дату',
+            'Schedule a date',
+          ),
+        ),
+      ];
+
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: 'Usta qachon kerak',
+      title: tr(
+        lang,
+        'Usta qachon kerak',
+        'Когда нужен мастер',
+        'When do you need the master',
+      ),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -43,9 +84,9 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    _optionsCard(),
+                    _optionsCard(lang),
                     const SizedBox(height: 14),
-                    _slotsCard(),
+                    _slotsCard(lang),
                   ],
                 ),
               ),
@@ -70,9 +111,9 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
                     borderRadius: BorderRadius.circular(40),
                   ),
                 ),
-                child: const Text(
-                  'Davom etish',
-                  style: TextStyle(
+                child: Text(
+                  tr(lang, 'Davom etish', 'Продолжить', 'Continue'),
+                  style: const TextStyle(
                     fontSize: 16,
                     height: 22 / 16,
                     letterSpacing: -0.18,
@@ -87,7 +128,8 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
     );
   }
 
-  Widget _optionsCard() {
+  Widget _optionsCard(AppLanguage lang) {
+    final options = _options(lang);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
@@ -97,11 +139,11 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
       ),
       child: Column(
         children: [
-          for (var i = 0; i < _options.length; i++) ...[
+          for (var i = 0; i < options.length; i++) ...[
             if (i != 0) const SizedBox(height: 8),
             _OptionTile(
-              title: _options[i].$1,
-              subtitle: _options[i].$2,
+              title: options[i].title,
+              subtitle: options[i].subtitle,
               selected: _option == i,
               onTap: () => setState(() => _option = i),
             ),
@@ -111,7 +153,7 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
     );
   }
 
-  Widget _slotsCard() {
+  Widget _slotsCard(AppLanguage lang) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
@@ -122,11 +164,11 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 2),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
             child: Text(
-              'Bugungi vaqtlar',
-              style: TextStyle(
+              tr(lang, 'Bugungi vaqtlar', 'Время на сегодня', 'Today\'s time slots'),
+              style: const TextStyle(
                 fontSize: 16,
                 height: 24 / 16,
                 fontWeight: FontWeight.w600,
@@ -140,14 +182,14 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
             children: [
               for (var i = 0; i < 3; i++) ...[
                 if (i != 0) const SizedBox(width: 8),
-                Expanded(child: _slotChip(i)),
+                Expanded(child: _slotChip(i, lang)),
               ],
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(child: _slotChip(3)),
+              Expanded(child: _slotChip(3, lang)),
               const SizedBox(width: 8),
               const Expanded(child: SizedBox()),
               const SizedBox(width: 8),
@@ -159,7 +201,7 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
     );
   }
 
-  Widget _slotChip(int i) {
+  Widget _slotChip(int i, AppLanguage lang) {
     final selected = _slot == i;
     return GestureDetector(
       onTap: () => setState(() => _slot = i),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/features/request/presentation/master_profile_screen.dart';
@@ -27,28 +28,28 @@ class MastersResponsesScreen extends StatelessWidget {
   static const _gray = Color(0xFF8D96A4);
   static const _slate100 = Color(0xFFF1F5F9);
 
-  static const _masters = [
-    _Master(
-      name: 'Aleksey Ivanov',
-      rating: '4.9 · 124 sharh · 2.4 km',
-      price: '50 000',
-    ),
-    _Master(
-      name: 'Dmitriy Petrov',
-      rating: '4.8 · 98 sharh · 3.1 km',
-      price: '45 000',
-    ),
-    _Master(
-      name: 'Dmitriy Petrov',
-      rating: '4.8 · 98 sharh · 3.1 km',
-      price: '45 000',
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
+    final masters = [
+      _Master(
+        name: 'Aleksey Ivanov',
+        rating: tr(lang, '4.9 · 124 sharh · 2.4 km', '4.9 · 124 отзыва · 2.4 км', '4.9 · 124 reviews · 2.4 km'),
+        price: '50 000',
+      ),
+      _Master(
+        name: 'Dmitriy Petrov',
+        rating: tr(lang, '4.8 · 98 sharh · 3.1 km', '4.8 · 98 отзыва · 3.1 км', '4.8 · 98 reviews · 3.1 km'),
+        price: '45 000',
+      ),
+      _Master(
+        name: 'Dmitriy Petrov',
+        rating: tr(lang, '4.8 · 98 sharh · 3.1 km', '4.8 · 98 отзыва · 3.1 км', '4.8 · 98 reviews · 3.1 km'),
+        price: '45 000',
+      ),
+    ];
     return BrandedScaffold(
-      title: 'Javoblar · 4',
+      title: tr(lang, 'Javoblar · 4', 'Ответы · 4', 'Replies · 4'),
       showBack: true,
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -56,8 +57,8 @@ class MastersResponsesScreen extends StatelessWidget {
           // Section header: count + sort chip.
           Row(
             children: [
-              const Text(
-                '4 usta javob berdi',
+              Text(
+                tr(lang, '4 usta javob berdi', '4 мастера ответили', '4 masters responded'),
                 style: TextStyle(
                   fontSize: 14,
                   height: 20 / 14,
@@ -75,11 +76,11 @@ class MastersResponsesScreen extends StatelessWidget {
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
+                  children: [
                     Icon(Icons.star_rounded, size: 16, color: _gray),
                     SizedBox(width: 2),
                     Text(
-                      'Reyting boʻyicha',
+                      tr(lang, 'Reyting boʻyicha', 'По рейтингу', 'By rating'),
                       style: TextStyle(fontSize: 12, color: _gray),
                     ),
                   ],
@@ -88,9 +89,9 @@ class MastersResponsesScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          for (var i = 0; i < _masters.length; i++) ...[
+          for (var i = 0; i < masters.length; i++) ...[
             if (i != 0) const SizedBox(height: 10),
-            _MasterCard(master: _masters[i]),
+            _MasterCard(master: masters[i], lang: lang),
           ],
         ],
       ),
@@ -99,9 +100,10 @@ class MastersResponsesScreen extends StatelessWidget {
 }
 
 class _MasterCard extends StatelessWidget {
-  const _MasterCard({required this.master});
+  const _MasterCard({required this.master, required this.lang});
 
   final _Master master;
+  final AppLanguage lang;
 
   @override
   Widget build(BuildContext context) {
@@ -188,8 +190,8 @@ class _MasterCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text(
-                    'dan',
+                  Text(
+                    tr(lang, 'dan', 'от', 'from'),
                     style: TextStyle(
                       fontSize: 14,
                       height: 20 / 14,
@@ -212,7 +214,7 @@ class _MasterCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _cardButton(
-            label: 'Tanlash',
+            label: tr(lang, 'Tanlash', 'Выбрать', 'Select'),
             background: AppColors.blue,
             foreground: Colors.white,
             onTap: () {
@@ -225,7 +227,7 @@ class _MasterCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _cardButton(
-            label: 'Bekor qilish',
+            label: tr(lang, 'Bekor qilish', 'Отменить', 'Cancel'),
             background: MastersResponsesScreen._slate100,
             foreground: AppColors.blue,
             onTap: () {

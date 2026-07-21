@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/features/request/presentation/attach_photos_sheet.dart';
 
@@ -119,12 +120,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
-            _header(context),
+            _header(context, lang),
             Expanded(
               child: ListView.separated(
                 controller: _scrollController,
@@ -134,7 +136,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 itemBuilder: (context, index) => _bubble(_messages[index]),
               ),
             ),
-            _inputBar(),
+            _inputBar(lang),
           ],
         ),
       ),
@@ -142,7 +144,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   /// Top header: back button, centered name + "onlayn", call button.
-  Widget _header(BuildContext context) {
+  Widget _header(BuildContext context, AppLanguage lang) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -172,8 +174,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         color: _bubbleText,
                       ),
                     ),
-                    const Text(
-                      'onlayn',
+                    Text(
+                      tr(lang, 'onlayn', 'онлайн', 'online'),
                       style: TextStyle(
                         fontSize: 14,
                         height: 20 / 14,
@@ -256,7 +258,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// Bottom input bar: camera, working text field and send button — floating
   /// on the page background like the Figma design.
-  Widget _inputBar() {
+  Widget _inputBar(AppLanguage lang) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       child: Row(
@@ -297,10 +299,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   letterSpacing: -0.16,
                   color: _bubbleText,
                 ),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   isDense: true,
                   border: InputBorder.none,
-                  hintText: 'Xabar…',
+                  hintText: tr(lang, 'Xabar…', 'Сообщение…', 'Message…'),
                   hintStyle: TextStyle(
                     fontSize: 14,
                     height: 20 / 14,

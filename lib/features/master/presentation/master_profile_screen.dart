@@ -62,8 +62,13 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
         ..showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
+      final lang = LocaleController.language.value;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tarmoq xatosi')),
+        SnackBar(
+          content: Text(
+            tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _loading = false);

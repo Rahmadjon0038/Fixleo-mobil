@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 
@@ -39,62 +40,63 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   static const _emerald50 = Color(0xFFECFDF5);
   static const _teal600 = Color(0xFF0D9488);
 
-  static const _orders = <_Order>[
-    _Order(
-      title: 'Smesitel almashtirish',
-      master: 'Aleksey Ivanov · bugun',
-      price: '60 000 soʻm',
-      date: 'bugun',
-      status: _OrderStatus.active,
-    ),
-    _Order(
-      title: 'Smesitel almashtirish',
-      master: 'Aleksey Ivanov · bugun',
-      price: '60 000 soʻm',
-      date: 'bugun',
-      status: _OrderStatus.active,
-    ),
-    _Order(
-      title: 'Smesitel almashtirish',
-      master: 'Aleksey Ivanov · 25-may',
-      price: '60 000 soʻm',
-      date: '25-may',
-      status: _OrderStatus.done,
-    ),
-    _Order(
-      title: 'Smesitel almashtirish',
-      master: 'Aleksey Ivanov · 2-aprel',
-      price: '60 000 soʻm',
-      date: '2-aprel',
-      status: _OrderStatus.done,
-    ),
-    _Order(
-      title: 'Smesitel almashtirish',
-      master: 'Aleksey Ivanov · 2-aprel',
-      price: '60 000 soʻm',
-      date: '2-aprel',
-      status: _OrderStatus.done,
-    ),
-  ];
+  List<_Order> _orders(AppLanguage lang) => [
+        _Order(
+          title: tr(lang, 'Smesitel almashtirish', 'Замена смесителя', 'Mixer replacement'),
+          master: tr(lang, 'Aleksey Ivanov · bugun', 'Алексей Иванов · сегодня', 'Aleksey Ivanov · today'),
+          price: tr(lang, '60 000 soʻm', '60 000 сум', '60 000 sum'),
+          date: tr(lang, 'bugun', 'сегодня', 'today'),
+          status: _OrderStatus.active,
+        ),
+        _Order(
+          title: tr(lang, 'Smesitel almashtirish', 'Замена смесителя', 'Mixer replacement'),
+          master: tr(lang, 'Aleksey Ivanov · bugun', 'Алексей Иванов · сегодня', 'Aleksey Ivanov · today'),
+          price: tr(lang, '60 000 soʻm', '60 000 сум', '60 000 sum'),
+          date: tr(lang, 'bugun', 'сегодня', 'today'),
+          status: _OrderStatus.active,
+        ),
+        _Order(
+          title: tr(lang, 'Smesitel almashtirish', 'Замена смесителя', 'Mixer replacement'),
+          master: tr(lang, 'Aleksey Ivanov · 25-may', 'Алексей Иванов · 25 мая', 'Aleksey Ivanov · May 25'),
+          price: tr(lang, '60 000 soʻm', '60 000 сум', '60 000 sum'),
+          date: tr(lang, '25-may', '25 мая', 'May 25'),
+          status: _OrderStatus.done,
+        ),
+        _Order(
+          title: tr(lang, 'Smesitel almashtirish', 'Замена смесителя', 'Mixer replacement'),
+          master: tr(lang, 'Aleksey Ivanov · 2-aprel', 'Алексей Иванов · 2 апреля', 'Aleksey Ivanov · April 2'),
+          price: tr(lang, '60 000 soʻm', '60 000 сум', '60 000 sum'),
+          date: tr(lang, '2-aprel', '2 апреля', 'April 2'),
+          status: _OrderStatus.done,
+        ),
+        _Order(
+          title: tr(lang, 'Smesitel almashtirish', 'Замена смесителя', 'Mixer replacement'),
+          master: tr(lang, 'Aleksey Ivanov · 2-aprel', 'Алексей Иванов · 2 апреля', 'Aleksey Ivanov · April 2'),
+          price: tr(lang, '60 000 soʻm', '60 000 сум', '60 000 sum'),
+          date: tr(lang, '2-aprel', '2 апреля', 'April 2'),
+          status: _OrderStatus.done,
+        ),
+      ];
 
   /// 0 = Active, 1 = Completed.
   int _tab = 0;
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _orders
+    final lang = LocaleController.language.value;
+    final filtered = _orders(lang)
         .where((o) =>
             o.status == (_tab == 0 ? _OrderStatus.active : _OrderStatus.done))
         .toList();
 
     return BrandedScaffold(
-      title: 'Mening buyurtmalarim',
+      title: tr(lang, 'Mening buyurtmalarim', 'Мои заказы', 'My orders'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
         child: Column(
           children: [
-            _tabBar(),
+            _tabBar(lang),
             const SizedBox(height: 10),
             Expanded(
               child: ListView.separated(
@@ -111,7 +113,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 
   /// Segmented Active / Completed switch.
-  Widget _tabBar() {
+  Widget _tabBar(AppLanguage lang) {
     return Container(
       height: 41,
       padding: const EdgeInsets.all(3),
@@ -128,8 +130,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       ),
       child: Row(
         children: [
-          _tabItem('Faol', 0),
-          _tabItem('Yakunlangan', 1),
+          _tabItem(tr(lang, 'Faol', 'Активные', 'Active'), 0),
+          _tabItem(tr(lang, 'Yakunlangan', 'Завершённые', 'Completed'), 1),
         ],
       ),
     );
@@ -235,7 +237,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       ),
       child: Center(
         child: Text(
-          active ? 'Jarayonda' : 'Bajarildi',
+          active
+              ? tr(LocaleController.language.value, 'Jarayonda', 'В процессе', 'In progress')
+              : tr(LocaleController.language.value, 'Bajarildi', 'Выполнено', 'Done'),
           style: TextStyle(
             fontSize: 12,
             height: 16 / 12,

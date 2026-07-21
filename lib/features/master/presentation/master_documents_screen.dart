@@ -74,8 +74,13 @@ class _MasterDocumentsScreenState extends State<MasterDocumentsScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => doc.uploading = false);
+      final lang = LocaleController.language.value;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tarmoq xatosi')),
+        SnackBar(
+          content: Text(
+            tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'),
+          ),
+        ),
       );
     }
   }

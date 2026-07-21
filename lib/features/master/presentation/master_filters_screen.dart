@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
@@ -14,18 +15,31 @@ class MasterFiltersScreen extends StatefulWidget {
 }
 
 class _MasterFiltersScreenState extends State<MasterFiltersScreen> {
-  static const _categories = ['Santexnika', 'Elektrika', 'Tozalash', 'Mebel'];
-  static const _distances = ['3 km gacha', '5 km gacha', '10 km gacha'];
-  static const _sorts = ['Avval yangilari', 'Menga yaqinroq', 'Yuqori byudjet'];
-
   final _selectedCategories = <int>{0, 1};
   int _distance = 1;
   int _sort = 0;
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
+    final categories = [
+      tr(lang, 'Santexnika', 'Сантехника', 'Plumbing'),
+      tr(lang, 'Elektrika', 'Электрика', 'Electrical'),
+      tr(lang, 'Tozalash', 'Уборка', 'Cleaning'),
+      tr(lang, 'Mebel', 'Мебель', 'Furniture'),
+    ];
+    final distances = [
+      tr(lang, '3 km gacha', 'До 3 км', 'Up to 3 km'),
+      tr(lang, '5 km gacha', 'До 5 км', 'Up to 5 km'),
+      tr(lang, '10 km gacha', 'До 10 км', 'Up to 10 km'),
+    ];
+    final sorts = [
+      tr(lang, 'Avval yangilari', 'Сначала новые', 'Newest first'),
+      tr(lang, 'Menga yaqinroq', 'Ближе ко мне', 'Closer to me'),
+      tr(lang, 'Yuqori byudjet', 'Высокий бюджет', 'Higher budget'),
+    ];
     return BrandedScaffold(
-      title: 'Filtrlar',
+      title: tr(lang, 'Filtrlar', 'Фильтры', 'Filters'),
       showBack: true,
       body: Column(
         children: [
@@ -37,14 +51,14 @@ class _MasterFiltersScreenState extends State<MasterFiltersScreen> {
                 children: [
                   // Categories.
                   _Card(
-                    title: 'Kategoriyalar',
+                    title: tr(lang, 'Kategoriyalar', 'Категории', 'Categories'),
                     child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        for (var i = 0; i < _categories.length; i++)
+                        for (var i = 0; i < categories.length; i++)
                           _Chip(
-                            label: _categories[i],
+                            label: categories[i],
                             selected: _selectedCategories.contains(i),
                             onTap: () => setState(() {
                               if (!_selectedCategories.remove(i)) {
@@ -58,14 +72,14 @@ class _MasterFiltersScreenState extends State<MasterFiltersScreen> {
                   const SizedBox(height: 10),
                   // Distance.
                   _Card(
-                    title: 'Masofa',
+                    title: tr(lang, 'Masofa', 'Расстояние', 'Distance'),
                     child: Row(
                       children: [
-                        for (var i = 0; i < _distances.length; i++) ...[
+                        for (var i = 0; i < distances.length; i++) ...[
                           if (i != 0) const SizedBox(width: 8),
                           Expanded(
                             child: _Chip(
-                              label: _distances[i],
+                              label: distances[i],
                               selected: _distance == i,
                               fullWidth: true,
                               onTap: () => setState(() => _distance = i),
@@ -78,14 +92,14 @@ class _MasterFiltersScreenState extends State<MasterFiltersScreen> {
                   const SizedBox(height: 10),
                   // Sort.
                   _Card(
-                    title: 'Saralash',
+                    title: tr(lang, 'Saralash', 'Сортировка', 'Sort'),
                     titleWeight: FontWeight.w500,
                     child: Column(
                       children: [
-                        for (var i = 0; i < _sorts.length; i++) ...[
+                        for (var i = 0; i < sorts.length; i++) ...[
                           if (i != 0) const SizedBox(height: 8),
                           _SortRow(
-                            label: _sorts[i],
+                            label: sorts[i],
                             selected: _sort == i,
                             onTap: () => setState(() => _sort = i),
                           ),
@@ -100,7 +114,7 @@ class _MasterFiltersScreenState extends State<MasterFiltersScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
             child: PrimaryButton(
-              label: '12 ta buyurtmani koʻrsatish',
+              label: tr(lang, '12 ta buyurtmani koʻrsatish', 'Показать 12 заказов', 'Show 12 requests'),
               onPressed: () => Navigator.of(context).maybePop(),
             ),
           ),

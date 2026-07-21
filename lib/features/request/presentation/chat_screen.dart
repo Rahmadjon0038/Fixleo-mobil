@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/core/realtime/call_service.dart';
+import 'package:fixleo/core/realtime/chat_socket.dart';
+import 'package:fixleo/features/calls/presentation/call_screen.dart';
 import 'package:fixleo/features/request/data/chat_service.dart' as api_chat;
 import 'package:fixleo/features/request/presentation/attach_photos_sheet.dart';
 
@@ -50,6 +53,8 @@ class _ChatScreenState extends State<ChatScreen> {
   static const _slate500 = Color(0xFF64748B);
 
   late final api_chat.ChatService _service = api_chat.ChatService(kind: widget.kind);
+  late final ChatSocket _chatSocket =
+      ChatSocket(kind: widget.kind, conversationId: widget.conversationId);
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
 
@@ -61,6 +66,30 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _load();
+    // Live incoming messages — append the peer's messages as they arrive so the
+    // thread updates without a reopen. (Own messages are shown locally on send.)
+    _chatSocket.connect((m) {
+      if (!mounted || m.sender == widget.kind) return;
+      setState(() => _messages.add(_toBubble(m)));
+      _scrollToBottom();
+      unawaited(_service.markRead(widget.conversationId).catchError((_) {}));
+    });
+    // Voice-call signalling: connect so an incoming call from the peer rings
+    // while this chat is open, and present the call UI when it does.
+    CallService.instance.connect(widget.kind, onIncoming: () {
+      if (mounted) _openCallScreen();
+    });
+  }
+
+  void _openCallScreen() {
+    Navigator.of(context).push(
+      MaterialPageRoute(fullscreenDialog: true, builder: (_) => const CallScreen()),
+    );
+  }
+
+  Future<void> _startCall() async {
+    await CallService.instance.startCall(widget.conversationId, displayName: widget.peerName);
+    if (mounted) _openCallScreen();
   }
 
   Future<void> _load() async {
@@ -95,6 +124,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _chatSocket.disconnect();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -213,9 +243,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           _GlassCircleButton(
             icon: Icons.phone_outlined,
-            onTap: () {
-              // TODO: start a call with the master.
-            },
+            onTap: _startCall,
           ),
         ],
       ),

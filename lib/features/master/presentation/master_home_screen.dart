@@ -83,10 +83,12 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
   Future<void> _loadFeed() async {
     try {
       final items = await _market.feed();
-      if (mounted) setState(() {
-        _feedItems = items;
-        _feedLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _feedItems = items;
+          _feedLoading = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _feedLoading = false);
     }
@@ -126,39 +128,6 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
     LiquidGlassNavItem(
       tr(lang, 'Profil', 'Профиль', 'Profile'),
       'assets/icon/usericon.svg',
-    ),
-  ];
-
-  static const _requests = [
-    _Request(
-      categoryUz: 'Santexnika',
-      categoryRu: 'Сантехника',
-      categoryEn: 'Plumbing',
-      icon: Icons.water_drop_outlined,
-      timeUz: '12 daqiqa oldin',
-      timeRu: '12 минут назад',
-      timeEn: '12 min ago',
-      textUz: 'Oshxonada smesitel oqyapti, kartrij almashtirish kerak',
-      textRu: 'На кухне течет смеситель, нужно заменить картридж',
-      textEn: 'The kitchen mixer is leaking, the cartridge needs replacement',
-      locationUz: 'Yunusobod · 2.4 km',
-      locationRu: 'Юнусабад · 2.4 км',
-      locationEn: 'Yunusabad · 2.4 km',
-    ),
-    _Request(
-      categoryUz: 'Elektrika',
-      categoryRu: 'Электрика',
-      categoryEn: 'Electrical',
-      icon: Icons.bolt_outlined,
-      timeUz: '12 daqiqa oldin',
-      timeRu: '12 минут назад',
-      timeEn: '12 min ago',
-      textUz: 'Rozetka ishlamayapti, uchqun chiqyapti',
-      textRu: 'Розетка не работает, есть искра',
-      textEn: 'The socket is not working, sparks are coming out',
-      locationUz: 'Yunusobod · 2.4 km',
-      locationRu: 'Юнусабад · 2.4 км',
-      locationEn: 'Yunusabad · 2.4 km',
     ),
   ];
 
@@ -299,9 +268,12 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
   }
 
   Widget _feed() {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-      children: [
+    return RefreshIndicator(
+      onRefresh: _loadFeed,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+        children: [
         _greeting(),
         const SizedBox(height: 10),
         if (_feedLoading)
@@ -324,11 +296,14 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
           for (var i = 0; i < _feedItems.length; i++) ...[
             _RequestCard(
               request: _asRequest(_feedItems[i]),
-              onRespond: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => MasterRequestDetailScreen(orderId: _feedItems[i].id),
-                ),
-              ),
+              onRespond: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => MasterRequestDetailScreen(orderId: _feedItems[i].id),
+                  ),
+                );
+                if (mounted) _loadFeed();
+              },
             ),
             const SizedBox(height: 10),
           ],
@@ -354,6 +329,7 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
           ],
         ),
       ],
+      ),
     );
   }
 

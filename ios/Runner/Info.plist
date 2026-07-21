@@ -2,6 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Microphone: required for client↔master voice calls (WebRTC). -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>FixLeo mijoz va usta oʻrtasidagi ovozli qoʻngʻiroqlar uchun mikrofondan foydalanadi.</string>
 	<!-- LOCAL DEV: allow plain-http to the local backend (localhost:9000).
 	     Remove for production (which uses https://api.fixleo.com). -->
 	<key>NSAppTransportSecurity</key>

@@ -4,6 +4,7 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/features/master/data/master_marketplace_models.dart';
 import 'package:fixleo/features/master/data/master_marketplace_service.dart';
 import 'package:fixleo/features/master/presentation/master_order_status_screen.dart';
 
@@ -20,7 +21,9 @@ class MasterCurrentRequestScreen extends StatefulWidget {
 
 class _MasterCurrentRequestScreenState extends State<MasterCurrentRequestScreen> {
   final MasterMarketplaceService _market = MasterMarketplaceService();
-  int? _orderId;
+  MasterOrderDetail? _detail;
+  bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -29,97 +32,187 @@ class _MasterCurrentRequestScreenState extends State<MasterCurrentRequestScreen>
   }
 
   Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final orders = await _market.orders(status: 'current');
-      if (mounted && orders.isNotEmpty) setState(() => _orderId = orders.first.id);
-    } catch (_) {}
+      if (orders.isEmpty) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+      final d = await _market.orderDetail(orders.first.id);
+      if (!mounted) return;
+      setState(() {
+        _detail = d;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
   }
+
+  String _statusLabel(AppLanguage lang, String status) => switch (status) {
+        'assigned' => tr(lang, 'Tayinlandi', 'Назначен', 'Assigned'),
+        'on_the_way' => tr(lang, 'Yoʻlda', 'В пути', 'On the way'),
+        'arrived' => tr(lang, 'Yetib keldi', 'На месте', 'Arrived'),
+        'work_done' => tr(lang, 'Ish bajarildi', 'Работа выполнена', 'Work done'),
+        _ => tr(lang, 'Ish jarayonida', 'В работе', 'In progress'),
+      };
 
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
+    final d = _detail;
     return BrandedScaffold(
       title: tr(lang, 'Joriy buyurtma', 'Текущая заявка', 'Current request'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Status card.
-            _Card(
-              child: Row(
-                children: [
-                  Container(
-                    width: 9,
-                    height: 9,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.blue,
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : d == null
+                ? Center(
+                    child: Text(
+                      _error != null
+                          ? tr(lang, 'Yuklab boʻlmadi', 'Не удалось загрузить', 'Could not load')
+                          : tr(lang, 'Joriy buyurtma yoʻq', 'Нет текущей заявки', 'No current request'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Color(0xFF8D96A4)),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    tr(lang, 'Ish jarayonida', 'В работе', 'In progress'),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      height: 22 / 16,
-                      letterSpacing: -0.18,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.navy,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    tr(lang, '15:10 da boshlandi', 'Начат 15:10', 'Started 15:10'),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      height: 20 / 14,
-                      letterSpacing: -0.16,
-                      color: Color(0xFF8D96A4),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            // Client card.
-            _Card(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: AppColors.background,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(
-                          Icons.person,
-                          size: 26,
-                          color: Color(0xFF8D96A4),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      // Status card (real status).
+                      _Card(
+                        child: Row(
                           children: [
+                            Container(
+                              width: 9,
+                              height: 9,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.blue,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                             Text(
-                              tr(lang, 'Arslan Koptleulov', 'Арслан Коптлеулов', 'Arslan Koptleulov'),
+                              _statusLabel(lang, d.status),
                               style: const TextStyle(
                                 fontSize: 16,
                                 height: 22 / 16,
                                 letterSpacing: -0.18,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.navy,
+                              ),
+                            ),
+                            const Spacer(),
+                            if (d.price != null)
+                              Text(
+                                '${d.price} ${tr(lang, 'soʻm', 'сум', 'sum')}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  height: 20 / 14,
+                                  letterSpacing: -0.16,
+                                  color: Color(0xFF8D96A4),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      // Client card (real name + address).
+                      _Card(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 50,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.background,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: const Icon(Icons.person, size: 26, color: Color(0xFF8D96A4)),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        d.clientName ?? tr(lang, 'Mijoz', 'Клиент', 'Client'),
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          height: 22 / 16,
+                                          letterSpacing: -0.18,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.navy,
+                                        ),
+                                      ),
+                                      Text(
+                                        tr(lang, 'Mijoz', 'Клиент', 'Client'),
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          height: 20 / 14,
+                                          letterSpacing: -0.16,
+                                          color: Color(0xFF8D96A4),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                const Icon(Icons.location_on_outlined, size: 19, color: Color(0xFF8D96A4)),
+                                const SizedBox(width: 2),
+                                Expanded(
+                                  child: Text(
+                                    [d.addressText, d.addressDetails]
+                                        .where((s) => s != null && s.isNotEmpty)
+                                        .join(', '),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      height: 20 / 14,
+                                      letterSpacing: -0.16,
+                                      color: Color(0xFF8D96A4),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      // Task card (real description).
+                      _Card(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              tr(lang, 'Vazifa', 'Задача', 'Task'),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                height: 22 / 16,
+                                letterSpacing: -0.18,
+                                fontWeight: FontWeight.w600,
                                 color: AppColors.navy,
                               ),
                             ),
                             Text(
-                              tr(lang, 'Mijoz', 'Клиент', 'Client'),
+                              d.description,
                               style: const TextStyle(
                                 fontSize: 14,
                                 height: 20 / 14,
@@ -130,110 +223,20 @@ class _MasterCurrentRequestScreenState extends State<MasterCurrentRequestScreen>
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on_outlined,
-                        size: 19,
-                        color: Color(0xFF8D96A4),
-                      ),
-                      const SizedBox(width: 2),
-                      Expanded(
-                        child: Text(
-                          tr(
-                            lang,
-                            'Yunusobod, Amir Temur 12, xonadon 45',
-                            'Юнусабад, Амира Темура 12, кв. 45',
-                            'Yunusabad, Amir Temur 12, apt. 45',
-                          ),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            height: 20 / 14,
-                            letterSpacing: -0.16,
-                            color: Color(0xFF8D96A4),
-                          ),
-                        ),
+                      const Spacer(),
+                      PrimaryButton(
+                        label: tr(lang, 'Statusni oʻzgartirish', 'Изменить статус', 'Change status'),
+                        onPressed: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => MasterOrderStatusScreen(orderId: d.id),
+                            ),
+                          );
+                          if (mounted) _load();
+                        },
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            // Task card.
-            _Card(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tr(lang, 'Vazifa', 'Задача', 'Task'),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      height: 22 / 16,
-                      letterSpacing: -0.18,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.navy,
-                    ),
-                  ),
-                  Text(
-                    tr(
-                      lang,
-                      'Oshxonadagi smesitelni almashtirish, kartrijni almashtirish.',
-                      'Замена смесителя на кухне, замена картриджа.',
-                      'Replace the kitchen mixer and cartridge.',
-                    ),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      height: 20 / 14,
-                      letterSpacing: -0.16,
-                      color: Color(0xFF8D96A4),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            // "Go to client now" action.
-            _Card(
-              onTap: () {},
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      tr(lang, 'Mijozga hozir borish', 'Поехать к клиенту сейчас', 'Go to the client now'),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        height: 22 / 16,
-                        letterSpacing: -0.18,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.navy,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    size: 20,
-                    color: AppColors.navy,
-                  ),
-                ],
-              ),
-            ),
-            const Spacer(),
-            PrimaryButton(
-              label: tr(lang, 'Statusni oʻzgartirish', 'Изменить статус', 'Change status'),
-              onPressed: _orderId == null
-                  ? null
-                  : () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => MasterOrderStatusScreen(orderId: _orderId!),
-                        ),
-                      ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -241,14 +244,13 @@ class _MasterCurrentRequestScreenState extends State<MasterCurrentRequestScreen>
 
 /// White rounded card used for every block on the screen.
 class _Card extends StatelessWidget {
-  const _Card({required this.child, this.onTap});
+  const _Card({required this.child});
 
   final Widget child;
-  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final card = Container(
+    return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -257,8 +259,5 @@ class _Card extends StatelessWidget {
       ),
       child: child,
     );
-
-    if (onTap == null) return card;
-    return GestureDetector(onTap: onTap, child: card);
   }
 }

@@ -4,14 +4,17 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/features/master/data/master_marketplace_service.dart';
 import 'package:fixleo/features/master/presentation/master_offer_screen.dart';
 
 /// Detail of a single nearby request — full description, photos, address,
 /// client and time, with respond / decline actions.
 class MasterRequestDetailScreen extends StatelessWidget {
-  const MasterRequestDetailScreen({super.key});
+  const MasterRequestDetailScreen({super.key, required this.orderId});
 
-  /// Bottom sheet asking for a decline reason; pops the detail on confirm.
+  final int orderId;
+
+  /// Bottom sheet asking for a decline reason; declines on the backend + pops.
   Future<void> _showDeclineSheet(BuildContext context) async {
     final declined = await showModalBottomSheet<bool>(
       context: context,
@@ -21,7 +24,10 @@ class MasterRequestDetailScreen extends StatelessWidget {
       builder: (_) => const _DeclineSheet(),
     );
     if (declined == true && context.mounted) {
-      Navigator.of(context).maybePop();
+      try {
+        await MasterMarketplaceService().decline(orderId, 'busy');
+      } catch (_) {}
+      if (context.mounted) Navigator.of(context).maybePop();
     }
   }
 
@@ -136,7 +142,7 @@ class MasterRequestDetailScreen extends StatelessWidget {
               label: tr(lang, 'Javob berish', 'Ответить', 'Respond'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const MasterOfferScreen(),
+                  builder: (_) => MasterOfferScreen(orderId: orderId),
                 ),
               ),
             ),

@@ -13,6 +13,9 @@ import 'package:fixleo/features/master/presentation/master_orders_screen.dart';
 import 'package:fixleo/features/master/presentation/master_profile_tab_screen.dart';
 import 'package:fixleo/features/master/presentation/master_wallet_screen.dart';
 import 'package:fixleo/features/master/presentation/master_request_detail_screen.dart';
+import 'package:fixleo/core/network/current_user.dart';
+import 'package:fixleo/features/master/data/master_marketplace_models.dart';
+import 'package:fixleo/features/master/data/master_marketplace_service.dart';
 
 /// A nearby job request shown in the master feed.
 class _Request {
@@ -65,6 +68,43 @@ class MasterHomeScreen extends StatefulWidget {
 
 class _MasterHomeScreenState extends State<MasterHomeScreen> {
   final List<int> _navHistory = [];
+
+  final MasterMarketplaceService _market = MasterMarketplaceService();
+  List<FeedItem> _feedItems = const [];
+  bool _feedLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    CurrentUser.instance.refresh();
+    _loadFeed();
+  }
+
+  Future<void> _loadFeed() async {
+    try {
+      final items = await _market.feed();
+      if (mounted) setState(() {
+        _feedItems = items;
+        _feedLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _feedLoading = false);
+    }
+  }
+
+  _Request _asRequest(FeedItem f) {
+    final loc = [
+      if (f.district != null) f.district!,
+      '${f.distanceKm.toStringAsFixed(1)} km',
+    ].join(' · ');
+    return _Request(
+      categoryUz: f.categoryName, categoryRu: f.categoryName, categoryEn: f.categoryName,
+      icon: Icons.build_outlined,
+      timeUz: '', timeRu: '', timeEn: '',
+      textUz: f.description, textRu: f.description, textEn: f.description,
+      locationUz: loc, locationRu: loc, locationEn: loc,
+    );
+  }
 
   List<LiquidGlassNavItem> _navItems(AppLanguage lang) => [
     LiquidGlassNavItem(
@@ -264,17 +304,34 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
       children: [
         _greeting(),
         const SizedBox(height: 10),
-        for (final r in _requests) ...[
-          _RequestCard(
-            request: r,
-            onRespond: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const MasterRequestDetailScreen(),
+        if (_feedLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 30),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_feedItems.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 30),
+            child: Center(
+              child: Text(
+                tr(LocaleController.language.value, 'Hozircha zayavkalar yoʻq',
+                    'Пока нет заявок', 'No requests yet'),
+                style: const TextStyle(color: Color(0xFF8D96A4)),
               ),
             ),
-          ),
-          const SizedBox(height: 10),
-        ],
+          )
+        else
+          for (var i = 0; i < _feedItems.length; i++) ...[
+            _RequestCard(
+              request: _asRequest(_feedItems[i]),
+              onRespond: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => MasterRequestDetailScreen(orderId: _feedItems[i].id),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
         Row(
           children: [
             Expanded(
@@ -342,18 +399,22 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        tr(
-                          lang,
-                          'Xayrli kun, Arslan!',
-                          'Добрый день, Арслан!',
-                          'Good day, Arslan!',
-                        ),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.navy,
-                        ),
+                      ValueListenableBuilder<UserProfile?>(
+                        valueListenable: CurrentUser.instance.profile,
+                        builder: (context, profile, _) {
+                          final name = profile?.firstName;
+                          return Text(
+                            name == null
+                                ? tr(lang, 'Xayrli kun!', 'Добрый день!', 'Good day!')
+                                : tr(lang, 'Xayrli kun, $name!', 'Добрый день, $name!',
+                                    'Good day, $name!'),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.navy,
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 2),
                       Row(

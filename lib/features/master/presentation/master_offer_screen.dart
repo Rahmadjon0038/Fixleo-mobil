@@ -5,27 +5,62 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/master/data/master_marketplace_service.dart';
 import 'package:fixleo/features/master/presentation/master_offer_sent_screen.dart';
 
 /// Master's offer for a request — price type, amount and a note to the
-/// client, submitted as a response.
+/// client, submitted via `POST /masters/me/feed/:orderId/offer`.
 class MasterOfferScreen extends StatefulWidget {
-  const MasterOfferScreen({super.key});
+  const MasterOfferScreen({super.key, required this.orderId});
+
+  final int orderId;
 
   @override
   State<MasterOfferScreen> createState() => _MasterOfferScreenState();
 }
 
 class _MasterOfferScreenState extends State<MasterOfferScreen> {
+  static const _typeCodes = ['fixed', 'range', 'after_inspection'];
+
   final _price = TextEditingController(text: '50 000');
   final _comment = TextEditingController();
-  int _type = 1;
+  final MasterMarketplaceService _market = MasterMarketplaceService();
+  int _type = 0;
+  bool _busy = false;
 
   @override
   void dispose() {
     _price.dispose();
     _comment.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final lang = LocaleController.language.value;
+    final priceType = _typeCodes[_type.clamp(0, 2)];
+    int? price;
+    if (priceType != 'after_inspection') {
+      price = int.tryParse(_price.text.replaceAll(RegExp(r'[^0-9]'), ''));
+      if (price == null || price <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(tr(lang, 'Narxni kiriting', 'Введите цену', 'Enter a price'))));
+        return;
+      }
+    }
+    setState(() => _busy = true);
+    try {
+      await _market.makeOffer(widget.orderId,
+          priceType: priceType, price: price, comment: _comment.text.trim());
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MasterOfferSentScreen()),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   @override
@@ -152,12 +187,10 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
             ),
             const Spacer(),
             PrimaryButton(
-              label: tr(lang, 'Javobni yuborish', 'Отправить ответ', 'Send reply'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const MasterOfferSentScreen(),
-                ),
-              ),
+              label: _busy
+                  ? tr(lang, 'Yuborilmoqda…', 'Отправка…', 'Sending…')
+                  : tr(lang, 'Javobni yuborish', 'Отправить ответ', 'Send reply'),
+              onPressed: _busy ? null : _submit,
             ),
           ],
         ),

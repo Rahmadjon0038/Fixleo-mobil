@@ -1,12 +1,14 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/master/data/master_marketplace_service.dart';
 import 'package:fixleo/features/master/presentation/master_withdraw_result_screen.dart';
+import 'package:fixleo/features/wallet/data/payment_service.dart';
 
 /// A card the master can withdraw funds to.
 class _Card {
@@ -37,12 +39,51 @@ class _MasterWithdrawScreenState extends State<MasterWithdrawScreen> {
   ];
 
   final _amount = TextEditingController(text: '50 000');
+  final MasterMarketplaceService _market = MasterMarketplaceService();
+  final PaymentService _payments = PaymentService(kind: 'master');
   int _selectedCard = 0;
+  bool _busy = false;
 
   @override
   void dispose() {
     _amount.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final lang = LocaleController.language.value;
+    final amount = int.tryParse(_amount.text.replaceAll(RegExp(r'[^0-9]'), ''));
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr(lang, 'Summani kiriting', 'Введите сумму', 'Enter an amount'))));
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      var cards = await _payments.cards();
+      if (cards.isEmpty) {
+        cards = [await _payments.addCard(brand: 'humo', last4: '9876')];
+      }
+      final card = cards[_selectedCard.clamp(0, cards.length - 1)];
+      await _market.withdraw(amount: amount, cardId: card.id, mode: 'standard');
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => MasterWithdrawResultScreen(
+            success: true,
+            amount: '${_amount.text.trim()} ${tr(lang, 'soʻm', 'сум', 'sum')}',
+          ),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => MasterWithdrawResultScreen(success: false, amount: e.message),
+        ),
+      );
+    }
   }
 
   @override
@@ -69,20 +110,8 @@ class _MasterWithdrawScreenState extends State<MasterWithdrawScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
             child: PrimaryButton(
-              label: 'Yechish 125 000',
-              onPressed: () {
-                final success = Random().nextBool();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => MasterWithdrawResultScreen(
-                      success: success,
-                      amount: _amount.text.trim().isEmpty
-                          ? '125 000 soʻm'
-                          : '${_amount.text.trim()} soʻm',
-                    ),
-                  ),
-                );
-              },
+              label: _busy ? 'Yuborilmoqda…' : 'Yechish',
+              onPressed: _busy ? null : _submit,
             ),
           ),
         ],

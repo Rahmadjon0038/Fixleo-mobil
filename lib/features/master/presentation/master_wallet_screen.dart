@@ -2,92 +2,92 @@ import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
+import 'package:fixleo/features/master/data/master_marketplace_models.dart';
+import 'package:fixleo/features/master/data/master_marketplace_service.dart';
 import 'package:fixleo/features/master/presentation/master_withdraw_screen.dart';
-
-/// A single wallet transaction in the master's operations list.
-class _Txn {
-  const _Txn({
-    required this.titleUz,
-    required this.titleRu,
-    required this.titleEn,
-    required this.dateUz,
-    required this.dateRu,
-    required this.dateEn,
-    required this.amount,
-  });
-
-  final String titleUz;
-  final String titleRu;
-  final String titleEn;
-  final String dateUz;
-  final String dateRu;
-  final String dateEn;
-  final String amount;
-
-  String title(AppLanguage lang) => tr(lang, titleUz, titleRu, titleEn);
-  String date(AppLanguage lang) => tr(lang, dateUz, dateRu, dateEn);
-}
 
 /// Master's wallet — available balance with a withdraw action, quick stats
 /// (orders / rating / earned) and a list of recent operations. Shown under the
 /// "Hamyon" tab. Mock data only.
-class MasterWalletScreen extends StatelessWidget {
+class MasterWalletScreen extends StatefulWidget {
   const MasterWalletScreen({super.key});
 
   static const _navy900 = Color(0xFF0F172A);
   static const _slate50 = Color(0xFFF8FAFC);
   static const _gray = Color(0xFF8D96A4);
 
-  static const _txns = <_Txn>[
-    _Txn(
-      titleUz: 'Kartaga toʻlov',
-      titleRu: 'Перевод на карту',
-      titleEn: 'Card payment',
-      dateUz: 'Bugun, 14:30',
-      dateRu: 'Сегодня, 14:30',
-      dateEn: 'Today, 14:30',
-      amount: '+50 000',
-    ),
-    _Txn(
-      titleUz: 'Mablagʻ yechish',
-      titleRu: 'Снятие средств',
-      titleEn: 'Withdraw funds',
-      dateUz: 'Bugun, 14:30',
-      dateRu: 'Сегодня, 14:30',
-      dateEn: 'Today, 14:30',
-      amount: '-60 000',
-    ),
-    _Txn(
-      titleUz: 'Kartaga toʻlov',
-      titleRu: 'Перевод на карту',
-      titleEn: 'Card payment',
-      dateUz: 'Bugun, 14:30',
-      dateRu: 'Сегодня, 14:30',
-      dateEn: 'Today, 14:30',
-      amount: '+50 000',
-    ),
-    _Txn(
-      titleUz: 'Mablagʻ yechish',
-      titleRu: 'Снятие средств',
-      titleEn: 'Withdraw funds',
-      dateUz: 'Bugun, 14:30',
-      dateRu: 'Сегодня, 14:30',
-      dateEn: 'Today, 14:30',
-      amount: '-60 000',
-    ),
-  ];
+  @override
+  State<MasterWalletScreen> createState() => _MasterWalletScreenState();
+}
+
+class _MasterWalletScreenState extends State<MasterWalletScreen> {
+  static const _navy900 = MasterWalletScreen._navy900;
+  static const _slate50 = MasterWalletScreen._slate50;
+  static const _gray = MasterWalletScreen._gray;
+
+  final MasterMarketplaceService _market = MasterMarketplaceService();
+  MasterWallet? _wallet;
+  List<WalletTx> _txns = const [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final results = await Future.wait([_market.wallet(), _market.transactions()]);
+      if (!mounted) return;
+      setState(() {
+        _wallet = results[0] as MasterWallet;
+        _txns = results[1] as List<WalletTx>;
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  static String _money(int v) {
+    final neg = v < 0;
+    final s = v.abs().toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(' ');
+      buf.write(s[i]);
+    }
+    return '${neg ? '-' : ''}${buf.toString()}';
+  }
+
+  String _txLabel(String type, AppLanguage lang) => switch (type) {
+        'order_income' => tr(lang, 'Buyurtma toʻlovi', 'Оплата за заказ', 'Order payment'),
+        'withdrawal' => tr(lang, 'Mablagʻ yechish', 'Вывод средств', 'Withdrawal'),
+        'withdrawal_fee' => tr(lang, 'Yechish komissiyasi', 'Комиссия за вывод', 'Withdrawal fee'),
+        'withdrawal_refund' => tr(lang, 'Yechish qaytarildi', 'Возврат вывода', 'Withdrawal refund'),
+        'refund_out' => tr(lang, 'Mijozga qaytarish', 'Возврат клиенту', 'Refund to client'),
+        _ => tr(lang, 'Operatsiya', 'Операция', 'Operation'),
+      };
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
-      children: [
-        _balanceCard(context),
-        const SizedBox(height: 10),
-        _statsRow(),
-        const SizedBox(height: 10),
-        _operationsCard(),
-      ],
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          _balanceCard(context),
+          const SizedBox(height: 10),
+          _statsRow(),
+          const SizedBox(height: 10),
+          _operationsCard(),
+        ],
+      ),
     );
   }
 
@@ -124,9 +124,9 @@ class MasterWalletScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          const Text(
-            '125 000 soʻm',
-            style: TextStyle(
+          Text(
+            '${_money(_wallet?.balance ?? 0)} ${tr(lang, 'soʻm', 'сум', 'sum')}',
+            style: const TextStyle(
               fontSize: 32,
               height: 38 / 32,
               letterSpacing: -0.2,
@@ -173,21 +173,21 @@ class MasterWalletScreen extends StatelessWidget {
       children: [
         Expanded(
           child: _StatCard(
-            value: '48',
+            value: '${_wallet?.completedOrders ?? 0}',
             label: tr(lang, 'buyurtma', 'заказа', 'orders'),
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _StatCard(
-            value: '4.9',
+            value: _wallet?.ratingAvg?.toStringAsFixed(1) ?? '—',
             label: tr(lang, 'reyting', 'рейтинг', 'rating'),
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _StatCard(
-            value: '850 000',
+            value: _money(_wallet?.monthEarned ?? 0),
             label: tr(lang, 'Ishlangan', 'Заработано', 'Earned'),
           ),
         ),
@@ -219,6 +219,14 @@ class MasterWalletScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
+          if (_txns.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                tr(lang, 'Operatsiyalar yoʻq', 'Операций нет', 'No operations'),
+                style: const TextStyle(color: _gray),
+              ),
+            ),
           for (var i = 0; i < _txns.length; i++) ...[
             if (i != 0) const SizedBox(height: 8),
             _txnTile(_txns[i], lang),
@@ -228,7 +236,12 @@ class MasterWalletScreen extends StatelessWidget {
     );
   }
 
-  Widget _txnTile(_Txn txn, AppLanguage lang) {
+  Widget _txnTile(WalletTx txn, AppLanguage lang) {
+    final d = txn.createdAt;
+    final date = d == null
+        ? ''
+        : '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    final positive = txn.amount >= 0;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -242,7 +255,7 @@ class MasterWalletScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  txn.title(lang),
+                  _txLabel(txn.type, lang),
                   style: const TextStyle(
                     fontSize: 16,
                     height: 24 / 16,
@@ -251,7 +264,7 @@ class MasterWalletScreen extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  txn.date(lang),
+                  date,
                   style: const TextStyle(
                     fontSize: 14,
                     height: 20 / 14,
@@ -264,13 +277,13 @@ class MasterWalletScreen extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            txn.amount,
-            style: const TextStyle(
+            '${positive ? '+' : ''}${_money(txn.amount)}',
+            style: TextStyle(
               fontSize: 16,
               height: 22 / 16,
               letterSpacing: -0.18,
               fontWeight: FontWeight.w700,
-              color: AppColors.blue,
+              color: positive ? AppColors.blue : const Color(0xFFEF4444),
             ),
           ),
         ],

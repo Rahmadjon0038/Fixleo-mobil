@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
+import 'package:fixleo/features/master/data/master_marketplace_models.dart';
+import 'package:fixleo/features/master/data/master_marketplace_service.dart';
 
 /// Order status shown as a colored pill on each history card.
 enum _OrderStatus { done, cancelled }
@@ -35,47 +37,60 @@ class MasterOrdersScreen extends StatefulWidget {
 }
 
 class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
-  List<_Order> _orders(AppLanguage lang) => [
-    _Order(
-      title: tr(lang, 'Rozetka tuzatildi', 'Розетка отремонтирована', 'Socket fixed'),
-      desc: tr(lang, 'Rozetka ishlamay qoldi, uchqun chiqyapti.', 'Розетка перестала работать, были искры.', 'The socket stopped working and was sparking.'),
-      address: tr(lang, 'Lenin koʻchasi, 123, 12-xonadon', 'Ул. Ленина, 123, кв. 12', 'Lenin St. 123, apt. 12'),
-      date: tr(lang, '22-iyun 2026, 15:40', '22 июня 2026, 15:40', 'June 22, 2026, 15:40'),
-      price: tr(lang, '50 000 soʻm', '50 000 сум', '50 000 sum'),
-      status: _OrderStatus.done,
-    ),
-    _Order(
-      title: tr(lang, 'Rozetka tuzatildi', 'Розетка отремонтирована', 'Socket fixed'),
-      desc: tr(lang, 'Rozetka ishlamay qoldi, uchqun chiqyapti.', 'Розетка перестала работать, были искры.', 'The socket stopped working and was sparking.'),
-      address: tr(lang, 'Lenin koʻchasi, 123, 12-xonadon', 'Ул. Ленина, 123, кв. 12', 'Lenin St. 123, apt. 12'),
-      date: tr(lang, '22-iyun 2026, 15:40', '22 июня 2026, 15:40', 'June 22, 2026, 15:40'),
-      price: tr(lang, '50 000 soʻm', '50 000 сум', '50 000 sum'),
-      status: _OrderStatus.cancelled,
-    ),
-    _Order(
-      title: tr(lang, 'Smesitel almashtirildi', 'Смеситель заменён', 'Mixer replaced'),
-      desc: tr(lang, 'Oshxonada smesitel oqyapti, kartrij almashtirildi.', 'На кухне тек смеситель, заменён картридж.', 'The kitchen mixer was leaking, cartridge replaced.'),
-      address: tr(lang, 'Amir Temur 12, 45-xonadon', 'Амир Темур 12, кв. 45', 'Amir Temur 12, apt. 45'),
-      date: tr(lang, '20-iyun 2026, 13:10', '20 июня 2026, 13:10', 'June 20, 2026, 13:10'),
-      price: tr(lang, '80 000 soʻm', '80 000 сум', '80 000 sum'),
-      status: _OrderStatus.cancelled,
-    ),
-    _Order(
-      title: tr(lang, 'Lyustra oʻrnatildi', 'Люстра установлена', 'Chandelier installed'),
-      desc: tr(lang, 'Zalda yangi lyustra oʻrnatib berildi.', 'В зале установили новую люстру.', 'A new chandelier was installed in the hall.'),
-      address: tr(lang, 'Chilonzor 9, 3-xonadon', 'Чиланзар 9, кв. 3', 'Chilanzar 9, apt. 3'),
-      date: tr(lang, '18-iyun 2026, 11:25', '18 июня 2026, 11:25', 'June 18, 2026, 11:25'),
-      price: tr(lang, '60 000 soʻm', '60 000 сум', '60 000 sum'),
-      status: _OrderStatus.done,
-    ),
-  ];
+  final MasterMarketplaceService _market = MasterMarketplaceService();
+  List<MasterOrder> _real = const [];
+  bool _loading = true;
 
   int _segment = 0; // 0 = Tarix, 1 = Sharhlar.
 
   @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final items = await _market.orders(status: 'history');
+      if (mounted) setState(() {
+        _real = items;
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  static String _money(int? v) {
+    if (v == null) return '—';
+    final s = v.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(' ');
+      buf.write(s[i]);
+    }
+    return buf.toString();
+  }
+
+  _Order _toOrder(MasterOrder o, AppLanguage lang) {
+    final d = o.createdAt;
+    final date = d == null
+        ? ''
+        : '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    return _Order(
+      title: o.title,
+      desc: o.description,
+      address: [o.addressText, if (o.addressDetails != null) o.addressDetails!].join(', '),
+      date: date,
+      price: '${_money(o.price)} ${tr(lang, 'soʻm', 'сум', 'sum')}',
+      status: o.status == 'completed' ? _OrderStatus.done : _OrderStatus.cancelled,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
-    final orders = _orders(lang);
+    final orders = _real.map((o) => _toOrder(o, lang)).toList();
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
       child: Column(

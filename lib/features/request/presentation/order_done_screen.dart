@@ -9,7 +9,10 @@ import 'package:fixleo/features/wallet/presentation/payment_screen.dart';
 /// "Buyurtma bajarildimi?" — the master marked the work done; the user confirms
 /// completion or reports a problem. Mock data for now.
 class OrderDoneScreen extends StatelessWidget {
-  const OrderDoneScreen({super.key});
+  const OrderDoneScreen({super.key, this.orderId});
+
+  /// The order this screen refers to (used for pay / rate / complaint).
+  final int? orderId;
 
   static const _slate100 = Color(0xFFF1F5F9);
   static const _gray = Color(0xFF8D96A4);

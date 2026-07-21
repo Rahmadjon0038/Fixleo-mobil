@@ -1,12 +1,17 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/request/data/chat_service.dart' as api_chat;
 import 'package:fixleo/features/request/presentation/attach_photos_sheet.dart';
 
-/// A single chat message. [isMine] is true for the user's own (blue) bubbles.
+/// A single chat message bubble. [isMine] is true for the user's own (blue)
+/// bubbles. (Kept as a lightweight display model; the wire model lives in
+/// [api_chat.ChatMessage].)
 class ChatMessage {
   const ChatMessage({
     required this.text,
@@ -19,16 +24,20 @@ class ChatMessage {
   final bool isMine;
 }
 
-/// One-on-one chat — message thread plus a working input bar at the bottom.
-/// [peerName] is the person shown in the header; [seed] is the initial thread
-/// (mock data). Sent messages are kept in state. Reused by both the client
-/// side (chatting with the master) and the master side (chatting with the
-/// client) — only [peerName] and [seed] differ.
+/// One-on-one order chat — live thread + working input bar (docs/v3/Chat.md).
+/// Reused by both the client side (chatting with the master) and the master
+/// side; [kind] picks the `/clients` or `/masters` endpoint prefix.
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key, this.peerName = 'Aleksey Ivanov', this.seed});
+  const ChatScreen({
+    super.key,
+    required this.conversationId,
+    this.peerName,
+    this.kind = 'client',
+  });
 
-  final String peerName;
-  final List<ChatMessage>? seed;
+  final int conversationId;
+  final String? peerName;
+  final String kind; // 'client' | 'master'
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -40,47 +49,49 @@ class _ChatScreenState extends State<ChatScreen> {
   static const _outgoingTime = Color(0xFFEBE8FA);
   static const _slate500 = Color(0xFF64748B);
 
-  // Default seed conversation (client side) shown when no [seed] is passed.
-  static const _defaultSeed = <ChatMessage>[
-    ChatMessage(
-      text: 'Salom! Yoʻlga chiqdim, 15 daqiqada yetib boraman.',
-      time: '14:32',
-      isMine: false,
-    ),
-    ChatMessage(text: 'Zoʻr, sizni kutaman!', time: '14:33', isMine: true),
-    ChatMessage(
-      text: 'Domofon kodini ayting, iltimos.',
-      time: '14:35',
-      isMine: false,
-    ),
-    ChatMessage(
-      text: 'Domofon kodi 1234, rahmat!',
-      time: '14:36',
-      isMine: false,
-    ),
-    ChatMessage(
-      text: 'Tushundim, tez orada yetaman.',
-      time: '14:37',
-      isMine: true,
-    ),
-    ChatMessage(
-      text: 'Kvartira kalitlarini unutmang!',
-      time: '14:38',
-      isMine: false,
-    ),
-    ChatMessage(text: 'Oldim, hammasi joyida!', time: '14:39', isMine: false),
-    ChatMessage(
-      text: 'Yaqinlashyapman, bir daqiqada yetaman!',
-      time: '14:41',
-      isMine: true,
-    ),
-  ];
-
+  late final api_chat.ChatService _service = api_chat.ChatService(kind: widget.kind);
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
 
-  // Mutable thread: starts from the passed [seed] (or the default).
-  late final List<ChatMessage> _messages = [...(widget.seed ?? _defaultSeed)];
+  final List<ChatMessage> _messages = [];
+  bool _loading = true;
+  bool _sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final msgs = await _service.messages(widget.conversationId, limit: 50);
+      unawaited(_service.markRead(widget.conversationId).catchError((_) {}));
+      if (!mounted) return;
+      setState(() {
+        _messages
+          ..clear()
+          ..addAll(msgs.map(_toBubble));
+        _loading = false;
+      });
+      _scrollToBottom();
+    } on ApiException {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  ChatMessage _toBubble(api_chat.ChatMessage m) {
+    final t = m.createdAt;
+    final time = t == null
+        ? ''
+        : '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    final text = switch (m.type) {
+      'image' => '📷',
+      'call' => '📞 ${m.callDurationSec ?? 0}s',
+      _ => m.text ?? '',
+    };
+    return ChatMessage(text: text, time: time, isMine: m.sender == widget.kind);
+  }
 
   @override
   void dispose() {
@@ -89,24 +100,7 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  /// Current time as "HH:mm" for newly sent messages.
-  String _now() {
-    final t = TimeOfDay.now();
-    final h = t.hour.toString().padLeft(2, '0');
-    final m = t.minute.toString().padLeft(2, '0');
-    return '$h:$m';
-  }
-
-  void _send() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-
-    setState(() {
-      _messages.add(ChatMessage(text: text, time: _now(), isMine: true));
-      _controller.clear();
-    });
-
-    // Scroll to the newest message after it has been laid out.
+  void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -116,6 +110,26 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       }
     });
+  }
+
+  Future<void> _send() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty || _sending) return;
+    _controller.clear();
+    setState(() => _sending = true);
+    try {
+      final sent = await _service.sendText(widget.conversationId, text);
+      if (!mounted) return;
+      setState(() {
+        _messages.add(_toBubble(sent));
+        _sending = false;
+      });
+      _scrollToBottom();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _sending = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   @override
@@ -128,13 +142,22 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             _header(context, lang),
             Expanded(
-              child: ListView.separated(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                itemCount: _messages.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 10),
-                itemBuilder: (context, index) => _bubble(_messages[index]),
-              ),
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _messages.isEmpty
+                      ? Center(
+                          child: Text(
+                            tr(lang, 'Xabarlar yoʻq', 'Сообщений нет', 'No messages'),
+                            style: const TextStyle(color: _slate500),
+                          ),
+                        )
+                      : ListView.separated(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                          itemCount: _messages.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 10),
+                          itemBuilder: (context, index) => _bubble(_messages[index]),
+                        ),
             ),
             _inputBar(lang),
           ],
@@ -165,7 +188,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      widget.peerName,
+                      widget.peerName ?? tr(lang, 'Suhbat', 'Чат', 'Chat'),
                       style: const TextStyle(
                         fontSize: 16,
                         height: 22 / 16,

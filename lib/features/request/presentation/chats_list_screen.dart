@@ -12,6 +12,8 @@ class Conversation {
     required this.last,
     required this.time,
     this.unread = 0,
+    this.conversationId = 0,
+    this.kind = 'client',
     this.seed,
   });
 
@@ -20,7 +22,13 @@ class Conversation {
   final String time;
   final int unread;
 
-  /// Optional pre-seeded thread opened when this row is tapped.
+  /// Backend conversation id — used to open the live [ChatScreen].
+  final int conversationId;
+
+  /// Which side is viewing ('client' | 'master').
+  final String kind;
+
+  /// Legacy: optional pre-seeded thread (no longer used once wired to the API).
   final List<ChatMessage>? seed;
 }
 
@@ -63,8 +71,9 @@ class ChatsList extends StatelessWidget {
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => ChatScreen(
+                        conversationId: conversations[i].conversationId,
                         peerName: conversations[i].name,
-                        seed: conversations[i].seed,
+                        kind: conversations[i].kind,
                       ),
                     ),
                   ),

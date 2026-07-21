@@ -17,7 +17,10 @@ import 'package:fixleo/features/request/presentation/order_tracking_screen.dart'
 /// screen moves on to live order tracking. Real realtime events will replace
 /// the timer once the backend flow is wired.
 class OrderWaitingScreen extends StatefulWidget {
-  const OrderWaitingScreen({super.key});
+  const OrderWaitingScreen({super.key, this.orderId});
+
+  /// The just-created order; when set, tracking opens for it.
+  final int? orderId;
 
   @override
   State<OrderWaitingScreen> createState() => _OrderWaitingScreenState();
@@ -32,13 +35,16 @@ class _OrderWaitingScreenState extends State<OrderWaitingScreen> {
   @override
   void initState() {
     super.initState();
-    // TEMP: simulate the master accepting after 5 seconds.
-    _mockAccept = Timer(const Duration(seconds: 5), () {
-      if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const OrderTrackingScreen()),
-      );
-    });
+    // Once an order exists, move on to live tracking (which polls real status).
+    final id = widget.orderId;
+    if (id != null) {
+      _mockAccept = Timer(const Duration(seconds: 2), () {
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => OrderTrackingScreen(orderId: id)),
+        );
+      });
+    }
   }
 
   @override

@@ -43,7 +43,7 @@ class MasterRealtimeService {
   MasterRealtimeService({AuthSession? session, this.socketBase = _defaultBase})
       : _session = session ?? AuthSession.instance;
 
-  static const _defaultBase = 'https://api.fixleo.com';
+  static const _defaultBase = 'http://localhost:9000'; // LOCAL DEV (prod: https://api.fixleo.com)
 
   final AuthSession _session;
   final String socketBase;

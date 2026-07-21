@@ -8,10 +8,12 @@ class ApiConfig {
 
   /// Base URL for every request — already includes the `/api/v1` prefix, so
   /// service classes pass only the route part (e.g. `/work-radiuses`).
-  static const String baseUrl = 'https://api.fixleo.com/api/v1';
+  /// LOCAL DEV: points at the local Docker backend (localhost:9000). For prod
+  /// switch back to https://api.fixleo.com/api/v1.
+  static const String baseUrl = 'http://localhost:9000/api/v1';
 
   /// Swagger / OpenAPI docs, handy for reference.
-  static const String docsUrl = 'https://api.fixleo.com/api/docs';
+  static const String docsUrl = 'http://localhost:9000/api/docs';
 
   /// Network timeouts.
   static const Duration connectTimeout = Duration(seconds: 20);

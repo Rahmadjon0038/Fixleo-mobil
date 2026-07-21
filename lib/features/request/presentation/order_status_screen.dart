@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/request/data/order_models.dart';
+import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/presentation/order_done_screen.dart';
 
 /// The state of a single timeline step.
@@ -17,10 +20,13 @@ class _Step {
   final _StepState state;
 }
 
-/// Order status — a vertical timeline tracking the order from acceptance
-/// to completion. Steps are mock data for now.
-class OrderStatusScreen extends StatelessWidget {
-  const OrderStatusScreen({super.key});
+/// Order status — a vertical timeline tracking the order from acceptance to
+/// completion, driven by the live `GET /clients/me/orders/:id` status +
+/// capabilities. The bottom button reflects the next available client action.
+class OrderStatusScreen extends StatefulWidget {
+  const OrderStatusScreen({super.key, required this.orderId});
+
+  final int orderId;
 
   static const _blue100 = Color(0xFFDBEAFE);
   static const _slate200 = Color(0xFFE2E8F0);
@@ -28,83 +34,161 @@ class OrderStatusScreen extends StatelessWidget {
   static const _muted = Color(0xFF9494A3);
 
   @override
+  State<OrderStatusScreen> createState() => _OrderStatusScreenState();
+}
+
+class _OrderStatusScreenState extends State<OrderStatusScreen> {
+  static const _blue100 = OrderStatusScreen._blue100;
+  static const _slate200 = OrderStatusScreen._slate200;
+  static const _text = OrderStatusScreen._text;
+  static const _muted = OrderStatusScreen._muted;
+
+  final OrderService _service = OrderService();
+  OrderDetail? _order;
+  bool _loading = true;
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final o = await _service.detail(widget.orderId);
+      if (!mounted) return;
+      setState(() {
+        _order = o;
+        _loading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _loading = false;
+      });
+    }
+  }
+
+  int get _doneSteps => switch (_order?.status) {
+        'assigned' => 1,
+        'on_the_way' => 2,
+        'arrived' => 3,
+        'work_done' || 'completed' || 'disputed' => 4,
+        _ => 0,
+      };
+
+  _StepState _stepState(int i) {
+    final d = _doneSteps;
+    if (d >= i + 1) return _StepState.done;
+    if (d == i) return _StepState.current;
+    return _StepState.pending;
+  }
+
+  List<_Step> _steps(AppLanguage lang) {
+    const pending = _StepState.pending;
+    String sub(_StepState s) => s == pending
+        ? tr(lang, 'Kutilmoqda', 'Ожидается', 'Pending')
+        : s == _StepState.current
+            ? tr(lang, 'Hozir', 'Сейчас', 'Now')
+            : tr(lang, 'Bajarildi', 'Готово', 'Done');
+    final titles = [
+      tr(lang, 'Usta tayinlandi', 'Мастер назначен', 'Master assigned'),
+      tr(lang, 'Usta yoʻlda', 'Мастер в пути', 'Master on the way'),
+      tr(lang, 'Usta yetib keldi', 'Мастер прибыл', 'Master arrived'),
+      tr(lang, 'Ish bajarildi', 'Работа выполнена', 'Work completed'),
+    ];
+    return [
+      for (int i = 0; i < 4; i++)
+        _Step(title: titles[i], subtitle: sub(_stepState(i)), state: _stepState(i)),
+    ];
+  }
+
+  Future<void> _confirm() async {
+    setState(() => _busy = true);
+    try {
+      await _service.confirmCompletion(widget.orderId);
+      if (!mounted) return;
+      setState(() => _busy = false);
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => OrderDoneScreen(orderId: widget.orderId)),
+      );
+      if (mounted) _load();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
-    final steps = <_Step>[
-      _Step(
-        title: tr(lang, 'Buyurtma qabul qilindi', 'Заказ принят', 'Request accepted'),
-        subtitle: tr(lang, 'Bugun, 14:05', 'Сегодня, 14:05', 'Today, 14:05'),
-        state: _StepState.done,
-      ),
-      _Step(
-        title: tr(lang, 'Usta yoʻlda', 'Мастер в пути', 'Master on the way'),
-        subtitle: tr(lang, 'Bugun, 14:20', 'Сегодня, 14:20', 'Today, 14:20'),
-        state: _StepState.done,
-      ),
-      _Step(
-        title: tr(lang, 'Usta yetib keldi', 'Мастер прибыл', 'Master arrived'),
-        subtitle: tr(lang, 'Kutilmoqda', 'Ожидается', 'Pending'),
-        state: _StepState.current,
-      ),
-      _Step(
-        title: tr(lang, 'Ish bajarildi', 'Работа выполнена', 'Work completed'),
-        subtitle: tr(lang, 'Kutilmoqda', 'Ожидается', 'Pending'),
-        state: _StepState.pending,
-      ),
-    ];
     return BrandedScaffold(
       title: tr(lang, 'Buyurtma holati', 'Статус заказа', 'Order status'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _timelineCard(steps),
-                    const SizedBox(height: 10),
-                    _noticeBanner(),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // In the real product this screen advances automatically when the
-            // master marks the job done (a backend/push event). Here a button
-            // simulates that completion so the "order done" screen is reachable.
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: FilledButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const OrderDoneScreen(),
-                    ),
-                  );
-                },
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.blue,
-                  foregroundColor: AppColors.background,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(40),
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Center(child: Text(_error!, style: const TextStyle(color: _muted)))
+                : Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              _timelineCard(_steps(lang)),
+                              const SizedBox(height: 10),
+                              _noticeBanner(),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _actionButton(lang),
+                    ],
                   ),
-                ),
-                child: Text(
-                  tr(lang, 'Usta ishni yakunladi', 'Мастер завершил работу', 'The master finished the job'),
-                  style: TextStyle(
-                    fontSize: 16,
-                    height: 22 / 16,
-                    letterSpacing: -0.18,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-          ],
+      ),
+    );
+  }
+
+  Widget _actionButton(AppLanguage lang) {
+    final caps = _order?.capabilities;
+    final canConfirm = caps?.canConfirm == true;
+    final label = canConfirm
+        ? tr(lang, 'Bajarilganini tasdiqlash', 'Подтвердить выполнение', 'Confirm completion')
+        : tr(lang, 'Holat kuzatilmoqda', 'Статус отслеживается', 'Tracking status');
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: FilledButton(
+        onPressed: (canConfirm && !_busy) ? _confirm : null,
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.blue,
+          foregroundColor: AppColors.background,
+          disabledBackgroundColor: _slate200,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
         ),
+        child: _busy
+            ? const SizedBox(
+                width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 16,
+                  height: 22 / 16,
+                  letterSpacing: -0.18,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
       ),
     );
   }

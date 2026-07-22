@@ -1,5 +1,6 @@
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
+import 'package:fixleo/core/network/api_client.dart';
 import 'package:fixleo/core/network/auth_session.dart';
 
 /// Payload of the `verification:update` event (see `api/Realtime.md`).
@@ -90,8 +91,11 @@ class MasterRealtimeService {
       })
       ..on('unauthorized', (_) => onUnauthorized?.call())
       ..on('token_expired', (_) async {
-        // Access token expired on the live socket — the next REST call will
-        // refresh it; reconnect with whatever token is current.
+        // Live sockets can't ride the REST 401 interceptor: refresh the token
+        // pair explicitly, then reconnect with the fresh access token —
+        // otherwise the socket dies with the stale token and realtime feed
+        // updates silently stop.
+        await ApiClient.instance.refreshTokens();
         final fresh = _session.accessToken;
         if (fresh != null) {
           socket.auth = {'token': fresh};

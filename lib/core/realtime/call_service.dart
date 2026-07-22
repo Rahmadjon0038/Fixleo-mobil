@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
+import 'package:fixleo/core/network/api_client.dart';
 import 'package:fixleo/core/network/auth_session.dart';
 
 /// Lifecycle of a voice call as seen by the UI.
@@ -72,7 +73,10 @@ class CallService {
       ..on('call:ice', _handleRemoteIce)
       ..on('call:ended', (_) => _teardown(CallState.ended))
       ..on('call:rejected', (_) => _teardown(CallState.ended))
-      ..on('token_expired', (_) {
+      ..on('token_expired', (_) async {
+        // Refresh explicitly (sockets can't ride the REST 401 interceptor),
+        // then reconnect with the fresh access token.
+        await ApiClient.instance.refreshTokens();
         final fresh = _session.accessToken;
         if (fresh != null) {
           socket.auth = {'token': fresh};

@@ -225,6 +225,11 @@ class ApiClient {
     );
   }
 
+  /// Public refresh for the socket layer: live sockets can't ride the REST
+  /// 401 interceptor, so on `token_expired` they refresh here first and then
+  /// reconnect with the fresh access token.
+  Future<bool> refreshTokens() => _tryRefresh();
+
   /// Exchanges the stored refresh token for a fresh token pair using the
   /// role-appropriate endpoint. Returns false (and clears the session) if the
   /// refresh token is itself invalid/expired/revoked.

@@ -1,5 +1,6 @@
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
+import 'package:fixleo/core/network/api_client.dart';
 import 'package:fixleo/core/network/auth_session.dart';
 import 'package:fixleo/features/request/data/chat_service.dart';
 
@@ -51,7 +52,10 @@ class ChatSocket {
           onMessage(ChatMessage.fromJson(Map<String, dynamic>.from(msg)));
         }
       })
-      ..on('token_expired', (_) {
+      ..on('token_expired', (_) async {
+        // Refresh explicitly (sockets can't ride the REST 401 interceptor),
+        // then reconnect with the fresh access token.
+        await ApiClient.instance.refreshTokens();
         final fresh = _session.accessToken;
         if (fresh != null) {
           socket.auth = {'token': fresh};

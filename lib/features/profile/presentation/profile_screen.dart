@@ -46,6 +46,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// FINAL profile has a «Язык» row — quick in-place picker.
+  Future<void> _pickLanguage() async {
+    final lang = LocaleController.language.value;
+    final picked = await showDialog<AppLanguage>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(tr(lang, 'Til', 'Язык', 'Language')),
+        children: [
+          for (final entry in const [
+            (AppLanguage.uz, 'Oʻzbekcha'),
+            (AppLanguage.ru, 'Русский'),
+            (AppLanguage.en, 'English'),
+          ])
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(ctx).pop(entry.$1),
+              child: Row(
+                children: [
+                  Expanded(child: Text(entry.$2)),
+                  if (lang == entry.$1)
+                    const Icon(Icons.check, size: 18, color: AppColors.blue),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+    if (picked != null) {
+      LocaleController.set(picked);
+      if (mounted) setState(() {});
+    }
+  }
+
   Future<void> _confirmLogout(AppLanguage lang) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -137,6 +169,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   label: tr(lang, 'Maxfiylik siyosati', 'Политика конфиденциальности', 'Privacy policy'),
                   onTap: () {},
                 ),
+                _MenuItem(
+                  icon: Icons.language_outlined,
+                  label: tr(lang, 'Til', 'Язык', 'Language'),
+                  onTap: _pickLanguage,
+                ),
               ]),
               const SizedBox(height: 8),
               _logout(context, lang),
@@ -181,7 +218,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           Text(
-            _client?.phone ?? '',
+            _fmtPhone(_client?.phone ?? ''),
             style: const TextStyle(
               fontSize: 14,
               height: 20 / 14,
@@ -192,6 +229,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
+  }
+
+  /// "+998201001010" → "+998 20 100 10 10" (FINAL header format).
+  static String _fmtPhone(String phone) {
+    final m = RegExp(r'^\+998(\d{2})(\d{3})(\d{2})(\d{2})$').firstMatch(phone);
+    if (m == null) return phone;
+    return '+998 ${m[1]} ${m[2]} ${m[3]} ${m[4]}';
   }
 
   /// A white rounded card grouping menu rows separated by dividers.

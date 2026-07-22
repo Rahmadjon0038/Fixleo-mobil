@@ -30,9 +30,17 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
   bool _busy = false;
   String? _error;
 
+  /// Offer ordering — 'rating' (default) or 'price', like the FINAL chip.
+  String _sort = 'rating';
+
   @override
   void initState() {
     super.initState();
+    _load();
+  }
+
+  void _toggleSort() {
+    setState(() => _sort = _sort == 'rating' ? 'price' : 'rating');
     _load();
   }
 
@@ -42,7 +50,7 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
       _error = null;
     });
     try {
-      final offers = await _orders.offers(widget.orderId);
+      final offers = await _orders.offers(widget.orderId, sort: _sort);
       if (!mounted) return;
       setState(() {
         _offers = offers;
@@ -88,8 +96,8 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: tr(lang, 'Javoblar · ${_offers.length}', 'Ответы · ${_offers.length}',
-          'Replies · ${_offers.length}'),
+      title: tr(lang, 'Otkliklar · ${_offers.length}', 'Отклики · ${_offers.length}',
+          'Offers · ${_offers.length}'),
       showBack: true,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -103,14 +111,47 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
                       Row(
                         children: [
                           Text(
-                            tr(lang, '${_offers.length} usta javob berdi',
-                                '${_offers.length} мастеров ответили', '${_offers.length} masters responded'),
+                            tr(lang, '${_offers.length} usta otklik qoldirdi',
+                                '${_offers.length} мастера откликнулись', '${_offers.length} masters responded'),
                             style: const TextStyle(
                               fontSize: 14,
                               height: 20 / 14,
                               letterSpacing: -0.16,
                               fontWeight: FontWeight.w600,
                               color: Color(0xFF23232E),
+                            ),
+                          ),
+                          const Spacer(),
+                          GestureDetector(
+                            onTap: _toggleSort,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.swap_vert,
+                                      size: 14, color: _gray),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _sort == 'rating'
+                                        ? tr(lang, 'Reyting boʻyicha',
+                                            'По рейтингу', 'By rating')
+                                        : tr(lang, 'Narx boʻyicha',
+                                            'По цене', 'By price'),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      height: 16 / 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: _gray,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],

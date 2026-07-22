@@ -63,10 +63,14 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _loading = true;
   bool _sending = false;
 
+  /// Peer presence from the conversation endpoint; null until loaded.
+  bool? _peerOnline;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _loadPresence();
     // Live incoming messages — append the peer's messages as they arrive so the
     // thread updates without a reopen. (Own messages are shown locally on send.)
     _chatSocket.connect((m) {
@@ -89,6 +93,15 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _startCall() async {
     await CallService.instance.startCall(widget.conversationId, displayName: widget.peerName);
     if (mounted) _openCallScreen();
+  }
+
+  Future<void> _loadPresence() async {
+    try {
+      final conv = await _service.conversation(widget.conversationId);
+      if (mounted) setState(() => _peerOnline = conv.peerOnline);
+    } on ApiException {
+      // Keep the header without a presence line.
+    }
   }
 
   Future<void> _load() async {
@@ -226,15 +239,20 @@ class _ChatScreenState extends State<ChatScreen> {
                         color: _bubbleText,
                       ),
                     ),
-                    Text(
-                      tr(lang, 'onlayn', 'онлайн', 'online'),
-                      style: TextStyle(
-                        fontSize: 14,
-                        height: 20 / 14,
-                        letterSpacing: -0.16,
-                        color: AppColors.blue,
+                    if (_peerOnline != null)
+                      Text(
+                        _peerOnline!
+                            ? tr(lang, 'onlayn', 'в сети', 'online')
+                            : tr(lang, 'oflayn', 'не в сети', 'offline'),
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 20 / 14,
+                          letterSpacing: -0.16,
+                          color: _peerOnline!
+                              ? AppColors.blue
+                              : const Color(0xFF8D96A4),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),

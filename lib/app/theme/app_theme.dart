@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   static ThemeData light() {
-    const seedColor = Color(0xFF0F766E);
+    // FixLeo brand blue (FINAL design) — keeps Material widgets (spinners,
+    // text buttons, cursors) on-brand instead of the old teal.
+    const seedColor = Color(0xFF0079EB);
 
     final colorScheme = ColorScheme.fromSeed(
       seedColor: seedColor,

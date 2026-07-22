@@ -196,7 +196,7 @@ class _MasterRequestDetailScreenState extends State<MasterRequestDetailScreen> {
                       PrimaryButton(
                         label: d.hasOffer
                             ? tr(lang, 'Javob yuborilgan', 'Ответ отправлен', 'Response sent')
-                            : tr(lang, 'Javob berish', 'Ответить', 'Respond'),
+                            : tr(lang, 'Javob berish', 'Откликнуться', 'Respond'),
                         onPressed: d.hasOffer
                             ? null
                             : () => Navigator.of(context).push(

@@ -12,8 +12,11 @@ import 'package:fixleo/core/network/current_user.dart';
 import 'package:fixleo/core/realtime/call_service.dart';
 import 'package:fixleo/features/categories/data/category_service.dart';
 import 'package:fixleo/features/profile/presentation/profile_screen.dart';
+import 'package:fixleo/features/request/data/order_models.dart';
+import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/presentation/chats_list_screen.dart';
 import 'package:fixleo/features/request/presentation/my_orders_screen.dart';
+import 'package:fixleo/features/request/presentation/order_tracking_screen.dart';
 import 'package:fixleo/features/wallet/presentation/wallet_screen.dart';
 import 'package:fixleo/features/request/presentation/new_request_screen.dart';
 
@@ -359,9 +362,9 @@ class _GreetingCard extends StatelessWidget {
             child: Text(
               tr(
                 lang,
-                'Manzilni oʻzgartirish',
-                'Изменить адрес',
-                'Change address',
+                'Lokatsiyani oʻzgartirish',
+                'Изменить локацию',
+                'Change location',
               ),
               style: TextStyle(
                 color: Colors.white,
@@ -387,8 +390,8 @@ class _SearchHero extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
-        borderRadius: BorderRadius.circular(32),
+        color: AppColors.heroDark,
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -396,24 +399,24 @@ class _SearchHero extends StatelessWidget {
           Text(
             tr(
               lang,
-              'Har qanday vazifa uchun ishonchli\nusta topamiz',
-              'Найдём надёжного мастера\nдля любой задачи',
-              'We’ll find a trusted master\nfor any task',
+              'Har qanday vazifa uchun tekshirilgan\nusta topamiz',
+              'Найдём проверенного мастера\nдля любой задачи',
+              'We’ll find a vetted master\nfor any task',
             ),
             style: TextStyle(
               color: Colors.white,
               fontSize: 20,
               height: 1.25,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 16),
           Container(
-            height: 52,
+            height: 50,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(26),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -513,7 +516,7 @@ class _CategoriesCardState extends State<_CategoriesCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            tr(widget.lang, 'Bizning Fix-erlar', 'Наши Fix-er', 'Our Fixers'),
+            tr(widget.lang, 'Bizning Fix-erlar', 'Наши Fix-еры', 'Our Fix-ers'),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -557,7 +560,7 @@ class _CategoriesCardState extends State<_CategoriesCard> {
                 tr(
                   widget.lang,
                   'Vazifa soʻrash',
-                  'Запросить задачу',
+                  'Запросить задание',
                   'Request a task',
                 ),
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
@@ -568,6 +571,33 @@ class _CategoriesCardState extends State<_CategoriesCard> {
       ),
     );
   }
+}
+
+/// Per-category icon, matched by name keywords (FINAL gives every category a
+/// distinct icon; the backend Category model has no icon field yet).
+IconData _categoryIcon(String name) {
+  final n = name.toLowerCase();
+  if (n.contains('сантех') || n.contains('santex')) {
+    return Icons.water_drop_outlined;
+  }
+  if (n.contains('электр') || n.contains('elektr')) {
+    return Icons.bolt_outlined;
+  }
+  if (n.contains('клин') || n.contains('убор') || n.contains('tozal')) {
+    return Icons.cleaning_services_outlined;
+  }
+  if (n.contains('быт') || n.contains('техник') || n.contains('texnik')) {
+    return Icons.kitchen_outlined;
+  }
+  if (n.contains('крас') || n.contains('boʻyash') || n.contains("bo'yash") ||
+      n.contains('paint')) {
+    return Icons.format_paint_outlined;
+  }
+  if (n.contains('сбор') || n.contains('мебел') || n.contains('yigʻ') ||
+      n.contains("yig'") || n.contains('mebel')) {
+    return Icons.chair_alt_outlined;
+  }
+  return Icons.handyman_outlined;
 }
 
 class _CategoryChip extends StatelessWidget {
@@ -592,14 +622,14 @@ class _CategoryChip extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFFF0F9FF),
+              color: const Color(0xFFEAF3FE),
               borderRadius: BorderRadius.circular(12),
             ),
             alignment: Alignment.center,
-            child: SvgPicture.asset(
-              'assets/icon/Waterdrop.svg',
-              width: 22,
-              height: 22,
+            child: Icon(
+              _categoryIcon(category.label),
+              size: 22,
+              color: AppColors.blue,
             ),
           ),
           const SizedBox(width: 10),
@@ -640,7 +670,7 @@ class _PhotosCard extends StatelessWidget {
             tr(
               LocaleController.language.value,
               'Ustalar fotosi',
-              'Фото мастеров',
+              'Фото Мастеров',
               'Masters’ photos',
             ),
             style: TextStyle(
@@ -729,53 +759,73 @@ class _FeedbackRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: _FeedbackCard(
-              title: tr(
-                lang,
-                'Ilova sizga\nyoqdimi?',
-                'Вам нравится\nприложение?',
-                'Do you like the app?',
-              ),
+    return Row(
+      children: [
+        Expanded(
+          child: _FeedbackCard(
+            title: tr(
+              lang,
+              'Ilova sizga yoqdimi?',
+              'Как вам приложение?',
+              'How do you like the app?',
             ),
+            asset: 'assets/icon/Ranking.svg',
           ),
-          SizedBox(width: 12),
-          Expanded(
-            child: _FeedbackCard(
-              title: tr(
-                lang,
-                'Qoʻllab-quvvatlashga\nyozish',
-                'Написать в поддержку',
-                'Write to support',
-              ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _FeedbackCard(
+            title: tr(
+              lang,
+              'Qoʻllab-quvvatlashga yozish',
+              'Написать в поддержку',
+              'Write to support',
             ),
+            asset: 'assets/icon/headphones.svg',
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
+/// Small white card with a bottom-right illustration (FINAL design), same
+/// pattern as the master home's mini cards.
 class _FeedbackCard extends StatelessWidget {
-  const _FeedbackCard({required this.title});
+  const _FeedbackCard({required this.title, required this.asset});
 
   final String title;
+  final String asset;
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-          color: AppColors.navy,
-          height: 1.25,
-        ),
+    return Container(
+      height: 122,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Stack(
+        children: [
+          SizedBox(
+            width: 118,
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.navy,
+                height: 1.25,
+              ),
+            ),
+          ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: SvgPicture.asset(asset, width: 64, height: 64),
+          ),
+        ],
       ),
     );
   }
@@ -825,57 +875,112 @@ class _SpecialistCard extends StatelessWidget {
   }
 }
 
-class _ActiveOrderCard extends StatelessWidget {
+/// Human status line for the active-order card.
+String _activeStatusLabel(AppLanguage lang, OrderSummary o) {
+  switch (o.status) {
+    case 'searching':
+      return tr(lang, 'Usta qidirilmoqda', 'Ищем мастера', 'Finding a master');
+    case 'assigned':
+      return tr(lang, 'Usta tayinlandi', 'Мастер назначен', 'Master assigned');
+    case 'on_the_way':
+      return tr(lang, 'Usta yoʻlda', 'Мастер в пути', 'Master on the way');
+    case 'arrived':
+      return tr(lang, 'Usta yetib keldi', 'Мастер на месте', 'Master arrived');
+    case 'work_done':
+      return tr(
+          lang, 'Ish bajarildi', 'Работа выполнена', 'Work completed');
+    default:
+      return tr(lang, 'Jarayonda', 'В процессе', 'In progress');
+  }
+}
+
+/// Live "Активный заказ" card (FINAL) — bound to the client's real active
+/// order; hidden when there is none. Tapping opens order tracking.
+class _ActiveOrderCard extends StatefulWidget {
   const _ActiveOrderCard({required this.lang});
 
   final AppLanguage lang;
 
   @override
+  State<_ActiveOrderCard> createState() => _ActiveOrderCardState();
+}
+
+class _ActiveOrderCardState extends State<_ActiveOrderCard> {
+  final OrderService _service = OrderService();
+  OrderSummary? _order;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final items = await _service.list(status: 'active');
+      if (mounted && items.isNotEmpty) {
+        setState(() => _order = items.first);
+      }
+    } catch (_) {
+      // No card on error — the home stays clean.
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return _Card(
-      radius: 40,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 9,
-                height: 9,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF22C55E),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  tr(
-                    lang,
-                    'Faol buyurtma · Smesitel taʼmiri',
-                    'Активный заказ · Ремонт смесителя',
-                    'Active order · Faucet repair',
-                  ),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.blue,
-                  ),
-                ),
-              ),
-            ],
+    final order = _order;
+    if (order == null) return const SizedBox.shrink();
+    final lang = widget.lang;
+
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => OrderTrackingScreen(orderId: order.id),
           ),
-          const SizedBox(height: 6),
-          Text(
-            tr(
-              lang,
-              'Usta yoʻlda · ~15 daqiqa',
-              'Мастер в пути · ~15 минут',
-              'Master on the way · ~15 min',
+        );
+        if (mounted) _load();
+      },
+      child: _Card(
+        radius: 40,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 9,
+                  height: 9,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF22C55E),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${tr(lang, 'Faol buyurtma', 'Активный заказ', 'Active order')} · ${order.title}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.blue,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            style: const TextStyle(fontSize: 10, color: Color(0xFF4B5563)),
-          ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              [
+                _activeStatusLabel(lang, order),
+                if (order.masterName != null) order.masterName!,
+              ].join(' · '),
+              style: const TextStyle(fontSize: 10, color: Color(0xFF4B5563)),
+            ),
+          ],
+        ),
       ),
     );
   }

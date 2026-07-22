@@ -8,6 +8,7 @@ import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
 import 'package:fixleo/core/realtime/call_service.dart';
+import 'package:fixleo/core/realtime/master_realtime_service.dart';
 import 'package:fixleo/features/master/presentation/master_chats_screen.dart';
 import 'package:fixleo/features/master/presentation/master_filters_screen.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -18,6 +19,25 @@ import 'package:fixleo/features/master/presentation/master_request_detail_screen
 import 'package:fixleo/core/network/current_user.dart';
 import 'package:fixleo/features/master/data/master_marketplace_models.dart';
 import 'package:fixleo/features/master/data/master_marketplace_service.dart';
+
+/// "12 мин назад"-style relative label shown on feed cards (FINAL design).
+String _timeAgo(AppLanguage lang, DateTime? dt) {
+  if (dt == null) return '';
+  final diff = DateTime.now().difference(dt.toLocal());
+  if (diff.inMinutes < 1) {
+    return tr(lang, 'hozirgina', 'только что', 'just now');
+  }
+  if (diff.inMinutes < 60) {
+    final m = diff.inMinutes;
+    return tr(lang, '$m daqiqa oldin', '$m мин назад', '$m min ago');
+  }
+  if (diff.inHours < 24) {
+    final h = diff.inHours;
+    return tr(lang, '$h soat oldin', '$h ч назад', '$h h ago');
+  }
+  final d = diff.inDays;
+  return tr(lang, '$d kun oldin', '$d дн назад', '$d d ago');
+}
 
 /// A nearby job request shown in the master feed.
 class _Request {
@@ -72,8 +92,10 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
   final List<int> _navHistory = [];
 
   final MasterMarketplaceService _market = MasterMarketplaceService();
+  final MasterRealtimeService _realtime = MasterRealtimeService();
   List<FeedItem> _feedItems = const [];
   bool _feedLoading = true;
+  String _query = '';
 
   @override
   void initState() {
@@ -83,6 +105,19 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
     // Voice-call signalling app-wide: an incoming call now rings on any screen,
     // not only inside a chat.
     CallService.instance.connect('master', onIncoming: showIncomingCallUi);
+    // Live feed: a new nearby order (or a cancellation) refreshes the list
+    // without requiring pull-to-refresh.
+    _realtime.connect(
+      onUpdate: (_) {},
+      onNewOrderNearby: (_) => _loadFeed(),
+      onOrderCancelled: (_) => _loadFeed(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _realtime.disconnect();
+    super.dispose();
   }
 
   Future<void> _loadFeed() async {
@@ -100,16 +135,17 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
   }
 
   _Request _asRequest(FeedItem f) {
-    final loc = [
-      if (f.district != null) f.district!,
-      '${f.distanceKm.toStringAsFixed(1)} km',
-    ].join(' · ');
+    final km = f.distanceKm.toStringAsFixed(1);
+    String loc(String unit) =>
+        [if (f.district != null) f.district!, '$km $unit'].join(' · ');
     return _Request(
       categoryUz: f.categoryName, categoryRu: f.categoryName, categoryEn: f.categoryName,
       icon: Icons.build_outlined,
-      timeUz: '', timeRu: '', timeEn: '',
+      timeUz: _timeAgo(AppLanguage.uz, f.createdAt),
+      timeRu: _timeAgo(AppLanguage.ru, f.createdAt),
+      timeEn: _timeAgo(AppLanguage.en, f.createdAt),
       textUz: f.description, textRu: f.description, textEn: f.description,
-      locationUz: loc, locationRu: loc, locationEn: loc,
+      locationUz: loc('km'), locationRu: loc('км'), locationEn: loc('km'),
     );
   }
 
@@ -205,8 +241,58 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
     );
   }
 
-  /// Back · title pill · filter row.
+  /// Header row. On the feed tab it matches FINAL: FixLeo brand pill on the
+  /// left, filter button on the right (no back). Other tabs keep the
+  /// back · title pill layout.
   Widget _header(AppLanguage lang, List<LiquidGlassNavItem> navItems) {
+    if (_navIndex == 0) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: SizedBox(
+          height: 44,
+          child: Row(
+            children: [
+              _Pill(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SvgPicture.asset('assets/logo.svg', width: 26, height: 26),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'FixLeo',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navy,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              _GlassButton(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const MasterFiltersScreen(),
+                    ),
+                  );
+                },
+                child: SvgPicture.asset(
+                  'assets/icon/filter.svg',
+                  width: 22,
+                  height: 22,
+                  colorFilter: const ColorFilter.mode(
+                    AppColors.navy,
+                    BlendMode.srcIn,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: SizedBox(
@@ -217,12 +303,6 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
             _Pill(
               child: Text(
                 switch (_navIndex) {
-                  0 => tr(
-                    lang,
-                    'Yoningizdagi buyurtmalar',
-                    'Заявки рядом',
-                    'Requests nearby',
-                  ),
                   1 => tr(lang, 'Mening ishlarim', 'Моя работа', 'My work'),
                   _ => navItems[_navIndex].label,
                 },
@@ -244,35 +324,95 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
                 ),
               ),
             ),
-            if (_navIndex == 0)
-              Align(
-                alignment: Alignment.centerRight,
-                child: _GlassButton(
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const MasterFiltersScreen(),
-                      ),
-                    );
-                  },
-                  child: SvgPicture.asset(
-                    'assets/icon/filter.svg',
-                    width: 22,
-                    height: 22,
-                    colorFilter: const ColorFilter.mode(
-                      AppColors.navy,
-                      BlendMode.srcIn,
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
     );
   }
 
+  /// Feed items narrowed by the hero search query (description or category).
+  List<FeedItem> get _visibleFeedItems {
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return _feedItems;
+    return _feedItems
+        .where((f) =>
+            f.description.toLowerCase().contains(q) ||
+            f.categoryName.toLowerCase().contains(q))
+        .toList(growable: false);
+  }
+
+  /// Dark hero card — "Найдём клиентов под любую услугу" + search (FINAL).
+  Widget _searchHero(AppLanguage lang) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.heroDark,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tr(
+              lang,
+              'Har qanday xizmat uchun mijoz\ntopamiz',
+              'Найдём клиентов под любую\nуслугу',
+              'We’ll find clients for any service',
+            ),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              height: 1.25,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            height: 50,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: TextField(
+                      onChanged: (v) => setState(() => _query = v),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: AppColors.navy,
+                      ),
+                      decoration: InputDecoration(
+                        isCollapsed: true,
+                        border: InputBorder.none,
+                        hintText: tr(
+                          lang,
+                          'Zayavka yoki xizmat',
+                          'Заявка или услуга',
+                          'Request or service',
+                        ),
+                        hintStyle: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const Icon(Icons.search, color: AppColors.muted),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _feed() {
+    final visible = _visibleFeedItems;
     return RefreshIndicator(
       onRefresh: _loadFeed,
       child: ListView(
@@ -281,30 +421,36 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
         children: [
         _greeting(),
         const SizedBox(height: 10),
+        _searchHero(LocaleController.language.value),
+        const SizedBox(height: 10),
         if (_feedLoading)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 30),
             child: Center(child: CircularProgressIndicator()),
           )
-        else if (_feedItems.isEmpty)
+        else if (visible.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 30),
             child: Center(
               child: Text(
-                tr(LocaleController.language.value, 'Hozircha zayavkalar yoʻq',
-                    'Пока нет заявок', 'No requests yet'),
+                _query.trim().isNotEmpty
+                    ? tr(LocaleController.language.value, 'Hech narsa topilmadi',
+                        'Ничего не найдено', 'Nothing found')
+                    : tr(LocaleController.language.value,
+                        'Hozircha zayavkalar yoʻq', 'Пока нет заявок',
+                        'No requests yet'),
                 style: const TextStyle(color: Color(0xFF8D96A4)),
               ),
             ),
           )
         else
-          for (var i = 0; i < _feedItems.length; i++) ...[
+          for (var i = 0; i < visible.length; i++) ...[
             _RequestCard(
-              request: _asRequest(_feedItems[i]),
+              request: _asRequest(visible[i]),
               onRespond: () async {
                 await Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => MasterRequestDetailScreen(orderId: _feedItems[i].id),
+                    builder: (_) => MasterRequestDetailScreen(orderId: visible[i].id),
                   ),
                 );
                 if (mounted) _loadFeed();
@@ -546,9 +692,17 @@ class _RequestCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
               ),
-              child: const Text(
-                'Javob berish',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              child: Text(
+                tr(
+                  LocaleController.language.value,
+                  'Javob berish',
+                  'Откликнуться',
+                  'Respond',
+                ),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),

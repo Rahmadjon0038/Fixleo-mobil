@@ -52,17 +52,31 @@ class _LiveChatsScreenState extends State<LiveChatsScreen> {
     }
   }
 
+  /// "14:32" for today, "21.07" for older messages (FINAL list style).
+  static String _fmtTime(DateTime? dt) {
+    if (dt == null) return '';
+    final local = dt.toLocal();
+    final now = DateTime.now();
+    final sameDay = local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day;
+    String two(int v) => v.toString().padLeft(2, '0');
+    if (sameDay) return '${two(local.hour)}:${two(local.minute)}';
+    return '${two(local.day)}.${two(local.month)}';
+  }
+
   Conversation _toRow(api_chat.Conversation c) {
+    final lang = LocaleController.language.value;
     final t = c.lastMessageType;
     final preview = t == 'image'
-        ? '📷'
+        ? '📷 ${tr(lang, 'Foto', 'Фото', 'Photo')}'
         : t == 'call'
-            ? '📞'
+            ? '📞 ${tr(lang, 'Qoʻngʻiroq', 'Звонок', 'Call')}'
             : (c.lastMessageText ?? c.orderTitle);
     return Conversation(
       name: c.peerName ?? c.orderTitle,
       last: preview,
-      time: '',
+      time: _fmtTime(c.lastMessageAt),
       unread: c.unreadCount,
       conversationId: c.id,
       kind: widget.kind,

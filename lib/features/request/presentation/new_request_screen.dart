@@ -156,7 +156,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: tr(lang, 'Yangi buyurtma', 'Новый заказ', 'New request'),
+      title: tr(lang, 'Yangi zayavka', 'Новая заявка', 'New request'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),

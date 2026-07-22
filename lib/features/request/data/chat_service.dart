@@ -18,6 +18,7 @@ class Conversation {
     this.unreadCount = 0,
     this.lastMessageText,
     this.lastMessageType,
+    this.lastMessageAt,
   });
 
   final int id;
@@ -30,6 +31,7 @@ class Conversation {
   final int unreadCount;
   final String? lastMessageText;
   final String? lastMessageType;
+  final DateTime? lastMessageAt;
 
   factory Conversation.fromJson(Map<String, dynamic> j) {
     final peer = j['peer'] as Map<String, dynamic>? ?? const {};
@@ -45,6 +47,8 @@ class Conversation {
       unreadCount: _int(j['unreadCount']),
       lastMessageText: last?['text'] as String?,
       lastMessageType: last?['type'] as String?,
+      lastMessageAt:
+          DateTime.tryParse(last?['createdAt']?.toString() ?? ''),
     );
   }
 }
@@ -103,9 +107,15 @@ class ChatService {
         .toList(growable: false);
   }
 
+  /// One conversation — used by the chat screen for the peer's online status.
+  Future<Conversation> conversation(int conversationId) async {
+    final data = await _client.get('$_base/$conversationId');
+    return Conversation.fromJson(data as Map<String, dynamic>);
+  }
+
   Future<List<ChatMessage>> messages(int conversationId, {int? before, int limit = 30}) async {
     final data = await _client.get('$_base/$conversationId/messages', query: {
-      if (before != null) 'before': before,
+      'before': ?before,
       'limit': limit,
     });
     return (data as List<dynamic>)

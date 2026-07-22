@@ -150,7 +150,7 @@ class _MasterWalletScreenState extends State<MasterWalletScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                tr(lang, 'Mablagʻni yechish', 'Снять средства', 'Withdraw funds'),
+                tr(lang, 'Mablagʻni yechish', 'Вывести средства', 'Withdraw funds'),
                 style: const TextStyle(
                   fontSize: 14,
                   height: 20 / 14,
@@ -188,11 +188,25 @@ class _MasterWalletScreenState extends State<MasterWalletScreen> {
         Expanded(
           child: _StatCard(
             value: _money(_wallet?.monthEarned ?? 0),
-            label: tr(lang, 'Ishlangan', 'Заработано', 'Earned'),
+            label: _earnedLabel(lang),
           ),
         ),
       ],
     );
+  }
+
+  /// "Заработано в Мае"-style label for the current month (FINAL).
+  static String _earnedLabel(AppLanguage lang) {
+    final m = DateTime.now().month;
+    const ru = ['Январе', 'Феврале', 'Марте', 'Апреле', 'Мае', 'Июне',
+      'Июле', 'Августе', 'Сентябре', 'Октябре', 'Ноябре', 'Декабре'];
+    const uz = ['yanvarda', 'fevralda', 'martda', 'aprelda', 'mayda',
+      'iyunda', 'iyulda', 'avgustda', 'sentabrda', 'oktabrda', 'noyabrda',
+      'dekabrda'];
+    const en = ['in Jan', 'in Feb', 'in Mar', 'in Apr', 'in May', 'in Jun',
+      'in Jul', 'in Aug', 'in Sep', 'in Oct', 'in Nov', 'in Dec'];
+    return tr(lang, '${uz[m - 1]} ishlangan', 'Заработано в ${ru[m - 1]}',
+        'Earned ${en[m - 1]}');
   }
 
   /// Operations list card.

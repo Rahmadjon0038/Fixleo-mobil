@@ -303,7 +303,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       child: Center(
         child: Text(
           active
-              ? tr(LocaleController.language.value, 'Jarayonda', 'В процессе', 'In progress')
+              ? tr(LocaleController.language.value, 'Ishda', 'В работе', 'In progress')
               : tr(LocaleController.language.value, 'Bajarildi', 'Выполнено', 'Done'),
           style: TextStyle(
             fontSize: 12,

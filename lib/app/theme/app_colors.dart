@@ -13,4 +13,7 @@ class AppColors {
 
   /// Error/danger color (invalid input, inline error messages).
   static const danger = Color(0xFFEF4444);
+
+  /// Dark hero-card background (FINAL design `neutral/900`).
+  static const heroDark = Color(0xFF121722);
 }

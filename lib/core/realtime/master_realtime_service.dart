@@ -57,6 +57,8 @@ class MasterRealtimeService {
     void Function()? onConnected,
     void Function(String reason)? onForcedLogout,
     void Function()? onUnauthorized,
+    void Function(int orderId)? onNewOrderNearby,
+    void Function(int orderId)? onOrderCancelled,
   }) {
     final token = _session.accessToken;
     if (token == null) return;
@@ -77,6 +79,14 @@ class MasterRealtimeService {
           onUpdate(MasterVerificationUpdate.fromJson(
               Map<String, dynamic>.from(data)));
         }
+      })
+      ..on('new_order_nearby', (data) {
+        final id = (data is Map ? data['orderId'] : null) as num?;
+        onNewOrderNearby?.call(id?.toInt() ?? 0);
+      })
+      ..on('order_cancelled', (data) {
+        final id = (data is Map ? data['orderId'] : null) as num?;
+        onOrderCancelled?.call(id?.toInt() ?? 0);
       })
       ..on('unauthorized', (_) => onUnauthorized?.call())
       ..on('token_expired', (_) async {

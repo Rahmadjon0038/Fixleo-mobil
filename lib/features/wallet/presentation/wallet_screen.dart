@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
@@ -7,10 +8,10 @@ import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/wallet/data/payment_service.dart';
 import 'package:fixleo/features/wallet/presentation/add_card_screen.dart';
 
-/// Client payment methods ("Кошелек"). Clients have no prepaid balance in the
-/// backend — they pay per order by card — so this screen lists the client's
-/// REAL saved cards (GET /clients/me/cards) and lets them add/remove one. It no
-/// longer shows a fabricated balance or fake transaction history.
+/// Client «Кошелек» (FINAL design): dark balance card with «Пополнить» /
+/// «История», the operations feed, plus saved-card management. The balance
+/// and operations are real (`GET /clients/me/wallet[…]`); top-up charges the
+/// selected saved card through the mock provider.
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
 
@@ -18,14 +19,43 @@ class WalletScreen extends StatefulWidget {
   State<WalletScreen> createState() => _WalletScreenState();
 }
 
+/// "125 000" — so'm amount with thousands separators.
+String _fmtSum(int v) {
+  final s = v.abs().toString();
+  final b = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i != 0 && (s.length - i) % 3 == 0) b.write(' ');
+    b.write(s[i]);
+  }
+  return '${v < 0 ? '-' : ''}$b';
+}
+
+/// "Сегодня, 14:30" for today, "21.07, 14:30" otherwise.
+String _fmtOpDate(AppLanguage lang, DateTime? dt) {
+  if (dt == null) return '';
+  final local = dt.toLocal();
+  final now = DateTime.now();
+  String two(int v) => v.toString().padLeft(2, '0');
+  final hm = '${two(local.hour)}:${two(local.minute)}';
+  final sameDay = local.year == now.year &&
+      local.month == now.month &&
+      local.day == now.day;
+  if (sameDay) {
+    return '${tr(lang, 'Bugun', 'Сегодня', 'Today')}, $hm';
+  }
+  return '${two(local.day)}.${two(local.month)}, $hm';
+}
+
 class _WalletScreenState extends State<WalletScreen> {
-  static const _navy900 = Color(0xFF0F172A);
   static const _slate50 = Color(0xFFF8FAFC);
   static const _gray = Color(0xFF8D96A4);
 
   final PaymentService _payments = PaymentService(kind: 'client');
+  final GlobalKey _operationsKey = GlobalKey();
 
   List<SavedCard> _cards = const [];
+  List<WalletOperation> _operations = const [];
+  int? _balance;
   bool _loading = true;
   String? _error;
 
@@ -41,10 +71,16 @@ class _WalletScreenState extends State<WalletScreen> {
       _error = null;
     });
     try {
-      final cards = await _payments.cards();
+      final results = await Future.wait([
+        _payments.walletBalance(),
+        _payments.walletOperations(),
+        _payments.cards(),
+      ]);
       if (!mounted) return;
       setState(() {
-        _cards = cards;
+        _balance = results[0] as int;
+        _operations = results[1] as List<WalletOperation>;
+        _cards = results[2] as List<SavedCard>;
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -60,7 +96,7 @@ class _WalletScreenState extends State<WalletScreen> {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const AddCardScreen()),
     );
-    if (mounted) _load(); // reflect a freshly added card
+    if (mounted) _load();
   }
 
   Future<void> _deleteCard(SavedCard card) async {
@@ -73,22 +109,54 @@ class _WalletScreenState extends State<WalletScreen> {
     }
   }
 
+  void _scrollToOperations() {
+    final ctx = _operationsKey.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  Future<void> _openTopupSheet() async {
+    final lang = LocaleController.language.value;
+    if (_cards.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr(lang, 'Avval karta qoʻshing',
+            'Сначала добавьте карту', 'Add a card first')),
+      ));
+      return;
+    }
+    final done = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _TopupSheet(payments: _payments, cards: _cards),
+    );
+    if (done == true && mounted) _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: tr(lang, 'Toʻlov kartalari', 'Карты оплаты', 'Payment cards'),
+      title: tr(lang, 'Hamyon', 'Кошелек', 'Wallet'),
       showBack: true,
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
         child: RefreshIndicator(
           onRefresh: _load,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 20),
             children: [
-              _headerCard(lang),
+              _balanceCard(lang),
               const SizedBox(height: 10),
               _addCard(lang),
+              const SizedBox(height: 10),
+              _operationsSection(lang),
               const SizedBox(height: 10),
               _cardsSection(lang),
             ],
@@ -98,22 +166,22 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  /// Dark summary card — shows the real card count (no fabricated balance).
-  Widget _headerCard(AppLanguage lang) {
+  /// Dark card — «Баланс карты» + amount + [Пополнить][История] (FINAL).
+  Widget _balanceCard(AppLanguage lang) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: _navy900,
+        color: AppColors.heroDark,
         borderRadius: BorderRadius.circular(22),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
               Text(
-                tr(lang, 'Saqlangan kartalar', 'Сохранённые карты', 'Saved cards'),
+                tr(lang, 'Karta balansi', 'Баланс карты', 'Card balance'),
                 style: const TextStyle(
                   fontSize: 14,
                   height: 20 / 14,
@@ -121,27 +189,80 @@ class _WalletScreenState extends State<WalletScreen> {
                   color: Color(0xFFEDEBFC),
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                _loading ? '—' : '${_cards.length}',
-                style: const TextStyle(
-                  fontSize: 32,
-                  height: 38 / 32,
-                  letterSpacing: -0.2,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
+              const Spacer(),
+              const Icon(Icons.account_balance_wallet_outlined,
+                  size: 22, color: Colors.white),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _loading || _balance == null
+                ? '—'
+                : '${_fmtSum(_balance!)} ${tr(lang, 'soʻm', 'сум', 'sum')}',
+            style: const TextStyle(
+              fontSize: 32,
+              height: 38 / 32,
+              letterSpacing: -0.2,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: FilledButton(
+                    onPressed: _openTopupSheet,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.heroDark,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      tr(lang, 'Toʻldirish', 'Пополнить', 'Top up'),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: FilledButton(
+                    onPressed: _scrollToOperations,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF39414E),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      tr(lang, 'Tarix', 'История', 'History'),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-          const Spacer(),
-          const Icon(Icons.credit_card_outlined, size: 26, color: Colors.white),
         ],
       ),
     );
   }
 
-  /// "Add card" outlined pill (real AddCardScreen).
+  /// "Add card" white pill (real AddCardScreen).
   Widget _addCard(AppLanguage lang) {
     return Material(
       color: Colors.white,
@@ -175,13 +296,15 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  Widget _cardsSection(AppLanguage lang) {
+  /// «Операции» — merged money history (FINAL).
+  Widget _operationsSection(AppLanguage lang) {
     return Container(
+      key: _operationsKey,
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,10 +312,10 @@ class _WalletScreenState extends State<WalletScreen> {
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
-              tr(lang, 'Mening kartalarim', 'Мои карты', 'My cards'),
+              tr(lang, 'Operatsiyalar', 'Операции', 'Operations'),
               style: const TextStyle(
-                fontSize: 20,
-                height: 24 / 20,
+                fontSize: 17,
+                height: 24 / 17,
                 fontWeight: FontWeight.w600,
                 color: AppColors.navy,
               ),
@@ -205,6 +328,115 @@ class _WalletScreenState extends State<WalletScreen> {
             )
           else if (_error != null)
             _placeholder(_error!)
+          else if (_operations.isEmpty)
+            _placeholder(tr(lang, 'Hozircha operatsiyalar yoʻq',
+                'Пока нет операций', 'No operations yet'))
+          else
+            for (var i = 0; i < _operations.length; i++) ...[
+              if (i != 0) const SizedBox(height: 8),
+              _operationTile(_operations[i], lang),
+            ],
+        ],
+      ),
+    );
+  }
+
+  String _opTitle(WalletOperation op, AppLanguage lang) {
+    final subject = op.categoryName ?? op.orderTitle;
+    switch (op.kind) {
+      case 'topup':
+        final card = op.note == null ? '' : ' · ${op.note}';
+        return '${tr(lang, 'Toʻldirish', 'Пополнение', 'Top-up')}$card';
+      case 'card_payment':
+      case 'order_payment':
+        return '${tr(lang, 'Toʻlov', 'Оплата', 'Payment')}${subject == null ? '' : ' — $subject'}';
+      case 'card_refund':
+      case 'refund':
+        return '${tr(lang, 'Qaytarish', 'Возврат', 'Refund')}${subject == null ? '' : ' — $subject'}';
+      default:
+        return tr(lang, 'Korreksiya', 'Корректировка', 'Adjustment');
+    }
+  }
+
+  Widget _operationTile(WalletOperation op, AppLanguage lang) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: _slate50,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _opTitle(op, lang),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    height: 20 / 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.navy,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _fmtOpDate(lang, op.createdAt),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 16 / 12,
+                    color: _gray,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${op.amount > 0 ? '+' : ''}${_fmtSum(op.amount)}',
+            style: const TextStyle(
+              fontSize: 15,
+              height: 20 / 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.navy,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _cardsSection(AppLanguage lang) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              tr(lang, 'Mening kartalarim', 'Мои карты', 'My cards'),
+              style: const TextStyle(
+                fontSize: 17,
+                height: 24 / 17,
+                fontWeight: FontWeight.w600,
+                color: AppColors.navy,
+              ),
+            ),
+          ),
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
+            )
           else if (_cards.isEmpty)
             _placeholder(tr(lang, 'Hali karta qoʻshilmagan',
                 'Пока нет сохранённых карт', 'No saved cards yet'))
@@ -236,7 +468,7 @@ class _WalletScreenState extends State<WalletScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _slate50,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: [
@@ -271,6 +503,184 @@ class _WalletScreenState extends State<WalletScreen> {
           IconButton(
             icon: const Icon(Icons.delete_outline, size: 22, color: _gray),
             onPressed: () => _deleteCard(card),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// «Пополнить» bottom sheet — amount + card picker → mock top-up.
+class _TopupSheet extends StatefulWidget {
+  const _TopupSheet({required this.payments, required this.cards});
+
+  final PaymentService payments;
+  final List<SavedCard> cards;
+
+  @override
+  State<_TopupSheet> createState() => _TopupSheetState();
+}
+
+class _TopupSheetState extends State<_TopupSheet> {
+  final _amountController = TextEditingController();
+  late int _cardId = widget.cards
+      .firstWhere((c) => c.isDefault, orElse: () => widget.cards.first)
+      .id;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final lang = LocaleController.language.value;
+    final amount = int.tryParse(_amountController.text.replaceAll(' ', ''));
+    if (amount == null || amount < 1000) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr(lang, 'Kamida 1 000 soʻm kiriting',
+            'Минимум 1 000 сум', 'Minimum 1 000 sum')),
+      ));
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await widget.payments.topup(cardId: _cardId, amount: amount);
+      if (mounted) Navigator.of(context).pop(true);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    return Container(
+      margin: EdgeInsets.only(bottom: bottom),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            tr(lang, 'Hamyonni toʻldirish', 'Пополнить кошелёк', 'Top up wallet'),
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppColors.navy,
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _amountController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.navy,
+            ),
+            decoration: InputDecoration(
+              hintText: tr(lang, 'Summa (soʻm)', 'Сумма (сум)', 'Amount (sum)'),
+              hintStyle: const TextStyle(color: Color(0xFF8D96A4)),
+              filled: true,
+              fillColor: const Color(0xFFF8FAFC),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (final card in widget.cards) ...[
+            GestureDetector(
+              onTap: () => setState(() => _cardId = card.id),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: _cardId == card.id
+                      ? const Color(0xFFEAF3FE)
+                      : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.credit_card,
+                        size: 20, color: AppColors.navy),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '${card.brand.toUpperCase()} •••• ${card.last4}',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.navy,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      _cardId == card.id
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_off,
+                      size: 20,
+                      color: _cardId == card.id ? AppColors.blue : Colors.grey,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton(
+              onPressed: _busy ? null : _submit,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: _busy
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      tr(lang, 'Toʻldirish', 'Пополнить', 'Top up'),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+            ),
           ),
         ],
       ),

@@ -86,4 +86,62 @@ class PaymentService {
     final data = await _client.post('/clients/me/orders/$orderId/pay', body: {'cardId': cardId});
     return (data as Map<String, dynamic>)['status'] as String? ?? 'unknown';
   }
+
+  // ---- client wallet (FINAL «Кошелек») ----
+
+  /// `GET /clients/me/wallet` → balance in so'm.
+  Future<int> walletBalance() async {
+    final data = await _client.get('/clients/me/wallet');
+    return _int((data as Map<String, dynamic>)['balance']);
+  }
+
+  /// `GET /clients/me/wallet/operations` — merged money history, newest first.
+  Future<List<WalletOperation>> walletOperations() async {
+    final data = await _client.get('/clients/me/wallet/operations');
+    return (data as List<dynamic>)
+        .map((e) => WalletOperation.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  /// `POST /clients/me/wallet/topup` → new balance.
+  Future<int> topup({required int cardId, required int amount}) async {
+    final data = await _client
+        .post('/clients/me/wallet/topup', body: {'cardId': cardId, 'amount': amount});
+    return _int((data as Map<String, dynamic>)['balance']);
+  }
+}
+
+/// One row of the client's «Операции» list.
+class WalletOperation {
+  const WalletOperation({
+    required this.id,
+    required this.kind,
+    required this.amount,
+    this.orderTitle,
+    this.categoryName,
+    this.note,
+    this.createdAt,
+  });
+
+  final String id;
+
+  /// topup | order_payment | refund | adjustment | card_payment | card_refund
+  final String kind;
+
+  /// Signed so'm amount (+ credit / − debit).
+  final int amount;
+  final String? orderTitle;
+  final String? categoryName;
+  final String? note;
+  final DateTime? createdAt;
+
+  factory WalletOperation.fromJson(Map<String, dynamic> j) => WalletOperation(
+        id: j['id']?.toString() ?? '',
+        kind: j['kind'] as String? ?? '',
+        amount: _int(j['amount']),
+        orderTitle: j['orderTitle'] as String?,
+        categoryName: j['categoryName'] as String?,
+        note: j['note'] as String?,
+        createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
+      );
 }

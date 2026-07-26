@@ -82,6 +82,16 @@ class _FakeMasterProfileService extends MasterService {
   );
 }
 
+class _PendingMasterProfileService extends MasterService {
+  @override
+  Future<Master> me() async => const Master(
+    id: '#M-2',
+    phone: '+998909999999',
+    status: MasterStatus.unverified,
+    verificationStatus: VerificationStatus.pending,
+  );
+}
+
 class _FakeMasterNotificationService extends NotificationService {
   _FakeMasterNotificationService() : super(kind: 'master');
 
@@ -274,6 +284,28 @@ void main() {
     await tester.pump();
 
     expect(find.text('Choose a profile photo'), findsOneWidget);
+  });
+
+  testWidgets('pending master cannot enter dashboard or profile tabs', (
+    tester,
+  ) async {
+    LocaleController.language.value = AppLanguage.en;
+    addTearDown(() => LocaleController.language.value = AppLanguage.ru);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MasterHomeScreen(masterService: _PendingMasterProfileService()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Documents under review'), findsOneWidget);
+    expect(find.byType(LiquidGlassNavBar), findsNothing);
+
+    await tester.pump(const Duration(seconds: 4));
+    expect(find.text('Documents under review'), findsOneWidget);
+    expect(find.text('Profile created!'), findsNothing);
   });
 
   testWidgets('master bottom tabs preserve the selected orders segment', (

@@ -42,8 +42,15 @@ class AppPresenceService {
 
   final StreamController<PresenceUpdate> _updates =
       StreamController<PresenceUpdate>.broadcast();
+  final StreamController<int> _conversationUpdates =
+      StreamController<int>.broadcast();
 
   Stream<PresenceUpdate> get updates => _updates.stream;
+
+  /// Conversation ids whose message/read state changed while the app is open.
+  /// Chat lists use this lightweight signal to refresh unread badges and
+  /// previews without maintaining a second app-wide Socket.IO connection.
+  Stream<int> get conversationUpdates => _conversationUpdates.stream;
 
   io.Socket? _socket;
   AuthRole? _connectedRole;
@@ -120,6 +127,8 @@ class AppPresenceService {
         final update = PresenceUpdate.fromJson(Map<String, dynamic>.from(data));
         if (update.conversationId > 0) _updates.add(update);
       })
+      ..on('chat_message', _notifyConversationChanged)
+      ..on('chat_read', _notifyConversationChanged)
       ..on('token_expired', refreshAndReconnect)
       ..on('unauthorized', refreshAndReconnect)
       ..connect();
@@ -132,5 +141,13 @@ class AppPresenceService {
     _socket = null;
     _connectedRole = null;
     _refreshing = false;
+  }
+
+  void _notifyConversationChanged(dynamic data) {
+    if (data is! Map) return;
+    final conversationId = (data['conversationId'] as num?)?.toInt() ?? 0;
+    if (conversationId > 0) {
+      _conversationUpdates.add(conversationId);
+    }
   }
 }

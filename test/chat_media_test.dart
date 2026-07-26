@@ -41,6 +41,26 @@ void main() {
     expect(message.audioUrl, isNull);
   });
 
+  test('message parses the server read receipt timestamp', () {
+    final unread = ChatMessage.fromJson({
+      'id': 11,
+      'sender': 'client',
+      'type': 'text',
+      'text': 'Unread',
+      'readAt': null,
+    });
+    final read = ChatMessage.fromJson({
+      'id': 12,
+      'sender': 'client',
+      'type': 'text',
+      'text': 'Read',
+      'readAt': '2026-07-26T09:30:00.000Z',
+    });
+
+    expect(unread.readAt, isNull);
+    expect(read.readAt, DateTime.parse('2026-07-26T09:30:00.000Z'));
+  });
+
   test('conversation parses and resolves the peer profile photo', () {
     final conversation = Conversation.fromJson({
       'id': 41,

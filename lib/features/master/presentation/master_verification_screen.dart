@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -14,7 +13,11 @@ import 'package:fixleo/features/master/presentation/master_verified_screen.dart'
 /// moderator's decision, which arrives live over WebSocket
 /// (`verification:update`). Approved → success screen; rejected → reason shown.
 class MasterVerificationScreen extends StatefulWidget {
-  const MasterVerificationScreen({super.key});
+  const MasterVerificationScreen({super.key, this.submitOnOpen = true});
+
+  /// False when the backend already reports `pending`; the screen then only
+  /// waits for the moderator event instead of re-submitting the same KYC.
+  final bool submitOnOpen;
 
   @override
   State<MasterVerificationScreen> createState() =>
@@ -27,24 +30,13 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
 
   bool _decided = false;
 
-  /// TEMP (dev only): on desktop (e.g. macOS runs) there is no real
-  /// moderator flow, so auto-advance to the "verified" screen after a few
-  /// seconds. If the backend never responds, this keeps the onboarding from
-  /// getting stuck on the review screen.
-  Timer? _autoSkip;
-
   @override
   void initState() {
     super.initState();
-    _submit();
+    if (widget.submitOnOpen) {
+      _submit();
+    }
     _listenForDecision();
-    _autoSkip = Timer(const Duration(seconds: 3), () {
-      if (_decided || !mounted) return;
-      _decided = true;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MasterVerifiedScreen()),
-      );
-    });
   }
 
   /// Submits the KYC application. If it was already submitted (409/400) we just
@@ -95,7 +87,6 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
 
   @override
   void dispose() {
-    _autoSkip?.cancel();
     _realtime.disconnect();
     super.dispose();
   }
@@ -105,7 +96,7 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
     final lang = LocaleController.language.value;
     return BrandedScaffold(
       title: tr(lang, 'Tekshiruv', 'Проверка', 'Verification'),
-      showBack: true,
+      showBack: false,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
         child: Column(

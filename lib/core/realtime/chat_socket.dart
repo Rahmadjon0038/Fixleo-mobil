@@ -27,9 +27,13 @@ class ChatSocket {
 
   io.Socket? _socket;
 
-  /// Connects to `/{kind}` and calls [onMessage] for each new message on this
-  /// conversation (including the peer's messages arriving in real time).
-  void connect(void Function(ChatMessage message) onMessage) {
+  /// Connects to `/{kind}` and forwards new messages plus peer read receipts for
+  /// this conversation. Older servers may omit `upToMessageId`; in that case a
+  /// receipt means every currently visible outgoing message was read.
+  void connect(
+    void Function(ChatMessage message) onMessage, {
+    void Function(int? upToMessageId)? onRead,
+  }) {
     final token = _session.accessToken;
     if (token == null) return;
 
@@ -71,6 +75,12 @@ class ChatSocket {
         if (msg is Map) {
           onMessage(ChatMessage.fromJson(Map<String, dynamic>.from(msg)));
         }
+      })
+      ..on('chat_read', (data) {
+        if (data is! Map) return;
+        final convId = (data['conversationId'] as num?)?.toInt();
+        if (convId != conversationId) return;
+        onRead?.call((data['upToMessageId'] as num?)?.toInt());
       })
       ..on('token_expired', refreshAndReconnect)
       ..on('unauthorized', refreshAndReconnect);

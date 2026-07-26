@@ -22,7 +22,11 @@ Future<Widget> resolveMasterStartupScreen(
   Master master,
 ) async {
   if (master.verificationStatus == VerificationStatus.approved) {
-    return const MasterHomeScreen();
+    return MasterHomeScreen(initialMaster: master, masterService: service);
+  }
+
+  if (master.verificationStatus == VerificationStatus.pending) {
+    return const MasterVerificationScreen(submitOnOpen: false);
   }
 
   if (!_hasBasicProfile(master)) {

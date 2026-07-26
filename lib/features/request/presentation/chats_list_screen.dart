@@ -32,6 +32,7 @@ class _LiveChatsScreenState extends State<LiveChatsScreen> {
   bool _loading = true;
   String? _error;
   StreamSubscription<PresenceUpdate>? _presenceSubscription;
+  StreamSubscription<int>? _conversationSubscription;
 
   @override
   void initState() {
@@ -59,19 +60,24 @@ class _LiveChatsScreenState extends State<LiveChatsScreen> {
         _items = next;
       });
     });
+    _conversationSubscription = AppPresenceService.instance.conversationUpdates
+        .listen((_) => unawaited(_load(showLoading: false)));
   }
 
   @override
   void dispose() {
     unawaited(_presenceSubscription?.cancel());
+    unawaited(_conversationSubscription?.cancel());
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final convs = await _service.conversations();
       if (!mounted) return;
@@ -151,6 +157,7 @@ class _LiveChatsScreenState extends State<LiveChatsScreen> {
               onRefresh: _load,
               child: ChatsList(
                 conversations: _items,
+                onConversationClosed: () => _load(showLoading: false),
                 padding: EdgeInsets.fromLTRB(
                   16,
                   4,
@@ -221,10 +228,12 @@ class ChatsList extends StatelessWidget {
   const ChatsList({
     super.key,
     required this.conversations,
+    this.onConversationClosed,
     this.padding = const EdgeInsets.fromLTRB(16, 12, 16, 100),
   });
 
   final List<Conversation> conversations;
+  final Future<void> Function()? onConversationClosed;
   final EdgeInsetsGeometry padding;
 
   @override
@@ -249,16 +258,9 @@ class ChatsList extends StatelessWidget {
                   ),
                 _ConversationTile(
                   conversation: conversations[i],
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ChatScreen(
-                        conversationId: conversations[i].conversationId,
-                        peerName: conversations[i].name,
-                        peerAvatarUrl: conversations[i].avatarUrl,
-                        kind: conversations[i].kind,
-                      ),
-                    ),
-                  ),
+                  onTap: () {
+                    unawaited(_openConversation(context, conversations[i]));
+                  },
                 ),
               ],
             ],
@@ -266,6 +268,23 @@ class ChatsList extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _openConversation(
+    BuildContext context,
+    Conversation conversation,
+  ) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          conversationId: conversation.conversationId,
+          peerName: conversation.name,
+          peerAvatarUrl: conversation.avatarUrl,
+          kind: conversation.kind,
+        ),
+      ),
+    );
+    await onConversationClosed?.call();
   }
 }
 

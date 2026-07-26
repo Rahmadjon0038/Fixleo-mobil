@@ -156,8 +156,16 @@ class ApiClient {
       _send(() => _dio.delete(path, data: body));
 
   /// Uploads [formData] as `multipart/form-data` (e.g. KYC document upload).
-  Future<dynamic> postMultipart(String path, FormData formData) =>
-      _send(() => _dio.post(path, data: formData));
+  ///
+  /// [onSendProgress] lets screens render per-file progress instead of a single
+  /// indefinite spinner while a large media file is in flight.
+  Future<dynamic> postMultipart(
+    String path,
+    FormData formData, {
+    ProgressCallback? onSendProgress,
+  }) => _send(
+    () => _dio.post(path, data: formData, onSendProgress: onSendProgress),
+  );
 
   /// Runs [request], validates the envelope and returns the `data` payload.
   /// Retries once after a successful token refresh on a `401`.

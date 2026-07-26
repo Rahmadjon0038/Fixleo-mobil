@@ -15,6 +15,7 @@ import 'package:fixleo/features/master/presentation/master_filters_screen.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/features/master/presentation/master_orders_screen.dart';
 import 'package:fixleo/features/master/presentation/master_profile_tab_screen.dart';
+import 'package:fixleo/features/master/presentation/master_verification_screen.dart';
 import 'package:fixleo/features/master/presentation/master_wallet_screen.dart';
 import 'package:fixleo/features/master/presentation/master_request_detail_screen.dart';
 import 'package:fixleo/core/network/current_user.dart';
@@ -98,11 +99,116 @@ class _Request {
   );
 }
 
-/// Master dashboard — "nearby requests" feed with the shared liquid-glass
-/// bottom navigation. Only the requests tab has content for now.
+/// Access gate for every entry into the master dashboard.
+///
+/// Even if a stale route or a temporary bootstrap error tries to open home, the
+/// real profile is checked first and no dashboard/profile tab is mounted until
+/// the backend confirms the master is approved.
 class MasterHomeScreen extends StatefulWidget {
   const MasterHomeScreen({
     super.key,
+    this.marketplaceService,
+    this.masterService,
+    this.notificationService,
+    this.ordersService,
+    this.initialMaster,
+  });
+
+  final MasterMarketplaceService? marketplaceService;
+  final MasterService? masterService;
+  final NotificationService? notificationService;
+  final MasterMarketplaceService? ordersService;
+  final Master? initialMaster;
+
+  @override
+  State<MasterHomeScreen> createState() => _MasterHomeAccessGateState();
+}
+
+class _MasterHomeAccessGateState extends State<MasterHomeScreen> {
+  late final MasterService _masterService =
+      widget.masterService ?? MasterService();
+  late Future<Master> _profileFuture = _loadProfile();
+
+  Future<Master> _loadProfile() async {
+    return widget.initialMaster ?? _masterService.me();
+  }
+
+  void _retry() {
+    setState(() => _profileFuture = _masterService.me());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
+    return FutureBuilder<Master>(
+      future: _profileFuture,
+      builder: (context, snapshot) {
+        final master = snapshot.data;
+        if (master != null) {
+          if (master.verificationStatus != VerificationStatus.approved) {
+            return const MasterVerificationScreen(submitOnOpen: false);
+          }
+          return _ApprovedMasterHomeScreen(
+            marketplaceService: widget.marketplaceService,
+            masterService: _masterService,
+            notificationService: widget.notificationService,
+            ordersService: widget.ordersService,
+          );
+        }
+
+        if (snapshot.hasError) {
+          return BrandedScaffold(
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.cloud_off_outlined,
+                      size: 44,
+                      color: AppColors.muted,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      tr(
+                        lang,
+                        'Usta holatini tekshirib bo‘lmadi',
+                        'Не удалось проверить статус мастера',
+                        'Could not verify the master status',
+                      ),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: AppColors.navy,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: _retry,
+                      child: Text(
+                        tr(lang, 'Qayta urinish', 'Повторить', 'Retry'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        return const BrandedScaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      },
+    );
+  }
+}
+
+/// Approved master dashboard — nearby requests plus the shared bottom tabs.
+class _ApprovedMasterHomeScreen extends StatefulWidget {
+  const _ApprovedMasterHomeScreen({
     this.marketplaceService,
     this.masterService,
     this.notificationService,
@@ -115,10 +221,11 @@ class MasterHomeScreen extends StatefulWidget {
   final MasterMarketplaceService? ordersService;
 
   @override
-  State<MasterHomeScreen> createState() => _MasterHomeScreenState();
+  State<_ApprovedMasterHomeScreen> createState() =>
+      _ApprovedMasterHomeScreenState();
 }
 
-class _MasterHomeScreenState extends State<MasterHomeScreen> {
+class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen> {
   late final MasterMarketplaceService _market =
       widget.marketplaceService ?? MasterMarketplaceService();
   late final MasterService _masterService =

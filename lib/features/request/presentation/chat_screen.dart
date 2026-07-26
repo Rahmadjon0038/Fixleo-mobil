@@ -26,22 +26,50 @@ import 'package:fixleo/features/request/presentation/widgets/chat_presence_text.
 /// [api_chat.ChatMessage].)
 class ChatMessage {
   const ChatMessage({
+    required this.id,
     required this.type,
     required this.text,
     required this.time,
     required this.isMine,
+    required this.isRead,
     this.imageUrl,
     this.audioUrl,
     this.durationSec,
   });
 
+  final int id;
   final String type;
   final String text;
   final String time;
   final bool isMine;
+  final bool isRead;
   final String? imageUrl;
   final String? audioUrl;
   final int? durationSec;
+
+  ChatMessage copyWith({bool? isRead}) {
+    return ChatMessage(
+      id: id,
+      type: type,
+      text: text,
+      time: time,
+      isMine: isMine,
+      isRead: isRead ?? this.isRead,
+      imageUrl: imageUrl,
+      audioUrl: audioUrl,
+      durationSec: durationSec,
+    );
+  }
+}
+
+enum _ImageUploadStatus { uploading, failed }
+
+class _ImageUpload {
+  _ImageUpload(this.file);
+
+  final XFile file;
+  double progress = 0;
+  _ImageUploadStatus status = _ImageUploadStatus.uploading;
 }
 
 /// One-on-one order chat — live thread + working input bar (docs/v3/Chat.md).
@@ -84,6 +112,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _recorder = AudioRecorder();
 
   final List<ChatMessage> _messages = [];
+  final List<_ImageUpload> _imageUploads = [];
   bool _loading = true;
   bool _sending = false;
   bool _hasText = false;
@@ -125,7 +154,7 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() => _messages.add(_toBubble(m)));
       _scrollToBottom();
       unawaited(_service.markRead(widget.conversationId).catchError((_) {}));
-    });
+    }, onRead: _markOutgoingMessagesRead);
     // Voice-call signalling: ensure connected (home already connects it app-wide);
     // incoming calls present the call UI globally via showIncomingCallUi.
     CallService.instance.connect(widget.kind, onIncoming: showIncomingCallUi);
@@ -196,14 +225,39 @@ class _ChatScreenState extends State<ChatScreen> {
       _ => m.text ?? '',
     };
     return ChatMessage(
+      id: m.id,
       type: m.type,
       text: text,
       time: time,
       isMine: m.sender == widget.kind,
+      isRead: m.readAt != null,
       imageUrl: m.imageUrl,
       audioUrl: m.audioUrl,
       durationSec: m.voiceDurationSec,
     );
+  }
+
+  void _markOutgoingMessagesRead(int? upToMessageId) {
+    if (!mounted) return;
+    var changed = false;
+    final updated = _messages
+        .map((message) {
+          final isCovered =
+              message.isMine &&
+              !message.isRead &&
+              (upToMessageId == null || message.id <= upToMessageId);
+          if (!isCovered) return message;
+          changed = true;
+          return message.copyWith(isRead: true);
+        })
+        .toList(growable: false);
+    if (changed) {
+      setState(() {
+        _messages
+          ..clear()
+          ..addAll(updated);
+      });
+    }
   }
 
   @override
@@ -274,7 +328,7 @@ class _ChatScreenState extends State<ChatScreen> {
         files = await _imagePicker.pickMultiImage(
           imageQuality: 88,
           maxWidth: 2200,
-          limit: 10,
+          limit: 3,
         );
       } else {
         final file = await _imagePicker.pickImage(
@@ -286,16 +340,27 @@ class _ChatScreenState extends State<ChatScreen> {
       }
       if (files.isEmpty || !mounted) return;
 
-      setState(() => _sending = true);
-      for (final file in files) {
-        final sent = await _service.sendImage(widget.conversationId, file.path);
-        if (!mounted) return;
-        setState(() => _messages.add(_toBubble(sent)));
-        _scrollToBottom();
+      final uploads = files.take(3).map(_ImageUpload.new).toList();
+      setState(() {
+        _imageUploads
+          ..clear()
+          ..addAll(uploads);
+        _sending = true;
+      });
+      final results = await Future.wait(uploads.map(_uploadImage));
+      if (!mounted) return;
+      setState(() => _sending = false);
+      if (results.any((sent) => !sent)) {
+        final lang = LocaleController.language.value;
+        _showError(
+          tr(
+            lang,
+            'Ayrim rasmlarni yuborib bo‘lmadi. Ularni qayta yuborishingiz mumkin.',
+            'Некоторые фото не отправились. Их можно отправить повторно.',
+            'Some photos could not be sent. You can retry them.',
+          ),
+        );
       }
-      if (mounted) setState(() => _sending = false);
-    } on ApiException catch (error) {
-      _showError(error.message);
     } on Object {
       final lang = LocaleController.language.value;
       _showError(
@@ -307,6 +372,61 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       );
     }
+  }
+
+  Future<bool> _uploadImage(_ImageUpload upload) async {
+    try {
+      final sent = await _service.sendImage(
+        widget.conversationId,
+        upload.file.path,
+        onSendProgress: (sentBytes, totalBytes) {
+          if (!mounted || totalBytes <= 0) return;
+          setState(() {
+            upload.progress = (sentBytes / totalBytes).clamp(0, 1);
+          });
+        },
+      );
+      if (!mounted) return false;
+      setState(() {
+        _imageUploads.remove(upload);
+        _messages.add(_toBubble(sent));
+      });
+      _scrollToBottom();
+      return true;
+    } on Object {
+      if (!mounted) return false;
+      setState(() => upload.status = _ImageUploadStatus.failed);
+      return false;
+    }
+  }
+
+  Future<void> _retryImageUpload(_ImageUpload upload) async {
+    if (_sending || upload.status != _ImageUploadStatus.failed) return;
+    setState(() {
+      upload
+        ..progress = 0
+        ..status = _ImageUploadStatus.uploading;
+      _sending = true;
+    });
+    final sent = await _uploadImage(upload);
+    if (!mounted) return;
+    setState(() => _sending = false);
+    if (!sent) {
+      final lang = LocaleController.language.value;
+      _showError(
+        tr(
+          lang,
+          'Rasmni yuborib bo‘lmadi. Qayta urinib ko‘ring.',
+          'Не удалось отправить фото. Попробуйте снова.',
+          'Could not send the photo. Please try again.',
+        ),
+      );
+    }
+  }
+
+  void _removeFailedUpload(_ImageUpload upload) {
+    if (upload.status != _ImageUploadStatus.failed) return;
+    setState(() => _imageUploads.remove(upload));
   }
 
   Future<void> _startRecording() async {
@@ -484,6 +604,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           _bubble(_messages[index]),
                     ),
             ),
+            if (_imageUploads.isNotEmpty) _imageUploadStrip(lang),
             _inputBar(lang),
           ],
         ),
@@ -612,7 +733,11 @@ class _ChatScreenState extends State<ChatScreen> {
                   // Delivery ticks — only on the user's own messages.
                   if (m.isMine) ...[
                     const SizedBox(width: 3),
-                    const Icon(Icons.done_all, size: 13, color: _outgoingTime),
+                    Icon(
+                      m.isRead ? Icons.done_all : Icons.done,
+                      size: 13,
+                      color: m.isRead ? Colors.white : _outgoingTime,
+                    ),
                   ],
                 ],
               ),
@@ -785,7 +910,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   : _hasText
                   ? _send
                   : _startRecording,
-              icon: _sending || _startingRecording
+              icon: (_sending && _imageUploads.isEmpty) || _startingRecording
                   ? const SizedBox(
                       width: 18,
                       height: 18,
@@ -801,6 +926,121 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _imageUploadStrip(AppLanguage lang) {
+    return Container(
+      width: double.infinity,
+      color: AppColors.background,
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+      child: SizedBox(
+        height: 82,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: _imageUploads.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 10),
+          itemBuilder: (context, index) {
+            final upload = _imageUploads[index];
+            final failed = upload.status == _ImageUploadStatus.failed;
+            final percent = (upload.progress * 100).round();
+            return Semantics(
+              label: failed
+                  ? tr(
+                      lang,
+                      'Rasm yuborilmadi. Qayta yuborish uchun bosing.',
+                      'Фото не отправлено. Нажмите, чтобы повторить.',
+                      'Photo failed to send. Tap to retry.',
+                    )
+                  : tr(
+                      lang,
+                      'Rasm $percent foiz yuklandi',
+                      'Фото загружено на $percent процентов',
+                      'Photo upload $percent percent',
+                    ),
+              button: failed,
+              child: GestureDetector(
+                onTap: failed ? () => _retryImageUpload(upload) : null,
+                child: SizedBox(
+                  width: 82,
+                  height: 82,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.file(
+                          File(upload.file.path),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.48),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      Center(
+                        child: failed
+                            ? const Icon(
+                                Icons.refresh_rounded,
+                                size: 30,
+                                color: Colors.white,
+                              )
+                            : Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 46,
+                                    height: 46,
+                                    child: CircularProgressIndicator(
+                                      value: upload.progress,
+                                      strokeWidth: 3,
+                                      backgroundColor: Colors.white24,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  Text(
+                                    '$percent%',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                      if (failed)
+                        Positioned(
+                          right: 3,
+                          top: 3,
+                          child: IconButton(
+                            tooltip: tr(
+                              lang,
+                              'Olib tashlash',
+                              'Удалить',
+                              'Remove',
+                            ),
+                            onPressed: () => _removeFailedUpload(upload),
+                            style: IconButton.styleFrom(
+                              minimumSize: const Size(26, 26),
+                              maximumSize: const Size(26, 26),
+                              padding: EdgeInsets.zero,
+                              backgroundColor: Colors.black54,
+                              foregroundColor: Colors.white,
+                            ),
+                            icon: const Icon(Icons.close, size: 15),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

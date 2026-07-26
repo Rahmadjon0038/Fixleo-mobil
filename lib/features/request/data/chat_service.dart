@@ -72,6 +72,7 @@ class ChatMessage {
     this.fileBytes,
     this.callStatus,
     this.callDurationSec,
+    this.readAt,
     this.createdAt,
   });
 
@@ -86,6 +87,7 @@ class ChatMessage {
   final int? fileBytes;
   final String? callStatus;
   final int? callDurationSec;
+  final DateTime? readAt;
   final DateTime? createdAt;
 
   factory ChatMessage.fromJson(Map<String, dynamic> j) {
@@ -102,6 +104,7 @@ class ChatMessage {
       fileBytes: _intN(j['fileBytes']),
       callStatus: call?['status'] as String?,
       callDurationSec: _intN(call?['durationSec']),
+      readAt: DateTime.tryParse(j['readAt']?.toString() ?? ''),
       createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
     );
   }
@@ -153,13 +156,18 @@ class ChatService {
     return ChatMessage.fromJson(data as Map<String, dynamic>);
   }
 
-  Future<ChatMessage> sendImage(int conversationId, String filePath) async {
+  Future<ChatMessage> sendImage(
+    int conversationId,
+    String filePath, {
+    ProgressCallback? onSendProgress,
+  }) async {
     final form = FormData.fromMap({
       'file': await MultipartFile.fromFile(filePath),
     });
     final data = await _client.postMultipart(
       '$_base/$conversationId/messages/image',
       form,
+      onSendProgress: onSendProgress,
     );
     return ChatMessage.fromJson(data as Map<String, dynamic>);
   }

@@ -4,6 +4,8 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/features/master/data/master_model.dart';
 import 'package:fixleo/features/master/data/master_service.dart';
+import 'package:fixleo/features/master/presentation/master_edit_profile_screen.dart';
+import 'package:fixleo/features/notifications/presentation/notifications_screen.dart';
 import 'package:fixleo/features/welcome/presentation/intro_screen.dart';
 
 /// Master's profile tab — mirrors the client profile layout: account header
@@ -11,7 +13,16 @@ import 'package:fixleo/features/welcome/presentation/intro_screen.dart';
 /// Русский / English), grouped settings rows and a logout pill. Shown under
 /// the "Profil" tab.
 class MasterProfileTabScreen extends StatefulWidget {
-  const MasterProfileTabScreen({super.key});
+  const MasterProfileTabScreen({
+    super.key,
+    this.onNotificationsChanged,
+    this.onOpenWorkHistory,
+    this.service,
+  });
+
+  final Future<void> Function()? onNotificationsChanged;
+  final VoidCallback? onOpenWorkHistory;
+  final MasterService? service;
 
   static const _gray = Color(0xFF8D96A4);
   static const _slate50 = Color(0xFFF8FAFC);
@@ -19,8 +30,7 @@ class MasterProfileTabScreen extends StatefulWidget {
   static const _red700 = Color(0xFFB91C1C);
 
   @override
-  State<MasterProfileTabScreen> createState() =>
-      _MasterProfileTabScreenState();
+  State<MasterProfileTabScreen> createState() => _MasterProfileTabScreenState();
 }
 
 class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
@@ -28,7 +38,7 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
   static const _red50 = MasterProfileTabScreen._red50;
   static const _red700 = MasterProfileTabScreen._red700;
 
-  final _service = MasterService();
+  late final MasterService _service = widget.service ?? MasterService();
   Master? _master;
 
   @override
@@ -46,6 +56,22 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
     }
   }
 
+  Future<void> _editProfile() async {
+    final master = _master;
+    if (master == null) return;
+    final updated = await Navigator.of(context).push<Master>(
+      MaterialPageRoute(
+        builder: (_) => MasterEditProfileScreen(master: master),
+      ),
+    );
+    if (!mounted) return;
+    if (updated != null) {
+      setState(() => _master = updated);
+    } else {
+      await _load();
+    }
+  }
+
   /// "+998 90 123 45 67" from the stored `+998...` number (falls back to the
   /// raw value for non-Uzbek numbers).
   String get _prettyPhone {
@@ -59,53 +85,71 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final lang = LocaleController.language.value;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
-      children: [
-        _userCard(),
-        const SizedBox(height: 8),
-        _languageCard(lang),
-        const SizedBox(height: 8),
-        _group([
-          _MenuItem(
-            icon: Icons.person_outline,
-            label: tr(lang, 'Mening maʼlumotlarim', 'Мои данные', 'My data'),
-            onTap: () {},
-          ),
-          _MenuItem(
-            icon: Icons.history,
-            label: tr(lang, 'Ishlar tarixi', 'История работ', 'Work history'),
-            onTap: () {},
-          ),
-          _MenuItem(
-            icon: Icons.settings_outlined,
-            label: tr(lang, 'Sozlamalar', 'Настройки', 'Settings'),
-            onTap: () {},
-          ),
-        ]),
-        const SizedBox(height: 8),
-        _group([
-          _MenuItem(
-            icon: Icons.notifications_outlined,
-            label: tr(lang, 'Bildirishnomalar', 'Уведомления', 'Notifications'),
-            onTap: () {},
-          ),
-          _MenuItem(
-            icon: Icons.headset_mic_outlined,
-            label: tr(lang, 'Qoʻllab-quvvatlash', 'Поддержка', 'Support'),
-            onTap: () {},
-          ),
-          _MenuItem(
-            icon: Icons.shield_outlined,
-            label: tr(lang, 'Maxfiylik siyosati',
-                'Политика конфиденциальности', 'Privacy policy'),
-            onTap: () {},
-          ),
-        ]),
-        const SizedBox(height: 8),
-        _logout(context, lang),
-      ],
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: LocaleController.language,
+      builder: (context, lang, _) => ListView(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+        children: [
+          _userCard(),
+          const SizedBox(height: 8),
+          _languageCard(lang),
+          const SizedBox(height: 8),
+          _group([
+            _MenuItem(
+              icon: Icons.person_outline,
+              label: tr(lang, 'Mening maʼlumotlarim', 'Мои данные', 'My data'),
+              onTap: _editProfile,
+            ),
+            _MenuItem(
+              icon: Icons.history,
+              label: tr(lang, 'Ishlar tarixi', 'История работ', 'Work history'),
+              onTap: widget.onOpenWorkHistory ?? () {},
+            ),
+            _MenuItem(
+              icon: Icons.settings_outlined,
+              label: tr(lang, 'Sozlamalar', 'Настройки', 'Settings'),
+              onTap: _editProfile,
+            ),
+          ]),
+          const SizedBox(height: 8),
+          _group([
+            _MenuItem(
+              icon: Icons.notifications_outlined,
+              label: tr(
+                lang,
+                'Bildirishnomalar',
+                'Уведомления',
+                'Notifications',
+              ),
+              onTap: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const NotificationsScreen(kind: 'master'),
+                  ),
+                );
+                await widget.onNotificationsChanged?.call();
+              },
+            ),
+            _MenuItem(
+              icon: Icons.headset_mic_outlined,
+              label: tr(lang, 'Qoʻllab-quvvatlash', 'Поддержка', 'Support'),
+              onTap: () {},
+            ),
+            _MenuItem(
+              icon: Icons.shield_outlined,
+              label: tr(
+                lang,
+                'Maxfiylik siyosati',
+                'Политика конфиденциальности',
+                'Privacy policy',
+              ),
+              onTap: () {},
+            ),
+          ]),
+          const SizedBox(height: 8),
+          _logout(context, lang),
+        ],
+      ),
     );
   }
 
@@ -122,14 +166,25 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 66,
-            height: 66,
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(20),
+          GestureDetector(
+            onTap: _editProfile,
+            child: Container(
+              width: 66,
+              height: 66,
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: _master?.avatarUrl != null
+                  ? Image.network(
+                      _master!.avatarUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) =>
+                          const Icon(Icons.person, size: 38, color: _gray),
+                    )
+                  : const Icon(Icons.person, size: 38, color: _gray),
             ),
-            child: const Icon(Icons.person, size: 38, color: _gray),
           ),
           const SizedBox(height: 4),
           Text(
@@ -229,11 +284,14 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(tr(lang, 'Chiqish', 'Выход', 'Sign out')),
-        content: Text(tr(
+        content: Text(
+          tr(
             lang,
             'Akkauntdan chiqmoqchimisiz?',
             'Выйти из аккаунта?',
-            'Sign out of your account?')),
+            'Sign out of your account?',
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -278,15 +336,16 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
               child: const Icon(Icons.logout, size: 22, color: _red700),
             ),
             const SizedBox(width: 10),
-            Text(
-              tr(lang, 'Akkauntdan chiqish', 'Выйти из аккаунта',
-                  'Sign out'),
-              style: const TextStyle(
-                fontSize: 16,
-                height: 22 / 16,
-                letterSpacing: -0.18,
-                fontWeight: FontWeight.w600,
-                color: _red700,
+            Expanded(
+              child: Text(
+                tr(lang, 'Akkauntdan chiqish', 'Выйти из аккаунта', 'Sign out'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  height: 22 / 16,
+                  letterSpacing: -0.18,
+                  fontWeight: FontWeight.w600,
+                  color: _red700,
+                ),
               ),
             ),
           ],
@@ -310,53 +369,58 @@ class _LangOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFF0F9FF) : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  height: 22 / 16,
-                  letterSpacing: -0.18,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.navy,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: title,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFFF0F9FF) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    height: 22 / 16,
+                    letterSpacing: -0.18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.navy,
+                  ),
                 ),
               ),
-            ),
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: selected ? AppColors.blue : Colors.transparent,
-                border: Border.all(
-                  color: selected ? AppColors.blue : const Color(0xFFCBD5E1),
-                  width: 2,
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected ? AppColors.blue : Colors.transparent,
+                  border: Border.all(
+                    color: selected ? AppColors.blue : const Color(0xFFCBD5E1),
+                    width: 2,
+                  ),
                 ),
-              ),
-              child: selected
-                  ? Center(
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
+                child: selected
+                    ? Center(
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                    )
-                  : null,
-            ),
-          ],
+                      )
+                    : null,
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -38,7 +38,10 @@ class _MasterWalletScreenState extends State<MasterWalletScreen> {
 
   Future<void> _load() async {
     try {
-      final results = await Future.wait([_market.wallet(), _market.transactions()]);
+      final results = await Future.wait([
+        _market.wallet(),
+        _market.transactions(),
+      ]);
       if (!mounted) return;
       setState(() {
         _wallet = results[0] as MasterWallet;
@@ -62,13 +65,33 @@ class _MasterWalletScreenState extends State<MasterWalletScreen> {
   }
 
   String _txLabel(String type, AppLanguage lang) => switch (type) {
-        'order_income' => tr(lang, 'Buyurtma toʻlovi', 'Оплата за заказ', 'Order payment'),
-        'withdrawal' => tr(lang, 'Mablagʻ yechish', 'Вывод средств', 'Withdrawal'),
-        'withdrawal_fee' => tr(lang, 'Yechish komissiyasi', 'Комиссия за вывод', 'Withdrawal fee'),
-        'withdrawal_refund' => tr(lang, 'Yechish qaytarildi', 'Возврат вывода', 'Withdrawal refund'),
-        'refund_out' => tr(lang, 'Mijozga qaytarish', 'Возврат клиенту', 'Refund to client'),
-        _ => tr(lang, 'Operatsiya', 'Операция', 'Operation'),
-      };
+    'order_income' => tr(
+      lang,
+      'Buyurtma toʻlovi',
+      'Оплата за заказ',
+      'Order payment',
+    ),
+    'withdrawal' => tr(lang, 'Mablagʻ yechish', 'Вывод средств', 'Withdrawal'),
+    'withdrawal_fee' => tr(
+      lang,
+      'Yechish komissiyasi',
+      'Комиссия за вывод',
+      'Withdrawal fee',
+    ),
+    'withdrawal_refund' => tr(
+      lang,
+      'Yechish qaytarildi',
+      'Возврат вывода',
+      'Withdrawal refund',
+    ),
+    'refund_out' => tr(
+      lang,
+      'Mijozga qaytarish',
+      'Возврат клиенту',
+      'Refund to client',
+    ),
+    _ => tr(lang, 'Operatsiya', 'Операция', 'Operation'),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -137,9 +160,7 @@ class _MasterWalletScreenState extends State<MasterWalletScreen> {
           const SizedBox(height: 12),
           GestureDetector(
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const MasterWithdrawScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const MasterWithdrawScreen()),
             ),
             child: Container(
               width: double.infinity,
@@ -150,7 +171,12 @@ class _MasterWalletScreenState extends State<MasterWalletScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                tr(lang, 'Mablagʻni yechish', 'Вывести средства', 'Withdraw funds'),
+                tr(
+                  lang,
+                  'Mablagʻni yechish',
+                  'Вывести средства',
+                  'Withdraw funds',
+                ),
                 style: const TextStyle(
                   fontSize: 14,
                   height: 20 / 14,
@@ -198,15 +224,54 @@ class _MasterWalletScreenState extends State<MasterWalletScreen> {
   /// "Заработано в Мае"-style label for the current month (FINAL).
   static String _earnedLabel(AppLanguage lang) {
     final m = DateTime.now().month;
-    const ru = ['Январе', 'Феврале', 'Марте', 'Апреле', 'Мае', 'Июне',
-      'Июле', 'Августе', 'Сентябре', 'Октябре', 'Ноябре', 'Декабре'];
-    const uz = ['yanvarda', 'fevralda', 'martda', 'aprelda', 'mayda',
-      'iyunda', 'iyulda', 'avgustda', 'sentabrda', 'oktabrda', 'noyabrda',
-      'dekabrda'];
-    const en = ['in Jan', 'in Feb', 'in Mar', 'in Apr', 'in May', 'in Jun',
-      'in Jul', 'in Aug', 'in Sep', 'in Oct', 'in Nov', 'in Dec'];
-    return tr(lang, '${uz[m - 1]} ishlangan', 'Заработано в ${ru[m - 1]}',
-        'Earned ${en[m - 1]}');
+    const ru = [
+      'Январе',
+      'Феврале',
+      'Марте',
+      'Апреле',
+      'Мае',
+      'Июне',
+      'Июле',
+      'Августе',
+      'Сентябре',
+      'Октябре',
+      'Ноябре',
+      'Декабре',
+    ];
+    const uz = [
+      'yanvarda',
+      'fevralda',
+      'martda',
+      'aprelda',
+      'mayda',
+      'iyunda',
+      'iyulda',
+      'avgustda',
+      'sentabrda',
+      'oktabrda',
+      'noyabrda',
+      'dekabrda',
+    ];
+    const en = [
+      'in Jan',
+      'in Feb',
+      'in Mar',
+      'in Apr',
+      'in May',
+      'in Jun',
+      'in Jul',
+      'in Aug',
+      'in Sep',
+      'in Oct',
+      'in Nov',
+      'in Dec',
+    ];
+    return tr(
+      lang,
+      '${uz[m - 1]} ishlangan',
+      'Заработано в ${ru[m - 1]}',
+      'Earned ${en[m - 1]}',
+    );
   }
 
   /// Operations list card.
@@ -339,10 +404,7 @@ class _StatCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Color(0xFF8D96A4),
-            ),
+            style: const TextStyle(fontSize: 11, color: Color(0xFF8D96A4)),
           ),
         ],
       ),

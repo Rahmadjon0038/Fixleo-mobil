@@ -9,6 +9,7 @@ class NewOrderDraft {
 
   String description = '';
   List<String> photoKeys = [];
+  List<String> photoPaths = [];
 
   double? latitude;
   double? longitude;

@@ -64,6 +64,16 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
         child: _loading
             ? const Center(child: CircularProgressIndicator())
+            : _p == null
+            ? Center(
+                child: TextButton(
+                  onPressed: () {
+                    setState(() => _loading = true);
+                    _load();
+                  },
+                  child: Text(tr(lang, 'Qayta urinish', 'Повторить', 'Retry')),
+                ),
+              )
             : Column(
                 children: [
                   Expanded(
@@ -76,7 +86,7 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
                           const SizedBox(height: 10),
                           _ratingCard(lang),
                           const SizedBox(height: 10),
-                          _reviewCard(lang),
+                          _reviewsSection(lang),
                           const SizedBox(height: 10),
                           _photosCard(lang),
                         ],
@@ -97,7 +107,12 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
                         ),
                       ),
                       child: Text(
-                        tr(lang, 'Javoblarga qaytish', 'Назад к откликам', 'Back to responses'),
+                        tr(
+                          lang,
+                          'Javoblarga qaytish',
+                          'Назад к откликам',
+                          'Back to responses',
+                        ),
                         style: const TextStyle(
                           fontSize: 16,
                           height: 22 / 16,
@@ -132,7 +147,15 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
                   color: AppColors.background,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Icon(Icons.person, size: 33, color: _gray),
+                clipBehavior: Clip.antiAlias,
+                child: _p!.avatarUrl?.isNotEmpty == true
+                    ? Image.network(
+                        _p!.avatarUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) =>
+                            const Icon(Icons.person, size: 33, color: _gray),
+                      )
+                    : const Icon(Icons.person, size: 33, color: _gray),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -162,12 +185,19 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
                       ],
                     ),
                     const SizedBox(height: 5),
-                    Row(
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
                       children: [
-                        _badge(tr(lang, 'Top usta', 'Топ-мастер',
-                            'Top master')),
-                        const SizedBox(width: 6),
-                        _badge('4.9', leadingStar: true),
+                        if (_p!.isTopMaster)
+                          _badge(
+                            tr(lang, 'Top usta', 'Топ-мастер', 'Top master'),
+                          ),
+                        if (_p!.ratingAvg != null)
+                          _badge(
+                            _p!.ratingAvg!.toStringAsFixed(1),
+                            leadingStar: true,
+                          ),
                       ],
                     ),
                   ],
@@ -179,15 +209,24 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
           Row(
             children: [
               _Stat(
-                value: '124',
+                value: '${_p!.completedOrders}',
                 label: tr(lang, 'buyurtma', 'заказа', 'orders'),
               ),
               _Stat(
-                value: '98%',
+                value: _p!.completionRate == null
+                    ? '—'
+                    : '${_p!.completionRate}%',
                 label: tr(lang, 'bajarilgan', 'выполнено', 'completed'),
               ),
               _Stat(
-                value: tr(lang, '5 yil', '5 лет', '5 yrs'),
+                value: _p!.experienceYears == null
+                    ? '—'
+                    : tr(
+                        lang,
+                        '${_p!.experienceYears} yil',
+                        '${_p!.experienceYears} лет',
+                        '${_p!.experienceYears} yrs',
+                      ),
                 label: tr(lang, 'tajriba', 'опыт', 'experience'),
               ),
             ],
@@ -237,16 +276,14 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
           _cardTitle(tr(lang, 'Usta haqida', 'О мастере', 'About the master')),
           const SizedBox(height: 6),
           Text(
-            tr(
-              lang,
-              '5 yillik tajribaga ega santexnik. Smesitel, quvurlarni '
-                  'almashtirish, oqishlarni bartaraf etish. Ozoda va oʻz '
-                  'vaqtida.',
-              'Сантехник с опытом 5 лет. Замена смесителей, труб, устранение '
-                  'течей. Аккуратно и в срок.',
-              'Plumber with 5 years of experience. Replacing faucets and '
-                  'pipes, fixing leaks. Neat and on time.',
-            ),
+            _p!.bio?.trim().isNotEmpty == true
+                ? _p!.bio!
+                : tr(
+                    lang,
+                    'Usta hali o‘zi haqida ma’lumot kiritmagan',
+                    'Мастер пока не добавил информацию о себе',
+                    'The master has not added a bio yet',
+                  ),
             style: _bodyStyle,
           ),
         ],
@@ -257,16 +294,15 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
   /// Big score + orange stars on the left, 5..1 distribution bars on the
   /// right.
   Widget _ratingCard(AppLanguage lang) {
-    // Share of reviews per star (5 → 1), matching the Figma bar widths.
-    const shares = [0.55, 0.34, 0.11, 0.04, 0.02];
+    final count = _p!.ratingCount;
     return _card(
       child: Row(
         children: [
           Column(
             children: [
-              const Text(
-                '4.9',
-                style: TextStyle(
+              Text(
+                _p!.ratingAvg?.toStringAsFixed(1) ?? '—',
+                style: const TextStyle(
                   fontSize: 40,
                   height: 48 / 40,
                   letterSpacing: -0.3,
@@ -279,8 +315,10 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: List.generate(
                   5,
-                  (_) => const Icon(
-                    Icons.star_rounded,
+                  (i) => Icon(
+                    i < (_p!.ratingAvg?.round() ?? 0)
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded,
                     size: 14,
                     color: _starOrange,
                   ),
@@ -288,7 +326,7 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
               ),
               const SizedBox(height: 2),
               Text(
-                tr(lang, '124 ta sharh', '124 отзыва', '124 reviews'),
+                tr(lang, '$count ta sharh', '$count отзывов', '$count reviews'),
                 style: const TextStyle(
                   fontSize: 12,
                   height: 16 / 12,
@@ -319,7 +357,15 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(child: _ratingBar(shares[5 - star])),
+                      Expanded(
+                        child: _ratingBar(
+                          count == 0
+                              ? 0
+                              : ((_p!.ratingHist[star] ?? 0) / count)
+                                    .clamp(0, 1)
+                                    .toDouble(),
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -353,18 +399,45 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
     );
   }
 
-  /// Single review: author + orange stars header, text below.
-  Widget _reviewCard(AppLanguage lang) {
+  Widget _reviewsSection(AppLanguage lang) {
+    final reviews = _p!.recentReviews;
+    if (reviews.isEmpty) {
+      return _card(
+        child: Text(
+          tr(
+            lang,
+            'Hozircha mijozlardan sharh yoʻq',
+            'Пока нет отзывов от клиентов',
+            'No client reviews yet',
+          ),
+          textAlign: TextAlign.center,
+          style: _bodyStyle,
+        ),
+      );
+    }
+    return Column(
+      children: [
+        for (var i = 0; i < reviews.length; i++) ...[
+          if (i != 0) const SizedBox(height: 10),
+          _reviewCard(lang, reviews[i]),
+        ],
+      ],
+    );
+  }
+
+  Widget _reviewCard(AppLanguage lang, PublicReview review) {
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Dilshod R.',
-                  style: TextStyle(
+                  review.clientName?.trim().isNotEmpty == true
+                      ? review.clientName!
+                      : tr(lang, 'Mijoz', 'Клиент', 'Client'),
+                  style: const TextStyle(
                     fontSize: 16,
                     height: 22 / 16,
                     letterSpacing: -0.18,
@@ -377,8 +450,10 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: List.generate(
                   5,
-                  (_) => const Icon(
-                    Icons.star_rounded,
+                  (i) => Icon(
+                    i < review.rating
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded,
                     size: 15,
                     color: _starOrange,
                   ),
@@ -386,23 +461,16 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            tr(
-              lang,
-              'Oʻz vaqtida keldi, hammasini ozoda qildi. Tavsiya qilaman!',
-              'Пришёл вовремя, всё сделал аккуратно. Рекомендую!',
-              'Arrived on time, did everything neatly. I recommend!',
-            ),
-            style: _bodyStyle,
-          ),
+          if (review.text?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 6),
+            Text(review.text!, style: _bodyStyle),
+          ],
         ],
       ),
     );
   }
 
-  /// "Фотографии" — 4 rounded placeholder squares for the master's work
-  /// photos.
+  /// Real portfolio photos uploaded by the master.
   Widget _photosCard(AppLanguage lang) {
     return _card(
       child: Column(
@@ -410,21 +478,38 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
         children: [
           _cardTitle(tr(lang, 'Fotosuratlar', 'Фотографии', 'Photos')),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              for (var i = 0; i < 4; i++) ...[
-                if (i != 0) const SizedBox(width: 8),
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: _slate200,
-                    borderRadius: BorderRadius.circular(12),
+          if (_p!.portfolio.isEmpty)
+            Text(
+              tr(
+                lang,
+                'Hozircha ish rasmlari yoʻq',
+                'Пока нет фотографий работ',
+                'No work photos yet',
+              ),
+              style: _bodyStyle,
+            )
+          else
+            SizedBox(
+              height: 64,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _p!.portfolio.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (_, i) => ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    _p!.portfolio[i],
+                    width: 64,
+                    height: 64,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const ColoredBox(
+                      color: _slate200,
+                      child: SizedBox(width: 64, height: 64),
+                    ),
                   ),
                 ),
-              ],
-            ],
-          ),
+              ),
+            ),
         ],
       ),
     );

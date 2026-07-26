@@ -28,8 +28,8 @@ class MasterVerifyResult {
 /// [AuthSession].
 class MasterService {
   MasterService({ApiClient? client, AuthSession? session})
-      : _client = client ?? ApiClient.instance,
-        _session = session ?? AuthSession.instance;
+    : _client = client ?? ApiClient.instance,
+      _session = session ?? AuthSession.instance;
 
   final ApiClient _client;
   final AuthSession _session;
@@ -38,13 +38,19 @@ class MasterService {
 
   /// `POST /masters/auth/send-otp`. Returns OTP lifetime in seconds.
   Future<int> sendOtp(String phone) async {
-    final data = await _client.post('/masters/auth/send-otp', body: {'phone': phone});
+    final data = await _client.post(
+      '/masters/auth/send-otp',
+      body: {'phone': phone},
+    );
     return (data?['expiresInSeconds'] as num?)?.toInt() ?? 300;
   }
 
   /// `POST /masters/auth/resend-otp` — alias of send-otp (same cooldown).
   Future<int> resendOtp(String phone) async {
-    final data = await _client.post('/masters/auth/resend-otp', body: {'phone': phone});
+    final data = await _client.post(
+      '/masters/auth/resend-otp',
+      body: {'phone': phone},
+    );
     return (data?['expiresInSeconds'] as num?)?.toInt() ?? 300;
   }
 
@@ -54,10 +60,12 @@ class MasterService {
     required String phone,
     required String code,
   }) async {
-    final data = await _client.post(
-      '/masters/auth/verify-otp',
-      body: {'phone': phone, 'code': code},
-    ) as Map<String, dynamic>;
+    final data =
+        await _client.post(
+              '/masters/auth/verify-otp',
+              body: {'phone': phone, 'code': code},
+            )
+            as Map<String, dynamic>;
 
     final tokens = AuthTokens.fromJson(data);
     await _session.start(
@@ -77,7 +85,10 @@ class MasterService {
     final refresh = _session.refreshToken;
     if (refresh != null) {
       try {
-        await _client.post('/masters/auth/logout', body: {'refreshToken': refresh});
+        await _client.post(
+          '/masters/auth/logout',
+          body: {'refreshToken': refresh},
+        );
       } on Object {
         // best-effort
       }
@@ -99,17 +110,25 @@ class MasterService {
     String? city,
     int? experienceYears,
   }) async {
-    final data = await _client.patch('/masters/me/profile', body: {
-      'name': ?name,
-      'city': ?city,
-      'experienceYears': ?experienceYears,
-    });
+    final data = await _client.patch(
+      '/masters/me/profile',
+      body: {'name': ?name, 'city': ?city, 'experienceYears': ?experienceYears},
+    );
     return Master.fromJson(data as Map<String, dynamic>);
   }
 
   /// `PATCH /masters/me/about` — bio.
   Future<Master> updateAbout(String bio) async {
     final data = await _client.patch('/masters/me/about', body: {'bio': bio});
+    return Master.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// Profile photo is mandatory for masters. Re-uploading replaces the old one.
+  Future<Master> uploadAvatar(String filePath) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath),
+    });
+    final data = await _client.postMultipart('/masters/me/avatar', formData);
     return Master.fromJson(data as Map<String, dynamic>);
   }
 
@@ -129,11 +148,14 @@ class MasterService {
     required double longitude,
     required int workRadiusKm,
   }) async {
-    final data = await _client.put('/masters/me/work-zone', body: {
-      'latitude': latitude,
-      'longitude': longitude,
-      'workRadiusKm': workRadiusKm,
-    });
+    final data = await _client.put(
+      '/masters/me/work-zone',
+      body: {
+        'latitude': latitude,
+        'longitude': longitude,
+        'workRadiusKm': workRadiusKm,
+      },
+    );
     return Master.fromJson(data as Map<String, dynamic>);
   }
 

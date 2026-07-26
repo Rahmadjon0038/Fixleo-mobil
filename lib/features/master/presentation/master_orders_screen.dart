@@ -31,16 +31,29 @@ class _Order {
 /// Master's "My work" — order history and reviews, shown under the "Zakazlar"
 /// tab. A segmented control switches between the history list and reviews.
 class MasterOrdersScreen extends StatefulWidget {
-  const MasterOrdersScreen({super.key});
+  const MasterOrdersScreen({
+    super.key,
+    this.service,
+    this.refreshSignal = 0,
+    this.segmentSignal = 0,
+    this.targetSegment = 0,
+  });
+
+  final MasterMarketplaceService? service;
+  final int refreshSignal;
+  final int segmentSignal;
+  final int targetSegment;
 
   @override
   State<MasterOrdersScreen> createState() => _MasterOrdersScreenState();
 }
 
 class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
-  final MasterMarketplaceService _market = MasterMarketplaceService();
+  late final MasterMarketplaceService _market =
+      widget.service ?? MasterMarketplaceService();
   List<MasterOrder> _current = const [];
   List<MasterOrder> _historyOrders = const [];
+  MasterReviews _reviewData = const MasterReviews();
   bool _loading = true;
 
   int _segment = 0; // 0 = Faol, 1 = Tarix, 2 = Sharhlar.
@@ -48,20 +61,34 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
   @override
   void initState() {
     super.initState();
+    _segment = widget.targetSegment.clamp(0, 2);
     _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant MasterOrdersScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshSignal != widget.refreshSignal) {
+      _load();
+    }
+    if (oldWidget.segmentSignal != widget.segmentSignal) {
+      setState(() => _segment = widget.targetSegment.clamp(0, 2));
+    }
   }
 
   Future<void> _load() async {
     if (mounted) setState(() => _loading = true);
     try {
-      final results = await Future.wait([
+      final results = await Future.wait<Object>([
         _market.orders(status: 'current'),
         _market.orders(status: 'history'),
+        _market.reviews(),
       ]);
       if (mounted) {
         setState(() {
-          _current = results[0];
-          _historyOrders = results[1];
+          _current = results[0] as List<MasterOrder>;
+          _historyOrders = results[1] as List<MasterOrder>;
+          _reviewData = results[2] as MasterReviews;
           _loading = false;
         });
       }
@@ -71,12 +98,17 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
   }
 
   String _statusLabel(AppLanguage lang, String status) => switch (status) {
-        'assigned' => tr(lang, 'Tayinlandi', 'Назначен', 'Assigned'),
-        'on_the_way' => tr(lang, 'Yoʻlda', 'В пути', 'On the way'),
-        'arrived' => tr(lang, 'Yetib keldi', 'На месте', 'Arrived'),
-        'work_done' => tr(lang, 'Tasdiq kutilmoqda', 'Ждёт подтверждения', 'Awaiting confirmation'),
-        _ => tr(lang, 'Ish jarayonida', 'В работе', 'In progress'),
-      };
+    'assigned' => tr(lang, 'Tayinlandi', 'Назначен', 'Assigned'),
+    'on_the_way' => tr(lang, 'Yoʻlda', 'В пути', 'On the way'),
+    'arrived' => tr(lang, 'Yetib keldi', 'На месте', 'Arrived'),
+    'work_done' => tr(
+      lang,
+      'Tasdiq kutilmoqda',
+      'Ждёт подтверждения',
+      'Awaiting confirmation',
+    ),
+    _ => tr(lang, 'Ish jarayonida', 'В работе', 'In progress'),
+  };
 
   static String _money(int? v) {
     if (v == null) return '—';
@@ -97,10 +129,15 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
     return _Order(
       title: o.title,
       desc: o.description,
-      address: [o.addressText, if (o.addressDetails != null) o.addressDetails!].join(', '),
+      address: [
+        o.addressText,
+        if (o.addressDetails != null) o.addressDetails!,
+      ].join(', '),
       date: date,
       price: '${_money(o.price)} ${tr(lang, 'soʻm', 'сум', 'sum')}',
-      status: o.status == 'completed' ? _OrderStatus.done : _OrderStatus.cancelled,
+      status: o.status == 'completed'
+          ? _OrderStatus.done
+          : _OrderStatus.cancelled,
     );
   }
 
@@ -118,7 +155,9 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : switch (_segment) {
                     0 => _active(lang),
-                    1 => _history(_historyOrders.map((o) => _toOrder(o, lang)).toList()),
+                    1 => _history(
+                      _historyOrders.map((o) => _toOrder(o, lang)).toList(),
+                    ),
                     _ => _reviews(lang),
                   },
           ),
@@ -192,7 +231,12 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
                 const SizedBox(height: 80),
                 Center(
                   child: Text(
-                    tr(lang, 'Faol buyurtmalar yoʻq', 'Нет активных заказов', 'No active orders'),
+                    tr(
+                      lang,
+                      'Faol buyurtmalar yoʻq',
+                      'Нет активных заказов',
+                      'No active orders',
+                    ),
                     style: const TextStyle(color: Color(0xFF8D96A4)),
                   ),
                 ),
@@ -209,14 +253,22 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
                   title: o.title,
                   desc: o.description,
                   statusLabel: _statusLabel(lang, o.status),
-                  address: [o.addressText, if (o.addressDetails != null) o.addressDetails!]
-                      .where((s) => s.isNotEmpty)
-                      .join(', '),
+                  address: [
+                    o.addressText,
+                    if (o.addressDetails != null) o.addressDetails!,
+                  ].where((s) => s.isNotEmpty).join(', '),
                   price: '${_money(o.price)} ${tr(lang, 'soʻm', 'сум', 'sum')}',
-                  actionLabel: tr(lang, 'Statusni oʻzgartirish', 'Изменить статус', 'Change status'),
+                  actionLabel: tr(
+                    lang,
+                    'Statusni oʻzgartirish',
+                    'Изменить статус',
+                    'Change status',
+                  ),
                   onTap: () async {
                     await Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => MasterOrderStatusScreen(orderId: o.id)),
+                      MaterialPageRoute(
+                        builder: (_) => MasterOrderStatusScreen(orderId: o.id),
+                      ),
                     );
                     if (mounted) _load();
                   },
@@ -237,28 +289,24 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
 
   Widget _reviews(AppLanguage lang) {
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 100),
       children: [
-        _RatingSummary(),
-        SizedBox(height: 10),
-        _ReviewCard(
-          name: 'Dilshod R.',
-          stars: 5,
-          text: tr(lang, 'Vaqtida keldi, hammasini ozoda qildi. Tavsiya qilaman!',
-              'Пришёл вовремя, всё аккуратно сделал. Рекомендую!', 'Arrived on time and cleaned up everything. Recommended!'),
-        ),
-        SizedBox(height: 10),
-        _ReviewCard(
-          name: 'Nigora A.',
-          stars: 5,
-          text: tr(lang, 'Juda tez va sifatli ishladi. Rahmat!', 'Очень быстро и качественно. Спасибо!', 'Very fast and high quality. Thanks!'),
-        ),
-        SizedBox(height: 10),
-        _ReviewCard(
-          name: 'Bekzod T.',
-          stars: 4,
-          text: tr(lang, 'Yaxshi usta, lekin biroz kechikdi.', 'Хороший мастер, но немного опоздал.', 'Good master, but a bit late.'),
-        ),
+        _RatingSummary(data: _reviewData),
+        if (_reviewData.items.isEmpty) ...[
+          const SizedBox(height: 10),
+          _EmptyReviewsCard(lang: lang),
+        ] else
+          for (final review in _reviewData.items) ...[
+            const SizedBox(height: 10),
+            _ReviewCard(
+              name: review.clientName?.trim().isNotEmpty == true
+                  ? review.clientName!
+                  : tr(lang, 'Mijoz', 'Клиент', 'Client'),
+              stars: review.rating,
+              text: review.text,
+            ),
+          ],
       ],
     );
   }
@@ -313,7 +361,10 @@ class _ActiveOrderCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(999),
@@ -335,20 +386,31 @@ class _ActiveOrderCard extends StatelessWidget {
                 desc,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14, height: 20 / 14, color: Color(0xFF64748B)),
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 20 / 14,
+                  color: Color(0xFF64748B),
+                ),
               ),
             ],
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF8D96A4)),
+                const Icon(
+                  Icons.location_on_outlined,
+                  size: 16,
+                  color: Color(0xFF8D96A4),
+                ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     address,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF8D96A4)),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF8D96A4),
+                    ),
                   ),
                 ),
                 Text(
@@ -374,7 +436,11 @@ class _ActiveOrderCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Icon(Icons.chevron_right, size: 20, color: AppColors.blue),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: AppColors.blue,
+                ),
               ],
             ),
           ],
@@ -386,10 +452,9 @@ class _ActiveOrderCard extends StatelessWidget {
 
 /// Rating summary card: big average, stars, total count and a 5→1 bar chart.
 class _RatingSummary extends StatelessWidget {
-  const _RatingSummary();
+  const _RatingSummary({required this.data});
 
-  // Fill fraction of each distribution bar (5 stars down to 1).
-  static const _distribution = [0.9, 0.55, 0.18, 0.06, 0.04];
+  final MasterReviews data;
 
   @override
   Widget build(BuildContext context) {
@@ -407,9 +472,9 @@ class _RatingSummary extends StatelessWidget {
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                '4.9',
-                style: TextStyle(
+              Text(
+                data.ratingAvg?.toStringAsFixed(1) ?? '—',
+                style: const TextStyle(
                   fontSize: 40,
                   height: 48 / 40,
                   letterSpacing: -0.3,
@@ -418,10 +483,15 @@ class _RatingSummary extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 2),
-              const _Stars(count: 5, size: 12),
+              _Stars(count: data.ratingAvg?.round() ?? 0, size: 12),
               const SizedBox(height: 2),
               Text(
-                tr(lang, '124 sharh', '124 отзыва', '124 reviews'),
+                tr(
+                  lang,
+                  '${data.ratingCount} sharh',
+                  '${data.ratingCount} отзывов',
+                  '${data.ratingCount} reviews',
+                ),
                 style: const TextStyle(
                   fontSize: 12,
                   height: 16 / 12,
@@ -439,7 +509,11 @@ class _RatingSummary extends StatelessWidget {
                   if (i != 0) const SizedBox(height: 5),
                   _DistributionRow(
                     label: 5 - i,
-                    fraction: _distribution[i],
+                    fraction: data.ratingCount == 0
+                        ? 0
+                        : ((data.ratingHist[5 - i] ?? 0) / data.ratingCount)
+                              .clamp(0, 1)
+                              .toDouble(),
                   ),
                 ],
               ],
@@ -501,7 +575,7 @@ class _ReviewCard extends StatelessWidget {
 
   final String name;
   final int stars;
-  final String text;
+  final String? text;
 
   @override
   Widget build(BuildContext context) {
@@ -531,17 +605,47 @@ class _ReviewCard extends StatelessWidget {
               _Stars(count: stars, size: 15),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 14,
-              height: 20 / 14,
-              letterSpacing: -0.16,
-              color: Color(0xFF8D96A4),
+          if (text?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 6),
+            Text(
+              text!,
+              style: const TextStyle(
+                fontSize: 14,
+                height: 20 / 14,
+                letterSpacing: -0.16,
+                color: Color(0xFF8D96A4),
+              ),
             ),
-          ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class _EmptyReviewsCard extends StatelessWidget {
+  const _EmptyReviewsCard({required this.lang});
+
+  final AppLanguage lang;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        tr(
+          lang,
+          'Hozircha mijozlardan sharh yoʻq',
+          'Пока нет отзывов от клиентов',
+          'No client reviews yet',
+        ),
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: Color(0xFF8D96A4)),
       ),
     );
   }

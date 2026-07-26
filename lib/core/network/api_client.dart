@@ -17,19 +17,51 @@ import 'package:fixleo/core/network/auth_session.dart';
 /// payload, throwing an [ApiException] (already-localized `message`, plus any
 /// per-field `errors[]`) on any non-success response or transport error. They
 /// also:
-  ///   * send `Accept-Language` from [LocaleController] so backend messages come
-  ///     back in the user's language (uz / ru / en);
+///   * send `Accept-Language` from [LocaleController] so backend messages come
+///     back in the user's language (uz / ru / en);
 ///   * attach `Authorization: Bearer <accessToken>` from [AuthSession];
 ///   * on a `401`, transparently refresh the access token once (using the
 ///     role-appropriate `/refresh` endpoint) and retry the request.
 class ApiClient {
-  ApiClient({Dio? dio, AuthSession? session})
-      : _session = session ?? AuthSession.instance,
-        _dio = dio ?? _buildDio() {
+  ApiClient({Dio? dio, Dio? refreshDio, AuthSession? session})
+    : _session = session ?? AuthSession.instance,
+      _dio = dio ?? _buildDio(),
+      _refreshDio = refreshDio ?? _buildDio() {
     _dio.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (options, handler) {
+        onRequest: (options, handler) async {
           options.headers['Accept-Language'] = _acceptLanguage;
+
+          // Refresh just before JWT expiry. Besides avoiding a visible 401,
+          // this also makes multipart requests safe: streamed upload bodies
+          // cannot always be replayed after the server has rejected them.
+          if (!_isPublicAuthRequest(options.path) &&
+              _session.hasToken &&
+              _session.accessTokenExpiresWithin(const Duration(seconds: 45))) {
+            try {
+              final refreshed = await refreshTokens();
+              if (!refreshed) {
+                return handler.reject(
+                  DioException(
+                    requestOptions: options,
+                    type: DioExceptionType.cancel,
+                    error: SessionExpiredException(
+                      message: _sessionExpiredMessage,
+                    ),
+                  ),
+                );
+              }
+            } on ApiException catch (error) {
+              return handler.reject(
+                DioException(
+                  requestOptions: options,
+                  type: DioExceptionType.unknown,
+                  error: error,
+                ),
+              );
+            }
+          }
+
           if (_session.hasToken) {
             options.headers['Authorization'] = 'Bearer ${_session.accessToken}';
           }
@@ -51,7 +83,8 @@ class ApiClient {
                 final formData = options.data as FormData;
                 debugPrint('    form fields: ${formData.fields}');
                 debugPrint(
-                    '    form files: ${formData.files.map((f) => f.key).toList()}');
+                  '    form files: ${formData.files.map((f) => f.key).toList()}',
+                );
               } else {
                 debugPrint('    body: ${options.data}');
               }
@@ -60,7 +93,8 @@ class ApiClient {
           },
           onResponse: (response, handler) {
             debugPrint(
-                '⬅️  ${response.statusCode} ${response.requestOptions.uri}');
+              '⬅️  ${response.statusCode} ${response.requestOptions.uri}',
+            );
             if (response.statusCode != null && response.statusCode! >= 400) {
               debugPrint('    response body: ${response.data}');
             }
@@ -68,7 +102,8 @@ class ApiClient {
           },
           onError: (e, handler) {
             debugPrint(
-                '❌  ${e.response?.statusCode ?? '—'} ${e.requestOptions.uri}  ${e.message}');
+              '❌  ${e.response?.statusCode ?? '—'} ${e.requestOptions.uri}  ${e.message}',
+            );
             if (e.response?.data != null) {
               debugPrint('    error body: ${e.response?.data}');
             }
@@ -80,28 +115,30 @@ class ApiClient {
   }
 
   static Dio _buildDio() => Dio(
-        BaseOptions(
-          baseUrl: ApiConfig.baseUrl,
-          connectTimeout: ApiConfig.connectTimeout,
-          receiveTimeout: ApiConfig.receiveTimeout,
-          // Let our own logic decide what counts as an error so we can read the
-          // structured error envelope on 4xx/5xx responses.
-          validateStatus: (_) => true,
-          contentType: Headers.jsonContentType,
-        ),
-      );
+    BaseOptions(
+      baseUrl: ApiConfig.baseUrl,
+      connectTimeout: ApiConfig.connectTimeout,
+      receiveTimeout: ApiConfig.receiveTimeout,
+      // Let our own logic decide what counts as an error so we can read the
+      // structured error envelope on 4xx/5xx responses.
+      validateStatus: (_) => true,
+      contentType: Headers.jsonContentType,
+    ),
+  );
 
   /// Shared, app-wide instance.
   static final ApiClient instance = ApiClient();
 
   final Dio _dio;
+  final Dio _refreshDio;
   final AuthSession _session;
+  Future<bool>? _refreshInFlight;
 
   String get _acceptLanguage => switch (LocaleController.language.value) {
-        AppLanguage.uz => 'uz',
-        AppLanguage.ru => 'ru',
-        AppLanguage.en => 'en',
-      };
+    AppLanguage.uz => 'uz',
+    AppLanguage.ru => 'ru',
+    AppLanguage.en => 'en',
+  };
 
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) =>
       _send(() => _dio.get(path, queryParameters: query));
@@ -132,9 +169,16 @@ class ApiClient {
     try {
       response = await request();
     } on DioException catch (e) {
+      final underlying = e.error;
+      if (underlying is ApiException) {
+        throw underlying;
+      }
       final data = e.response?.data;
       if (data is Map<String, dynamic> && data['success'] == false) {
-        throw ApiException.fromEnvelope(data, fallbackStatus: e.response?.statusCode);
+        throw ApiException.fromEnvelope(
+          data,
+          fallbackStatus: e.response?.statusCode,
+        );
       }
       if (kDebugMode) {
         debugPrint('Network failure: ${e.message}');
@@ -149,11 +193,24 @@ class ApiClient {
       );
     }
 
-    // Access token expired — try a single transparent refresh, then retry.
-    if (response.statusCode == 401 && allowRefresh && _session.refreshToken != null) {
-      if (await _tryRefresh()) {
+    // Access token expired — try one coordinated transparent refresh, then
+    // retry. Authentication endpoints are intentionally excluded: an invalid
+    // OTP/password is its own 401 and must never refresh a stale login.
+    if (response.statusCode == 401 &&
+        allowRefresh &&
+        !_isPublicAuthRequest(response.requestOptions.path)) {
+      if (!_session.canRefresh) {
+        await _session.expire();
+        throw SessionExpiredException(message: _sessionExpiredMessage);
+      }
+
+      // A different request may already have refreshed while this one was in
+      // flight. If so, retry with the current token instead of rotating again.
+      if (!_requestUsedCurrentAccessToken(response) || await refreshTokens()) {
         return _send(request, allowRefresh: false);
       }
+
+      throw SessionExpiredException(message: _sessionExpiredMessage);
     }
 
     final data = response.data;
@@ -170,7 +227,10 @@ class ApiClient {
           }
         }
       }
-      throw ApiException.fromEnvelope(data, fallbackStatus: response.statusCode);
+      throw ApiException.fromEnvelope(
+        data,
+        fallbackStatus: response.statusCode,
+      );
     }
 
     throw ApiException(
@@ -228,11 +288,22 @@ class ApiClient {
   /// Public refresh for the socket layer: live sockets can't ride the REST
   /// 401 interceptor, so on `token_expired` they refresh here first and then
   /// reconnect with the fresh access token.
-  Future<bool> refreshTokens() => _tryRefresh();
+  Future<bool> refreshTokens() {
+    final active = _refreshInFlight;
+    if (active != null) return active;
+
+    final refresh = _tryRefresh();
+    _refreshInFlight = refresh;
+    return refresh.whenComplete(() {
+      if (identical(_refreshInFlight, refresh)) {
+        _refreshInFlight = null;
+      }
+    });
+  }
 
   /// Exchanges the stored refresh token for a fresh token pair using the
-  /// role-appropriate endpoint. Returns false (and clears the session) if the
-  /// refresh token is itself invalid/expired/revoked.
+  /// role-appropriate endpoint. A temporary network/backend failure preserves
+  /// the login; only a definitive invalid/expired/revoked response expires it.
   Future<bool> _tryRefresh() async {
     final role = _session.role;
     final refreshToken = _session.refreshToken;
@@ -245,8 +316,9 @@ class ApiClient {
     };
 
     try {
-      // Bare call (no auth header, no recursion) on the same Dio.
-      final res = await _dio.post(
+      // Dedicated bare Dio: no access-token interceptor and no refresh
+      // recursion while we are exchanging the refresh token itself.
+      final res = await _refreshDio.post(
         path,
         data: {'refreshToken': refreshToken},
         options: Options(headers: {'Accept-Language': _acceptLanguage}),
@@ -255,19 +327,96 @@ class ApiClient {
       if (res.statusCode == 200 &&
           data is Map<String, dynamic> &&
           data['success'] == true) {
-        final tokens = data['data'] as Map<String, dynamic>;
+        final rawTokens = data['data'];
+        if (rawTokens is! Map) {
+          throw ApiException(
+            message: 'Unexpected response from server',
+            statusCode: res.statusCode,
+          );
+        }
+        final tokens = Map<String, dynamic>.from(rawTokens);
+        final access = tokens['accessToken'];
+        final nextRefresh = tokens['refreshToken'];
+        if (access is! String ||
+            access.isEmpty ||
+            nextRefresh is! String ||
+            nextRefresh.isEmpty) {
+          throw ApiException(
+            message: 'Unexpected response from server',
+            statusCode: res.statusCode,
+          );
+        }
+
+        // Ignore a late refresh response after logout/new login. It belongs to
+        // the token snapshot captured at the beginning of this exchange.
+        if (_session.role != role || _session.refreshToken != refreshToken) {
+          return _session.hasToken;
+        }
         await _session.updateTokens(
-          accessToken: tokens['accessToken'] as String,
-          refreshToken: tokens['refreshToken'] as String,
+          accessToken: access,
+          refreshToken: nextRefresh,
         );
         return true;
       }
-    } on DioException {
-      // fall through
-    }
 
-    // Refresh token no longer valid — force a re-login.
-    await _session.clear();
-    return false;
+      if (res.statusCode == 400 ||
+          res.statusCode == 401 ||
+          res.statusCode == 403) {
+        // If another login/refresh replaced this token while the request was
+        // in flight, never erase that newer valid session.
+        if (_session.role == role && _session.refreshToken == refreshToken) {
+          await _session.expire();
+        }
+        return false;
+      }
+
+      if (data is Map<String, dynamic> && data['success'] == false) {
+        throw ApiException.fromEnvelope(data, fallbackStatus: res.statusCode);
+      }
+      throw ApiException(
+        message: 'Unexpected response from server',
+        statusCode: res.statusCode,
+      );
+    } on DioException catch (error) {
+      // Offline/timeout is not proof that a refresh token is bad. Preserve it
+      // so the next request can retry after connectivity returns.
+      throw ApiException(
+        message: _friendlyNetworkError(error),
+        statusCode: error.response?.statusCode,
+        isNetworkError: true,
+      );
+    }
   }
+
+  bool _requestUsedCurrentAccessToken(Response<dynamic> response) {
+    final current = _session.accessToken;
+    if (current == null) return false;
+    return response.requestOptions.headers['Authorization'] ==
+        'Bearer $current';
+  }
+
+  bool _isPublicAuthRequest(String path) {
+    final normalized = Uri.parse(path).path;
+    return normalized == '/auth/login' ||
+        normalized == '/auth/refresh' ||
+        normalized == '/auth/logout' ||
+        normalized == '/clients/auth/send-otp' ||
+        normalized == '/clients/auth/resend-otp' ||
+        normalized == '/clients/auth/verify-otp' ||
+        normalized == '/clients/auth/register' ||
+        normalized == '/clients/auth/refresh' ||
+        normalized == '/clients/auth/logout' ||
+        normalized == '/masters/auth/send-otp' ||
+        normalized == '/masters/auth/resend-otp' ||
+        normalized == '/masters/auth/verify-otp' ||
+        normalized == '/masters/auth/refresh' ||
+        normalized == '/masters/auth/logout';
+  }
+
+  String get _sessionExpiredMessage => tr(
+    LocaleController.language.value,
+    'Kirish muddati tugadi. Qayta kiring.',
+    'Сеанс завершён. Войдите снова.',
+    'Your session has expired. Please sign in again.',
+  );
 }

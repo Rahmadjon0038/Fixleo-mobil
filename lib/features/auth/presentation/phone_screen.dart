@@ -24,6 +24,7 @@ class _Country {
     required this.dial,
     required this.groups,
     required this.hint,
+    this.minDigits,
   });
 
   final String flag;
@@ -39,8 +40,10 @@ class _Country {
   final List<int> groups;
 
   final String hint;
+  final int? minDigits;
 
   int get digits => groups.fold(0, (a, b) => a + b);
+  int get requiredDigits => minDigits ?? digits;
 }
 
 const _countries = [
@@ -93,6 +96,17 @@ const _countries = [
     dial: '+992',
     groups: [2, 3, 2, 2],
     hint: '90 123 45 67',
+  ),
+  _Country(
+    flag: '🌐',
+    short: 'Other',
+    nameUz: 'Boshqa davlat',
+    nameRu: 'Другая страна',
+    nameEn: 'Other country',
+    dial: '+',
+    groups: [3, 3, 3, 3, 3],
+    hint: '1 202 555 0123',
+    minDigits: 10,
   ),
 ];
 
@@ -155,7 +169,8 @@ class _PhoneScreenState extends State<PhoneScreen> {
   }
 
   int get _digitCount => _controller.text.replaceAll(RegExp(r'\D'), '').length;
-  bool get _isValid => _digitCount == _country.digits;
+  bool get _isValid =>
+      _digitCount >= _country.requiredDigits && _digitCount <= _country.digits;
 
   /// Full international phone, e.g. `+998901234567`.
   String get _phone =>
@@ -178,8 +193,12 @@ class _PhoneScreenState extends State<PhoneScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
               child: Text(
-                tr(lang, 'Davlatni tanlang', 'Выберите страну',
-                    'Select a country'),
+                tr(
+                  lang,
+                  'Davlatni tanlang',
+                  'Выберите страну',
+                  'Select a country',
+                ),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -250,8 +269,10 @@ class _PhoneScreenState extends State<PhoneScreen> {
       }
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error =
-          tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'));
+      setState(
+        () =>
+            _error = tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -284,8 +305,12 @@ class _PhoneScreenState extends State<PhoneScreen> {
           children: [
             const SizedBox(height: 8),
             Text(
-              tr(lang, 'Telefon raqamingizni kiriting',
-                  'Введите номер телефона', 'Enter your phone number'),
+              tr(
+                lang,
+                'Telefon raqamingizni kiriting',
+                'Введите номер телефона',
+                'Enter your phone number',
+              ),
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
@@ -294,9 +319,12 @@ class _PhoneScreenState extends State<PhoneScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              tr(lang, 'Tasdiqlash kodi bilan SMS yuboramiz',
-                  'Отправим SMS с кодом подтверждения',
-                  'We will send an SMS with a code'),
+              tr(
+                lang,
+                'Tasdiqlash kodi bilan SMS yuboramiz',
+                'Отправим SMS с кодом подтверждения',
+                'We will send an SMS with a code',
+              ),
               style: TextStyle(fontSize: 15, color: AppColors.muted),
             ),
             const SizedBox(height: 28),
@@ -352,8 +380,9 @@ class _PhoneScreenState extends State<PhoneScreen> {
               label: _loading
                   ? tr(lang, 'Yuborilmoqda...', 'Отправка...', 'Sending...')
                   : tr(lang, 'Kod olish', 'Получить код', 'Get code'),
-              onPressed:
-                  _isValid && !_loading && _blockSeconds == 0 ? _sendCode : null,
+              onPressed: _isValid && !_loading && _blockSeconds == 0
+                  ? _sendCode
+                  : null,
             ),
           ],
         ),

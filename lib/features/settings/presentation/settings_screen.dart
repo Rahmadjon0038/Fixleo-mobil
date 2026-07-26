@@ -5,14 +5,13 @@ import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/core/network/current_user.dart';
 import 'package:fixleo/features/auth/data/client_auth_service.dart';
 
 /// Settings — the personal-data form from the design: first/last name, the
 /// verified phone number (read-only, changed via support), gender and birth
 /// date. Opened from the profile "Sozlamalar" row.
 ///
-/// Note: the backend only persists the name (`PATCH /clients/me`); gender
-/// and birth date are kept locally until the API supports them.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -58,6 +57,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _first.text = parts.isNotEmpty ? parts.first : '';
         _last.text = parts.length > 1 ? parts.sublist(1).join(' ') : '';
         _phone = client.phone;
+        _gender = switch (client.gender) {
+          'male' => _Gender.male,
+          'female' => _Gender.female,
+          _ => null,
+        };
+        _birthday = client.birthDate;
       });
     } catch (_) {
       // Leave the form empty if the profile can't be fetched.
@@ -73,7 +78,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         '${local.substring(5, 7)} ${local.substring(7, 9)}';
   }
 
-  bool get _isValid => _first.text.trim().length >= 2;
+  bool get _isValid =>
+      '${_first.text.trim()} ${_last.text.trim()}'.trim().length >= 3;
 
   Future<void> _save() async {
     if (!_isValid || _saving) return;
@@ -84,21 +90,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final lang = LocaleController.language.value;
     try {
       final name = '${_first.text.trim()} ${_last.text.trim()}'.trim();
-      await _service.updateName(name);
+      await _service.updateProfile(
+        name: name,
+        birthDate: _birthday,
+        gender: _gender?.name,
+      );
+      await CurrentUser.instance.refresh();
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          content: Text(tr(lang, 'Saqlandi', 'Сохранено', 'Saved')),
-        ));
+        ..showSnackBar(
+          SnackBar(content: Text(tr(lang, 'Saqlandi', 'Сохранено', 'Saved'))),
+        );
       Navigator.of(context).maybePop();
     } on ApiException catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.errorFor('name') ?? e.message);
+      setState(
+        () => _error =
+            e.errorFor('name') ??
+            e.errorFor('birthDate') ??
+            e.errorFor('gender') ??
+            e.message,
+      );
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error =
-          tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'));
+      setState(
+        () =>
+            _error = tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -177,8 +196,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       hint: tr(lang, 'Batonov', 'Батонов', 'Batonov'),
                     ),
                     const SizedBox(height: 14),
-                    _label(tr(lang, 'Telefon raqami', 'Номер телефона',
-                        'Phone number')),
+                    _label(
+                      tr(
+                        lang,
+                        'Telefon raqami',
+                        'Номер телефона',
+                        'Phone number',
+                      ),
+                    ),
                     _staticField(
                       child: Text(
                         _prettyPhone.isEmpty ? '—' : _prettyPhone,
@@ -192,12 +217,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(Icons.verified,
-                            size: 18, color: AppColors.blue),
+                        const Icon(
+                          Icons.verified,
+                          size: 18,
+                          color: AppColors.blue,
+                        ),
                         const SizedBox(width: 6),
                         Text(
-                          tr(lang, 'Raqam tasdiqlangan', 'Номер подтвержден',
-                              'Number verified'),
+                          tr(
+                            lang,
+                            'Raqam tasdiqlangan',
+                            'Номер подтвержден',
+                            'Number verified',
+                          ),
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -227,8 +259,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               _gender == null
                                   ? tr(lang, 'Tanlang', 'Выберите', 'Select')
                                   : _gender == _Gender.male
-                                      ? tr(lang, 'Erkak', 'Мужской', 'Male')
-                                      : tr(lang, 'Ayol', 'Женский', 'Female'),
+                                  ? tr(lang, 'Erkak', 'Мужской', 'Male')
+                                  : tr(lang, 'Ayol', 'Женский', 'Female'),
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w500,
@@ -242,8 +274,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    _label(tr(lang, 'Tugʻilgan kun*', 'День рождения*',
-                        'Birth date*')),
+                    _label(
+                      tr(
+                        lang,
+                        'Tugʻilgan kun*',
+                        'День рождения*',
+                        'Birth date*',
+                      ),
+                    ),
                     GestureDetector(
                       onTap: _pickBirthday,
                       child: _staticField(
@@ -292,13 +330,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Center(
               child: Text.rich(
                 TextSpan(
-                  text: tr(lang, 'Raqamni almashtirish kerakmi? ',
-                      'Нужна смена номера? ', 'Need to change the number? '),
+                  text: tr(
+                    lang,
+                    'Raqamni almashtirish kerakmi? ',
+                    'Нужна смена номера? ',
+                    'Need to change the number? ',
+                  ),
                   style: TextStyle(fontSize: 13, color: AppColors.muted),
                   children: [
                     TextSpan(
-                      text: tr(lang, 'Qoʻllab-quvvatlashga yozing.',
-                          'Напишите в поддержку.', 'Contact support.'),
+                      text: tr(
+                        lang,
+                        'Qoʻllab-quvvatlashga yozing.',
+                        'Напишите в поддержку.',
+                        'Contact support.',
+                      ),
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         color: AppColors.blue,
@@ -313,8 +359,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             PrimaryButton(
               label: _saving
                   ? tr(lang, 'Saqlanmoqda...', 'Сохранение...', 'Saving...')
-                  : tr(lang, 'Oʻzgarishlarni saqlash', 'Сохранить изменения',
-                      'Save changes'),
+                  : tr(
+                      lang,
+                      'Oʻzgarishlarni saqlash',
+                      'Сохранить изменения',
+                      'Save changes',
+                    ),
               onPressed: _isValid && !_saving ? _save : null,
             ),
           ],

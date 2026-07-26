@@ -37,9 +37,9 @@ class _SplashScreenState extends State<SplashScreen> {
     final session = AuthSession.instance;
     final next = await _destination(session);
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => next),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => next));
   }
 
   Future<Widget> _destination(AuthSession session) async {
@@ -54,6 +54,7 @@ class _SplashScreenState extends State<SplashScreen> {
           final master = await service.me();
           return resolveMasterStartupScreen(service, master);
         } catch (_) {
+          if (!session.isLoggedIn) return const IntroScreen();
           return const MasterHomeScreen();
         }
       case AuthRole.admin:

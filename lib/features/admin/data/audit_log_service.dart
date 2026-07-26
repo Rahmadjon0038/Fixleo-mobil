@@ -12,10 +12,10 @@ class AuditLogService {
 
   /// `GET /admin/audit-logs` — paginated, newest first.
   Future<Paginated<AuditLogEntry>> list({int page = 1, int limit = 20}) async {
-    final data = await _client.get('/admin/audit-logs', query: {
-      'page': page,
-      'limit': limit,
-    });
+    final data = await _client.get(
+      '/admin/audit-logs',
+      query: {'page': page, 'limit': limit},
+    );
     return Paginated.fromJson(
       data as Map<String, dynamic>,
       AuditLogEntry.fromJson,

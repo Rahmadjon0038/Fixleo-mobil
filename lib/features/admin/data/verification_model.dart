@@ -70,8 +70,9 @@ class VerificationListItem {
       VerificationListItem(
         id: json['id'].toString(),
         status: json['status'] as String? ?? 'pending',
-        master:
-            VerificationMaster.fromJson(json['master'] as Map<String, dynamic>),
+        master: VerificationMaster.fromJson(
+          json['master'] as Map<String, dynamic>,
+        ),
         submittedAt: DateTime.tryParse(json['submittedAt']?.toString() ?? ''),
       );
 }
@@ -102,13 +103,15 @@ class VerificationDetail {
       VerificationDetail(
         id: json['id'].toString(),
         status: json['status'] as String? ?? 'pending',
-        master:
-            VerificationMaster.fromJson(json['master'] as Map<String, dynamic>),
+        master: VerificationMaster.fromJson(
+          json['master'] as Map<String, dynamic>,
+        ),
         documents: (json['documents'] as List<dynamic>? ?? const [])
             .map((e) => MasterDocument.fromJson(e as Map<String, dynamic>))
             .toList(growable: false),
         checklist: VerificationChecklist.fromJson(
-            (json['checklist'] as Map<String, dynamic>?) ?? const {}),
+          (json['checklist'] as Map<String, dynamic>?) ?? const {},
+        ),
         submittedAt: DateTime.tryParse(json['submittedAt']?.toString() ?? ''),
         rejectionReason: json['rejectionReason'] as String?,
         decidedAt: DateTime.tryParse(json['decidedAt']?.toString() ?? ''),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -19,6 +20,12 @@ import 'package:fixleo/features/master/presentation/master_request_detail_screen
 import 'package:fixleo/core/network/current_user.dart';
 import 'package:fixleo/features/master/data/master_marketplace_models.dart';
 import 'package:fixleo/features/master/data/master_marketplace_service.dart';
+import 'package:fixleo/features/master/data/master_model.dart';
+import 'package:fixleo/features/master/data/master_service.dart';
+import 'package:fixleo/features/master/presentation/master_work_zone_screen.dart';
+import 'package:fixleo/features/notifications/data/notification_service.dart';
+import 'package:fixleo/features/notifications/presentation/notifications_screen.dart';
+import 'package:fixleo/features/request/data/order_timing_label.dart';
 
 /// "12 мин назад"-style relative label shown on feed cards (FINAL design).
 String _timeAgo(AppLanguage lang, DateTime? dt) {
@@ -55,6 +62,9 @@ class _Request {
     required this.locationUz,
     required this.locationRu,
     required this.locationEn,
+    required this.timing,
+    this.slotLabel,
+    this.scheduledDate,
   });
 
   final String categoryUz;
@@ -70,6 +80,9 @@ class _Request {
   final String locationUz;
   final String locationRu;
   final String locationEn;
+  final String timing;
+  final String? slotLabel;
+  final String? scheduledDate;
 
   String category(AppLanguage lang) =>
       tr(lang, categoryUz, categoryRu, categoryEn);
@@ -77,31 +90,58 @@ class _Request {
   String text(AppLanguage lang) => tr(lang, textUz, textRu, textEn);
   String location(AppLanguage lang) =>
       tr(lang, locationUz, locationRu, locationEn);
+  String schedule(AppLanguage lang) => orderTimingLabel(
+    lang,
+    timing: timing,
+    scheduledDate: scheduledDate,
+    slotLabel: slotLabel,
+  );
 }
 
 /// Master dashboard — "nearby requests" feed with the shared liquid-glass
 /// bottom navigation. Only the requests tab has content for now.
 class MasterHomeScreen extends StatefulWidget {
-  const MasterHomeScreen({super.key});
+  const MasterHomeScreen({
+    super.key,
+    this.marketplaceService,
+    this.masterService,
+    this.notificationService,
+    this.ordersService,
+  });
+
+  final MasterMarketplaceService? marketplaceService;
+  final MasterService? masterService;
+  final NotificationService? notificationService;
+  final MasterMarketplaceService? ordersService;
 
   @override
   State<MasterHomeScreen> createState() => _MasterHomeScreenState();
 }
 
 class _MasterHomeScreenState extends State<MasterHomeScreen> {
-  final List<int> _navHistory = [];
-
-  final MasterMarketplaceService _market = MasterMarketplaceService();
+  late final MasterMarketplaceService _market =
+      widget.marketplaceService ?? MasterMarketplaceService();
+  late final MasterService _masterService =
+      widget.masterService ?? MasterService();
   final MasterRealtimeService _realtime = MasterRealtimeService();
+  late final NotificationService _notifications =
+      widget.notificationService ?? NotificationService(kind: 'master');
   List<FeedItem> _feedItems = const [];
   bool _feedLoading = true;
   String _query = '';
+  Master? _masterProfile;
+  MasterFeedFilters _feedFilters = const MasterFeedFilters();
+  int _feedRequest = 0;
+  int _unreadNotifications = 0;
+  final Set<int> _visitedTabs = {0};
 
   @override
   void initState() {
     super.initState();
     CurrentUser.instance.refresh();
+    _loadMasterProfile();
     _loadFeed();
+    _loadUnreadNotifications();
     // Voice-call signalling app-wide: an incoming call now rings on any screen,
     // not only inside a chat.
     CallService.instance.connect('master', onIncoming: showIncomingCallUi);
@@ -111,7 +151,52 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
       onUpdate: (_) {},
       onNewOrderNearby: (_) => _loadFeed(),
       onOrderCancelled: (_) => _loadFeed(),
+      onNotification: (_) => _loadUnreadNotifications(),
     );
+  }
+
+  Future<void> _loadMasterProfile() async {
+    try {
+      final profile = await _masterService.me();
+      if (mounted) setState(() => _masterProfile = profile);
+    } on Object {
+      // Keep the fallback city visible when profile refresh fails.
+    }
+  }
+
+  Future<void> _changeWorkZone() async {
+    try {
+      final profile = _masterProfile ?? await _masterService.me();
+      if (!mounted) return;
+      final changed = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => MasterWorkZoneScreen(
+            isEditing: true,
+            initialLatitude: profile.latitude,
+            initialLongitude: profile.longitude,
+            initialRadiusKm: profile.workRadiusKm,
+          ),
+        ),
+      );
+      if (changed == true) {
+        await Future.wait([_loadMasterProfile(), _loadFeed()]);
+      }
+    } on Object {
+      if (!mounted) return;
+      final lang = LocaleController.language.value;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              lang,
+              'Lokatsiyani ochib boʻlmadi',
+              'Не удалось открыть локацию',
+              'Could not open location',
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -121,17 +206,45 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
   }
 
   Future<void> _loadFeed() async {
+    final request = ++_feedRequest;
+    final filters = _feedFilters;
+    if (mounted && !_feedLoading) setState(() => _feedLoading = true);
     try {
-      final items = await _market.feed();
-      if (mounted) {
+      final items = await _market.feed(
+        categoryIds: filters.categoryIds,
+        radiusKm: filters.radiusKm,
+        sort: filters.sort,
+      );
+      if (mounted && request == _feedRequest) {
         setState(() {
           _feedItems = items;
           _feedLoading = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _feedLoading = false);
+      if (mounted && request == _feedRequest) {
+        setState(() => _feedLoading = false);
+      }
     }
+  }
+
+  Future<void> _loadUnreadNotifications() async {
+    try {
+      final items = await _notifications.list(unreadOnly: true);
+      if (mounted) setState(() => _unreadNotifications = items.length);
+    } on Object {
+      // Keep the last known count while the network is temporarily unavailable.
+    }
+  }
+
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            NotificationsScreen(kind: 'master', service: _notifications),
+      ),
+    );
+    if (mounted) await _loadUnreadNotifications();
   }
 
   _Request _asRequest(FeedItem f) {
@@ -139,13 +252,22 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
     String loc(String unit) =>
         [if (f.district != null) f.district!, '$km $unit'].join(' · ');
     return _Request(
-      categoryUz: f.categoryName, categoryRu: f.categoryName, categoryEn: f.categoryName,
+      categoryUz: f.categoryName,
+      categoryRu: f.categoryName,
+      categoryEn: f.categoryName,
       icon: Icons.build_outlined,
       timeUz: _timeAgo(AppLanguage.uz, f.createdAt),
       timeRu: _timeAgo(AppLanguage.ru, f.createdAt),
       timeEn: _timeAgo(AppLanguage.en, f.createdAt),
-      textUz: f.description, textRu: f.description, textEn: f.description,
-      locationUz: loc('km'), locationRu: loc('км'), locationEn: loc('km'),
+      textUz: f.description,
+      textRu: f.description,
+      textEn: f.description,
+      locationUz: loc('km'),
+      locationRu: loc('км'),
+      locationEn: loc('km'),
+      timing: f.timing,
+      slotLabel: f.slotLabel,
+      scheduledDate: f.scheduledDate,
     );
   }
 
@@ -173,24 +295,39 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
   ];
 
   int _navIndex = 0;
+  int _ordersRefreshSignal = 0;
+  int _ordersSegmentSignal = 0;
+  int _ordersTargetSegment = 0;
 
   void _setTab(int index) {
     if (index == _navIndex) return;
-    _navHistory.add(_navIndex);
-    setState(() => _navIndex = index);
+    setState(() {
+      _visitedTabs.add(index);
+      _navIndex = index;
+      if (index == 1) _ordersRefreshSignal++;
+    });
+    if (index == 0) {
+      unawaited(_loadFeed());
+      unawaited(_loadUnreadNotifications());
+    }
   }
 
   void _goBackTab() {
-    if (_navHistory.isNotEmpty) {
-      final previous = _navHistory.removeLast();
-      setState(() => _navIndex = previous);
-      return;
-    }
     if (_navIndex != 0) {
-      setState(() => _navIndex = 0);
+      _setTab(0);
       return;
     }
     Navigator.of(context).maybePop();
+  }
+
+  void _openOrderHistory() {
+    setState(() {
+      _visitedTabs.add(1);
+      _navIndex = 1;
+      _ordersRefreshSignal++;
+      _ordersTargetSegment = 1;
+      _ordersSegmentSignal++;
+    });
   }
 
   @override
@@ -200,45 +337,76 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
       valueListenable: LocaleController.language,
       builder: (context, lang, _) {
         final navItems = _navItems(lang);
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          body: SafeArea(
-            child: Stack(
-              children: [
-                Column(
-                  children: [
-                    const SizedBox(height: 8),
-                    if (showBrand) const Center(child: BrandBar()),
-                    const SizedBox(height: 8),
-                    _header(lang, navItems),
-                    Expanded(
-                      child: switch (_navIndex) {
-                        0 => _feed(),
-                        1 => const MasterOrdersScreen(),
-                        2 => const MasterChatsScreen(),
-                        3 => const MasterWalletScreen(),
-                        4 => const MasterProfileTabScreen(),
-                        _ => const _ComingSoon(),
-                      },
-                    ),
-                  ],
-                ),
-                Positioned(
-                  left: 12,
-                  right: 12,
-                  bottom: 8,
-                  child: LiquidGlassNavBar(
-                    items: navItems,
-                    currentIndex: _navIndex,
-                    onTap: _setTab,
+        return PopScope(
+          canPop: _navIndex == 0,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop && _navIndex != 0) _setTab(0);
+          },
+          child: Scaffold(
+            backgroundColor: AppColors.background,
+            body: SafeArea(
+              child: Stack(
+                children: [
+                  Column(
+                    children: [
+                      const SizedBox(height: 8),
+                      if (showBrand) const Center(child: BrandBar()),
+                      const SizedBox(height: 8),
+                      _header(lang, navItems),
+                      Expanded(
+                        // Keep every visited top-level tab mounted while
+                        // switching. Stateful tabs must not lose their selected
+                        // segment, scroll position, or already loaded data.
+                        child: IndexedStack(
+                          index: _navIndex,
+                          children: [
+                            _feed(),
+                            _tabWhenVisited(
+                              1,
+                              MasterOrdersScreen(
+                                service: widget.ordersService,
+                                refreshSignal: _ordersRefreshSignal,
+                                segmentSignal: _ordersSegmentSignal,
+                                targetSegment: _ordersTargetSegment,
+                              ),
+                            ),
+                            _tabWhenVisited(2, const MasterChatsScreen()),
+                            _tabWhenVisited(3, const MasterWalletScreen()),
+                            _tabWhenVisited(
+                              4,
+                              MasterProfileTabScreen(
+                                onNotificationsChanged:
+                                    _loadUnreadNotifications,
+                                onOpenWorkHistory: _openOrderHistory,
+                                service: _masterService,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: 8,
+                    child: LiquidGlassNavBar(
+                      items: navItems,
+                      currentIndex: _navIndex,
+                      onTap: _setTab,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
       },
     );
+  }
+
+  Widget _tabWhenVisited(int index, Widget child) {
+    return _visitedTabs.contains(index) ? child : const SizedBox.shrink();
   }
 
   /// Header row. On the feed tab it matches FINAL: FixLeo brand pill on the
@@ -270,13 +438,41 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
                 ),
               ),
               const Spacer(),
-              _GlassButton(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const MasterFiltersScreen(),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  _GlassButton(
+                    onTap: _openNotifications,
+                    child: const Icon(
+                      Icons.notifications_none_rounded,
+                      size: 22,
+                      color: AppColors.navy,
                     ),
-                  );
+                  ),
+                  if (_unreadNotifications > 0)
+                    Positioned(
+                      right: -4,
+                      top: -4,
+                      child: _NotificationBadge(count: _unreadNotifications),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 8),
+              _GlassButton(
+                onTap: () async {
+                  final filters = await Navigator.of(context)
+                      .push<MasterFeedFilters>(
+                        MaterialPageRoute(
+                          builder: (_) => MasterFiltersScreen(
+                            initial: _feedFilters,
+                            categories: _masterProfile?.categories ?? const [],
+                          ),
+                        ),
+                      );
+                  if (filters != null && mounted) {
+                    setState(() => _feedFilters = filters);
+                    await _loadFeed();
+                  }
                 },
                 child: SvgPicture.asset(
                   'assets/icon/filter.svg',
@@ -335,9 +531,11 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
     final q = _query.trim().toLowerCase();
     if (q.isEmpty) return _feedItems;
     return _feedItems
-        .where((f) =>
-            f.description.toLowerCase().contains(q) ||
-            f.categoryName.toLowerCase().contains(q))
+        .where(
+          (f) =>
+              f.description.toLowerCase().contains(q) ||
+              f.categoryName.toLowerCase().contains(q),
+        )
         .toList(growable: false);
   }
 
@@ -419,67 +617,75 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
         children: [
-        _greeting(),
-        const SizedBox(height: 10),
-        _searchHero(LocaleController.language.value),
-        const SizedBox(height: 10),
-        if (_feedLoading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 30),
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else if (visible.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 30),
-            child: Center(
-              child: Text(
-                _query.trim().isNotEmpty
-                    ? tr(LocaleController.language.value, 'Hech narsa topilmadi',
-                        'Ничего не найдено', 'Nothing found')
-                    : tr(LocaleController.language.value,
-                        'Hozircha zayavkalar yoʻq', 'Пока нет заявок',
-                        'No requests yet'),
-                style: const TextStyle(color: Color(0xFF8D96A4)),
+          _greeting(),
+          const SizedBox(height: 10),
+          _searchHero(LocaleController.language.value),
+          const SizedBox(height: 10),
+          if (_feedLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 30),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (visible.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 30),
+              child: Center(
+                child: Text(
+                  _query.trim().isNotEmpty
+                      ? tr(
+                          LocaleController.language.value,
+                          'Hech narsa topilmadi',
+                          'Ничего не найдено',
+                          'Nothing found',
+                        )
+                      : tr(
+                          LocaleController.language.value,
+                          'Hozircha zayavkalar yoʻq',
+                          'Пока нет заявок',
+                          'No requests yet',
+                        ),
+                  style: const TextStyle(color: Color(0xFF8D96A4)),
+                ),
               ),
-            ),
-          )
-        else
-          for (var i = 0; i < visible.length; i++) ...[
-            _RequestCard(
-              request: _asRequest(visible[i]),
-              onRespond: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => MasterRequestDetailScreen(orderId: visible[i].id),
-                  ),
-                );
-                if (mounted) _loadFeed();
-              },
-            ),
-            const SizedBox(height: 10),
-          ],
-        Row(
-          children: [
-            Expanded(
-              child: _MiniCard(
-                titleUz: 'Ilova qanday?',
-                titleRu: 'Как работает приложение?',
-                titleEn: 'How the app works?',
-                asset: 'assets/icon/Ranking.svg',
+            )
+          else
+            for (var i = 0; i < visible.length; i++) ...[
+              _RequestCard(
+                request: _asRequest(visible[i]),
+                onRespond: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          MasterRequestDetailScreen(orderId: visible[i].id),
+                    ),
+                  );
+                  if (mounted) _loadFeed();
+                },
               ),
-            ),
-            const SizedBox(width: 14),
-            const Expanded(
-              child: _MiniCard(
-                titleUz: 'Qoʻllab-quvvatlashga yozish',
-                titleRu: 'Написать в поддержку',
-                titleEn: 'Write to support',
-                asset: 'assets/icon/headphones.svg',
+              const SizedBox(height: 10),
+            ],
+          Row(
+            children: [
+              Expanded(
+                child: _MiniCard(
+                  titleUz: 'Ilova qanday?',
+                  titleRu: 'Как работает приложение?',
+                  titleEn: 'How the app works?',
+                  asset: 'assets/icon/Ranking.svg',
+                ),
               ),
-            ),
-          ],
-        ),
-      ],
+              const SizedBox(width: 14),
+              const Expanded(
+                child: _MiniCard(
+                  titleUz: 'Qoʻllab-quvvatlashga yozish',
+                  titleRu: 'Написать в поддержку',
+                  titleEn: 'Write to support',
+                  asset: 'assets/icon/headphones.svg',
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -532,9 +738,18 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
                           final name = profile?.firstName;
                           return Text(
                             name == null
-                                ? tr(lang, 'Xayrli kun!', 'Добрый день!', 'Good day!')
-                                : tr(lang, 'Xayrli kun, $name!', 'Добрый день, $name!',
-                                    'Good day, $name!'),
+                                ? tr(
+                                    lang,
+                                    'Xayrli kun!',
+                                    'Добрый день!',
+                                    'Good day!',
+                                  )
+                                : tr(
+                                    lang,
+                                    'Xayrli kun, $name!',
+                                    'Добрый день, $name!',
+                                    'Good day, $name!',
+                                  ),
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
@@ -552,17 +767,26 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
                             color: AppColors.navy,
                           ),
                           const SizedBox(width: 2),
-                          Text(
-                            tr(
-                              lang,
-                              'Yashnobod, Toshkent',
-                              'Яшнабад, Ташкент',
-                              'Yashnobod, Tashkent',
-                            ),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.navy,
+                          Expanded(
+                            child: Text(
+                              [
+                                _masterProfile?.city ??
+                                    tr(
+                                      lang,
+                                      'Lokatsiya tanlanmagan',
+                                      'Локация не выбрана',
+                                      'Location not selected',
+                                    ),
+                                if (_masterProfile?.workRadiusKm != null)
+                                  '${_masterProfile!.workRadiusKm} km',
+                              ].join(' · '),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.navy,
+                              ),
                             ),
                           ),
                         ],
@@ -570,26 +794,29 @@ class _MasterHomeScreenState extends State<MasterHomeScreen> {
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.blue,
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                  child: Text(
-                    tr(
-                      lang,
-                      'Lokatsiyani oʻzgartirish',
-                      'Изменить локацию',
-                      'Change location',
+                GestureDetector(
+                  onTap: _changeWorkZone,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
                     ),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
+                    decoration: BoxDecoration(
+                      color: AppColors.blue,
+                      borderRadius: BorderRadius.circular(40),
+                    ),
+                    child: Text(
+                      tr(
+                        lang,
+                        'Lokatsiyani oʻzgartirish',
+                        'Изменить локацию',
+                        'Change location',
+                      ),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -663,6 +890,31 @@ class _RequestCard extends StatelessWidget {
               fontWeight: FontWeight.w500,
               color: AppColors.navy,
             ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Icon(
+                Icons.schedule,
+                size: 15,
+                color: request.timing == 'asap'
+                    ? AppColors.blue
+                    : const Color(0xFF8D96A4),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                request.schedule(LocaleController.language.value),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: request.timing == 'asap'
+                      ? FontWeight.w600
+                      : FontWeight.w400,
+                  color: request.timing == 'asap'
+                      ? AppColors.blue
+                      : const Color(0xFF8D96A4),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           Row(
@@ -761,22 +1013,6 @@ class _MiniCard extends StatelessWidget {
   }
 }
 
-/// Placeholder body for tabs other than "requests".
-class _ComingSoon extends StatelessWidget {
-  const _ComingSoon();
-
-  @override
-  Widget build(BuildContext context) {
-    final lang = LocaleController.language.value;
-    return Center(
-      child: Text(
-        tr(lang, 'Tez orada', 'Скоро', 'Coming soon'),
-        style: TextStyle(fontSize: 16, color: AppColors.muted),
-      ),
-    );
-  }
-}
-
 /// Small white pill used for the header title.
 class _Pill extends StatelessWidget {
   const _Pill({required this.child});
@@ -851,6 +1087,35 @@ class _GlassButton extends StatelessWidget {
               child: child,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationBadge extends StatelessWidget {
+  const _NotificationBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.danger,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white, width: 2),
+      ),
+      child: Text(
+        count > 99 ? '99+' : '$count',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          height: 1,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

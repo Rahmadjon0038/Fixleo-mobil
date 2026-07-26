@@ -60,8 +60,9 @@ class _LanguageScreenState extends State<LanguageScreen> {
                     _LanguageTile(
                       language: _languages[i],
                       selected: lang == _languages[i].lang,
-                      onTap: () =>
-                          setState(() => LocaleController.set(_languages[i].lang)),
+                      onTap: () => setState(
+                        () => LocaleController.set(_languages[i].lang),
+                      ),
                     ),
                   ],
                 ],

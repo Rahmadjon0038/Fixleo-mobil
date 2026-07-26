@@ -23,7 +23,12 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
   static const _slate100 = Color(0xFFF1F5F9);
   static const _slate300 = Color(0xFFCBD5E1);
   static const _gray = Color(0xFF8D96A4);
-  static const _reasonCodes = ['master_late', 'work_quality', 'overpriced', 'other'];
+  static const _reasonCodes = [
+    'master_late',
+    'work_quality',
+    'overpriced',
+    'other',
+  ];
 
   final _controller = TextEditingController();
   final FeedbackService _feedback = FeedbackService();
@@ -41,28 +46,51 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
     final desc = _controller.text.trim();
     if (widget.orderId != null) {
       if (desc.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(tr(lang, 'Muammoni tavsiflang', 'Опишите проблему', 'Describe the issue'))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              tr(
+                lang,
+                'Muammoni tavsiflang',
+                'Опишите проблему',
+                'Describe the issue',
+              ),
+            ),
+          ),
+        );
         return;
       }
       setState(() => _busy = true);
       try {
-        await _feedback.complaint(widget.orderId!,
-            reason: _reasonCodes[_selected.clamp(0, _reasonCodes.length - 1)], description: desc);
+        await _feedback.complaint(
+          widget.orderId!,
+          reason: _reasonCodes[_selected.clamp(0, _reasonCodes.length - 1)],
+          description: desc,
+        );
       } on ApiException catch (e) {
         if (!mounted) return;
         setState(() => _busy = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
         return;
       }
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(tr(lang, 'Shikoyatingiz yuborildi', 'Ваша жалоба отправлена',
-            'Your complaint has been sent')),
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              lang,
+              'Shikoyatingiz yuborildi',
+              'Ваша жалоба отправлена',
+              'Your complaint has been sent',
+            ),
+          ),
+        ),
+      );
     Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
@@ -76,7 +104,12 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
       tr(lang, 'Boshqa', 'Другое', 'Other'),
     ];
     return BrandedScaffold(
-      title: tr(lang, 'Buyurtma boʻyicha shikoyat', 'Жалоба по заказу', 'Order complaint'),
+      title: tr(
+        lang,
+        'Buyurtma boʻyicha shikoyat',
+        'Жалоба по заказу',
+        'Order complaint',
+      ),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -107,7 +140,12 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
                   ),
                 ),
                 child: Text(
-                  tr(lang, 'Shikoyat yuborish', 'Отправить жалобу', 'Send complaint'),
+                  tr(
+                    lang,
+                    'Shikoyat yuborish',
+                    'Отправить жалобу',
+                    'Send complaint',
+                  ),
                   style: TextStyle(
                     fontSize: 16,
                     height: 22 / 16,
@@ -202,9 +240,7 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: selected ? AppColors.blue : Colors.transparent,
-        border: selected
-            ? null
-            : Border.all(color: _slate300, width: 2),
+        border: selected ? null : Border.all(color: _slate300, width: 2),
       ),
       child: selected
           ? const Center(
@@ -286,7 +322,7 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
         color: _blue50,
         borderRadius: BorderRadius.circular(20),
       ),
-        child: Text(
+      child: Text(
         'Shikoyatni moderator 24 soat ichida koʻrib chiqadi',
         style: TextStyle(
           fontSize: 12,

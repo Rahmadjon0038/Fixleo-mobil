@@ -48,7 +48,12 @@ class MasterVerifiedScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        tr(lang, 'Profil yaratildi!', 'Профиль создан!', 'Profile created!'),
+                        tr(
+                          lang,
+                          'Profil yaratildi!',
+                          'Профиль создан!',
+                          'Profile created!',
+                        ),
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 24,
@@ -80,7 +85,12 @@ class MasterVerifiedScreen extends StatelessWidget {
               ),
             ),
             PrimaryButton(
-              label: tr(lang, 'Buyurtmalarga oʻtish', 'Перейти к заказам', 'Go to requests'),
+              label: tr(
+                lang,
+                'Buyurtmalarga oʻtish',
+                'Перейти к заказам',
+                'Go to requests',
+              ),
               onPressed: () {
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const MasterHomeScreen()),

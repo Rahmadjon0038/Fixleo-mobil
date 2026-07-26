@@ -38,12 +38,20 @@ class _MasterDocumentsScreenState extends State<MasterDocumentsScreen> {
   final _service = MasterService();
 
   final _docs = [
-    _Doc('Pasport — old tomoni', 'Паспорт — лицевая сторона', 'Passport - front side',
-        Icons.verified_outlined,
-        MasterDocumentType.passportFront),
-    _Doc('Pasport — orqa tomoni', 'Паспорт — оборотная сторона', 'Passport - back side',
-        Icons.photo_camera_outlined,
-        MasterDocumentType.passportBack),
+    _Doc(
+      'Pasport — old tomoni',
+      'Паспорт — лицевая сторона',
+      'Passport - front side',
+      Icons.verified_outlined,
+      MasterDocumentType.passportFront,
+    ),
+    _Doc(
+      'Pasport — orqa tomoni',
+      'Паспорт — оборотная сторона',
+      'Passport - back side',
+      Icons.photo_camera_outlined,
+      MasterDocumentType.passportBack,
+    ),
   ];
 
   bool get _allRequiredUploaded => _docs.every((d) => d.uploaded);
@@ -191,10 +199,20 @@ class _DocRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   doc.uploading
-                      ? tr(lang, 'Yuklanmoqda...', 'Загружается...', 'Uploading...')
+                      ? tr(
+                          lang,
+                          'Yuklanmoqda...',
+                          'Загружается...',
+                          'Uploading...',
+                        )
                       : doc.uploaded
-                          ? tr(lang, 'Yuklandi', 'Загружено', 'Uploaded')
-                          : tr(lang, 'Yuklash uchun bosing', 'Нажмите, чтобы загрузить', 'Tap to upload'),
+                      ? tr(lang, 'Yuklandi', 'Загружено', 'Uploaded')
+                      : tr(
+                          lang,
+                          'Yuklash uchun bosing',
+                          'Нажмите, чтобы загрузить',
+                          'Tap to upload',
+                        ),
                   style: TextStyle(
                     fontSize: 14,
                     height: 20 / 14,

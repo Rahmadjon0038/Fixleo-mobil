@@ -92,8 +92,12 @@ class OrderDeclinedScreen extends StatelessWidget {
             ),
             const Spacer(),
             PrimaryButton(
-              label: tr(lang, 'Javoblarga oʻtish', 'Перейти к откликам',
-                  'Go to responses'),
+              label: tr(
+                lang,
+                'Javoblarga oʻtish',
+                'Перейти к откликам',
+                'Go to responses',
+              ),
               onPressed: () {
                 if (orderId != null) {
                   Navigator.of(context).push(

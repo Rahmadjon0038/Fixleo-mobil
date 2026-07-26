@@ -19,7 +19,8 @@ class MasterCurrentRequestScreen extends StatefulWidget {
       _MasterCurrentRequestScreenState();
 }
 
-class _MasterCurrentRequestScreenState extends State<MasterCurrentRequestScreen> {
+class _MasterCurrentRequestScreenState
+    extends State<MasterCurrentRequestScreen> {
   final MasterMarketplaceService _market = MasterMarketplaceService();
   MasterOrderDetail? _detail;
   bool _loading = true;
@@ -58,12 +59,12 @@ class _MasterCurrentRequestScreenState extends State<MasterCurrentRequestScreen>
   }
 
   String _statusLabel(AppLanguage lang, String status) => switch (status) {
-        'assigned' => tr(lang, 'Tayinlandi', 'Назначен', 'Assigned'),
-        'on_the_way' => tr(lang, 'Yoʻlda', 'В пути', 'On the way'),
-        'arrived' => tr(lang, 'Yetib keldi', 'На месте', 'Arrived'),
-        'work_done' => tr(lang, 'Ish bajarildi', 'Работа выполнена', 'Work done'),
-        _ => tr(lang, 'Ish jarayonida', 'В работе', 'In progress'),
-      };
+    'assigned' => tr(lang, 'Tayinlandi', 'Назначен', 'Assigned'),
+    'on_the_way' => tr(lang, 'Yoʻlda', 'В пути', 'On the way'),
+    'arrived' => tr(lang, 'Yetib keldi', 'На месте', 'Arrived'),
+    'work_done' => tr(lang, 'Ish bajarildi', 'Работа выполнена', 'Work done'),
+    _ => tr(lang, 'Ish jarayonida', 'В работе', 'In progress'),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -77,111 +78,104 @@ class _MasterCurrentRequestScreenState extends State<MasterCurrentRequestScreen>
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : d == null
-                ? Center(
-                    child: Text(
-                      _error != null
-                          ? tr(lang, 'Yuklab boʻlmadi', 'Не удалось загрузить', 'Could not load')
-                          : tr(lang, 'Joriy buyurtma yoʻq', 'Нет текущей заявки', 'No current request'),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Color(0xFF8D96A4)),
+            ? Center(
+                child: Text(
+                  _error != null
+                      ? tr(
+                          lang,
+                          'Yuklab boʻlmadi',
+                          'Не удалось загрузить',
+                          'Could not load',
+                        )
+                      : tr(
+                          lang,
+                          'Joriy buyurtma yoʻq',
+                          'Нет текущей заявки',
+                          'No current request',
+                        ),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Color(0xFF8D96A4)),
+                ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Status card (real status).
+                  _Card(
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 9,
+                          height: 9,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.blue,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _statusLabel(lang, d.status),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            height: 22 / 16,
+                            letterSpacing: -0.18,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.navy,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (d.price != null)
+                          Text(
+                            '${d.price} ${tr(lang, 'soʻm', 'сум', 'sum')}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              height: 20 / 14,
+                              letterSpacing: -0.16,
+                              color: Color(0xFF8D96A4),
+                            ),
+                          ),
+                      ],
                     ),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Status card (real status).
-                      _Card(
-                        child: Row(
+                  ),
+                  const SizedBox(height: 10),
+                  // Client card (real name + address).
+                  _Card(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
                             Container(
-                              width: 9,
-                              height: 9,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppColors.blue,
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: AppColors.background,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Icon(
+                                Icons.person,
+                                size: 26,
+                                color: Color(0xFF8D96A4),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _statusLabel(lang, d.status),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                height: 22 / 16,
-                                letterSpacing: -0.18,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.navy,
-                              ),
-                            ),
-                            const Spacer(),
-                            if (d.price != null)
-                              Text(
-                                '${d.price} ${tr(lang, 'soʻm', 'сум', 'sum')}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  height: 20 / 14,
-                                  letterSpacing: -0.16,
-                                  color: Color(0xFF8D96A4),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      // Client card (real name + address).
-                      _Card(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 50,
-                                  height: 50,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.background,
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: const Icon(Icons.person, size: 26, color: Color(0xFF8D96A4)),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        d.clientName ?? tr(lang, 'Mijoz', 'Клиент', 'Client'),
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          height: 22 / 16,
-                                          letterSpacing: -0.18,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.navy,
-                                        ),
-                                      ),
-                                      Text(
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    d.clientName ??
                                         tr(lang, 'Mijoz', 'Клиент', 'Client'),
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          height: 20 / 14,
-                                          letterSpacing: -0.16,
-                                          color: Color(0xFF8D96A4),
-                                        ),
-                                      ),
-                                    ],
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      height: 22 / 16,
+                                      letterSpacing: -0.18,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.navy,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                const Icon(Icons.location_on_outlined, size: 19, color: Color(0xFF8D96A4)),
-                                const SizedBox(width: 2),
-                                Expanded(
-                                  child: Text(
-                                    [d.addressText, d.addressDetails]
-                                        .where((s) => s != null && s.isNotEmpty)
-                                        .join(', '),
+                                  Text(
+                                    tr(lang, 'Mijoz', 'Клиент', 'Client'),
                                     style: const TextStyle(
                                       fontSize: 14,
                                       height: 20 / 14,
@@ -189,54 +183,86 @@ class _MasterCurrentRequestScreenState extends State<MasterCurrentRequestScreen>
                                       color: Color(0xFF8D96A4),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      // Task card (real description).
-                      _Card(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(height: 10),
+                        Row(
                           children: [
-                            Text(
-                              tr(lang, 'Vazifa', 'Задача', 'Task'),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                height: 22 / 16,
-                                letterSpacing: -0.18,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.navy,
-                              ),
+                            const Icon(
+                              Icons.location_on_outlined,
+                              size: 19,
+                              color: Color(0xFF8D96A4),
                             ),
-                            Text(
-                              d.description,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                height: 20 / 14,
-                                letterSpacing: -0.16,
-                                color: Color(0xFF8D96A4),
+                            const SizedBox(width: 2),
+                            Expanded(
+                              child: Text(
+                                [d.addressText, d.addressDetails]
+                                    .where((s) => s != null && s.isNotEmpty)
+                                    .join(', '),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  height: 20 / 14,
+                                  letterSpacing: -0.16,
+                                  color: Color(0xFF8D96A4),
+                                ),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      const Spacer(),
-                      PrimaryButton(
-                        label: tr(lang, 'Statusni oʻzgartirish', 'Изменить статус', 'Change status'),
-                        onPressed: () async {
-                          await Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => MasterOrderStatusScreen(orderId: d.id),
-                            ),
-                          );
-                          if (mounted) _load();
-                        },
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(height: 10),
+                  // Task card (real description).
+                  _Card(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          tr(lang, 'Vazifa', 'Задача', 'Task'),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            height: 22 / 16,
+                            letterSpacing: -0.18,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.navy,
+                          ),
+                        ),
+                        Text(
+                          d.description,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            height: 20 / 14,
+                            letterSpacing: -0.16,
+                            color: Color(0xFF8D96A4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  PrimaryButton(
+                    label: tr(
+                      lang,
+                      'Statusni oʻzgartirish',
+                      'Изменить статус',
+                      'Change status',
+                    ),
+                    onPressed: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              MasterOrderStatusScreen(orderId: d.id),
+                        ),
+                      );
+                      if (mounted) _load();
+                    },
+                  ),
+                ],
+              ),
       ),
     );
   }

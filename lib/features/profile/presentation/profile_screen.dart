@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
@@ -8,11 +9,17 @@ import 'package:fixleo/features/auth/data/client_model.dart';
 import 'package:fixleo/features/welcome/presentation/intro_screen.dart';
 import 'package:fixleo/features/request/presentation/my_orders_screen.dart';
 import 'package:fixleo/features/settings/presentation/settings_screen.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/core/network/current_user.dart';
+import 'package:fixleo/features/notifications/presentation/notifications_screen.dart';
+import 'package:fixleo/features/profile/presentation/my_addresses_screen.dart';
 
 /// User profile — account header (live `GET /clients/me`) plus grouped settings
 /// rows and logout.
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({super.key, this.embedded = false});
+
+  final bool embedded;
 
   static const _gray = Color(0xFF8D96A4);
   static const _slate50 = Color(0xFFF8FAFC);
@@ -29,7 +36,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   static const _red700 = ProfileScreen._red700;
 
   final _authService = ClientAuthService();
+  final _picker = ImagePicker();
   Client? _client;
+  bool _avatarBusy = false;
 
   @override
   void initState() {
@@ -44,6 +53,119 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (_) {
       // Keep placeholder header if the profile can't be fetched.
     }
+  }
+
+  Future<void> _chooseAvatarSource() async {
+    if (_avatarBusy) return;
+    final lang = LocaleController.language.value;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: Text(
+                tr(
+                  lang,
+                  'Galereyadan tanlash',
+                  'Выбрать из галереи',
+                  'Choose from gallery',
+                ),
+              ),
+              onTap: () => Navigator.of(ctx).pop('gallery'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: Text(
+                tr(lang, 'Kamera bilan olish', 'Сделать фото', 'Take a photo'),
+              ),
+              onTap: () => Navigator.of(ctx).pop('camera'),
+            ),
+            if (_client?.avatarUrl != null)
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: AppColors.danger,
+                ),
+                title: Text(
+                  tr(lang, 'Rasmni oʻchirish', 'Удалить фото', 'Delete photo'),
+                  style: const TextStyle(color: AppColors.danger),
+                ),
+                onTap: () => Navigator.of(ctx).pop('delete'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (action == 'delete') {
+      await _deleteAvatar();
+    } else if (action == 'gallery' || action == 'camera') {
+      final file = await _picker.pickImage(
+        source: action == 'camera' ? ImageSource.camera : ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1600,
+      );
+      if (file != null) await _uploadAvatar(file);
+    }
+  }
+
+  Future<void> _uploadAvatar(XFile file) async {
+    setState(() => _avatarBusy = true);
+    try {
+      final updated = await _authService.uploadAvatar(file.path);
+      if (!mounted) return;
+      setState(() => _client = updated);
+      await CurrentUser.instance.refresh();
+    } on ApiException catch (e) {
+      _showAvatarError(e.message);
+    } catch (_) {
+      _showAvatarError(
+        tr(
+          LocaleController.language.value,
+          'Rasmni yuklab boʻlmadi',
+          'Не удалось загрузить фото',
+          'Could not upload photo',
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _avatarBusy = false);
+    }
+  }
+
+  Future<void> _deleteAvatar() async {
+    setState(() => _avatarBusy = true);
+    try {
+      final updated = await _authService.deleteAvatar();
+      if (!mounted) return;
+      setState(() => _client = updated);
+      await CurrentUser.instance.refresh();
+    } on ApiException catch (e) {
+      _showAvatarError(e.message);
+    } catch (_) {
+      _showAvatarError(
+        tr(
+          LocaleController.language.value,
+          'Rasmni oʻchirib boʻlmadi',
+          'Не удалось удалить фото',
+          'Could not delete photo',
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _avatarBusy = false);
+    }
+  }
+
+  void _showAvatarError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// FINAL profile has a «Язык» row — quick in-place picker.
@@ -83,11 +205,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(tr(lang, 'Chiqish', 'Выход', 'Sign out')),
-        content: Text(tr(
+        content: Text(
+          tr(
             lang,
             'Akkauntdan chiqmoqchimisiz?',
             'Выйти из аккаунта?',
-            'Sign out of your account?')),
+            'Sign out of your account?',
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -114,9 +239,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final lang = LocaleController.language.value;
     return BrandedScaffold(
       title: tr(lang, 'Profil', 'Профиль', 'Profile'),
-      showBack: true,
+      showBack: !widget.embedded,
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+        padding: EdgeInsets.fromLTRB(16, 4, 16, widget.embedded ? 100 : 20),
         child: SingleChildScrollView(
           child: Column(
             children: [
@@ -125,12 +250,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _group([
                 _MenuItem(
                   icon: Icons.location_on_outlined,
-                  label: tr(lang, 'Mening manzillarim', 'Мои адреса', 'My addresses'),
-                  onTap: () {},
+                  label: tr(
+                    lang,
+                    'Mening manzillarim',
+                    'Мои адреса',
+                    'My addresses',
+                  ),
+                  onTap: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const MyAddressesScreen(),
+                      ),
+                    );
+                  },
                 ),
                 _MenuItem(
                   icon: Icons.history,
-                  label: tr(lang, 'Buyurtmalar tarixi', 'История заказов', 'Order history'),
+                  label: tr(
+                    lang,
+                    'Buyurtmalar tarixi',
+                    'История заказов',
+                    'Order history',
+                  ),
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -143,12 +284,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _MenuItem(
                   icon: Icons.settings_outlined,
                   label: tr(lang, 'Sozlamalar', 'Настройки', 'Settings'),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const SettingsScreen(),
-                      ),
+                  onTap: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
                     );
+                    await _load();
                   },
                 ),
               ]),
@@ -156,8 +296,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _group([
                 _MenuItem(
                   icon: Icons.notifications_outlined,
-                  label: tr(lang, 'Bildirishnomalar', 'Уведомления', 'Notifications'),
-                  onTap: () {},
+                  label: tr(
+                    lang,
+                    'Bildirishnomalar',
+                    'Уведомления',
+                    'Notifications',
+                  ),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            const NotificationsScreen(kind: 'client'),
+                      ),
+                    );
+                  },
                 ),
                 _MenuItem(
                   icon: Icons.headset_mic_outlined,
@@ -166,7 +318,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 _MenuItem(
                   icon: Icons.shield_outlined,
-                  label: tr(lang, 'Maxfiylik siyosati', 'Политика конфиденциальности', 'Privacy policy'),
+                  label: tr(
+                    lang,
+                    'Maxfiylik siyosati',
+                    'Политика конфиденциальности',
+                    'Privacy policy',
+                  ),
                   onTap: () {},
                 ),
                 _MenuItem(
@@ -197,14 +354,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 66,
-            height: 66,
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(20),
+          GestureDetector(
+            onTap: _chooseAvatarSource,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 66,
+                  height: 66,
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: _client?.avatarUrl != null
+                      ? Image.network(
+                          _client!.avatarUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) =>
+                              const Icon(Icons.person, size: 38, color: _gray),
+                        )
+                      : const Icon(Icons.person, size: 38, color: _gray),
+                ),
+                Positioned(
+                  right: -5,
+                  bottom: -5,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: const BoxDecoration(
+                      color: AppColors.blue,
+                      shape: BoxShape.circle,
+                    ),
+                    child: _avatarBusy
+                        ? const Padding(
+                            padding: EdgeInsets.all(6),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.edit, size: 14, color: Colors.white),
+                  ),
+                ),
+              ],
             ),
-            child: const Icon(Icons.person, size: 38, color: _gray),
           ),
           const SizedBox(height: 4),
           Text(
@@ -282,14 +476,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: const Icon(Icons.logout, size: 22, color: _red700),
             ),
             const SizedBox(width: 10),
-            Text(
-              tr(lang, 'Akkauntdan chiqish', 'Выйти из аккаунта', 'Sign out'),
-              style: const TextStyle(
-                fontSize: 16,
-                height: 22 / 16,
-                letterSpacing: -0.18,
-                fontWeight: FontWeight.w600,
-                color: _red700,
+            Expanded(
+              child: Text(
+                tr(lang, 'Akkauntdan chiqish', 'Выйти из аккаунта', 'Sign out'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  height: 22 / 16,
+                  letterSpacing: -0.18,
+                  fontWeight: FontWeight.w600,
+                  color: _red700,
+                ),
               ),
             ),
           ],

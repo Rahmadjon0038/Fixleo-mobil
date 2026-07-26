@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import 'package:fixleo/core/network/api_client.dart';
+import 'package:fixleo/core/network/api_config.dart';
 
 int _int(dynamic v) => (v as num?)?.toInt() ?? 0;
 int? _intN(dynamic v) => (v as num?)?.toInt();
@@ -14,7 +15,9 @@ class Conversation {
     this.writable = true,
     this.peerName,
     this.peerPhone,
+    this.peerAvatarUrl,
     this.peerOnline = false,
+    this.peerLastSeenAt,
     this.unreadCount = 0,
     this.lastMessageText,
     this.lastMessageType,
@@ -27,7 +30,9 @@ class Conversation {
   final bool writable;
   final String? peerName;
   final String? peerPhone;
+  final String? peerAvatarUrl;
   final bool peerOnline;
+  final DateTime? peerLastSeenAt;
   final int unreadCount;
   final String? lastMessageText;
   final String? lastMessageType;
@@ -43,12 +48,13 @@ class Conversation {
       writable: j['writable'] != false,
       peerName: peer['name'] as String?,
       peerPhone: peer['phone'] as String?,
+      peerAvatarUrl: ApiConfig.resolveMediaUrl(peer['avatarUrl']),
       peerOnline: peer['online'] == true,
+      peerLastSeenAt: DateTime.tryParse(peer['lastSeenAt']?.toString() ?? ''),
       unreadCount: _int(j['unreadCount']),
       lastMessageText: last?['text'] as String?,
       lastMessageType: last?['type'] as String?,
-      lastMessageAt:
-          DateTime.tryParse(last?['createdAt']?.toString() ?? ''),
+      lastMessageAt: DateTime.tryParse(last?['createdAt']?.toString() ?? ''),
     );
   }
 }
@@ -60,6 +66,10 @@ class ChatMessage {
     required this.type,
     this.text,
     this.imageUrl,
+    this.audioUrl,
+    this.voiceDurationSec,
+    this.fileMime,
+    this.fileBytes,
     this.callStatus,
     this.callDurationSec,
     this.createdAt,
@@ -67,9 +77,13 @@ class ChatMessage {
 
   final int id;
   final String sender; // 'client' | 'master'
-  final String type; // 'text' | 'image' | 'call'
+  final String type; // 'text' | 'image' | 'voice' | 'call'
   final String? text;
   final String? imageUrl;
+  final String? audioUrl;
+  final int? voiceDurationSec;
+  final String? fileMime;
+  final int? fileBytes;
   final String? callStatus;
   final int? callDurationSec;
   final DateTime? createdAt;
@@ -81,7 +95,11 @@ class ChatMessage {
       sender: j['sender'] as String? ?? '',
       type: j['type'] as String? ?? 'text',
       text: j['text'] as String?,
-      imageUrl: j['imageUrl'] as String?,
+      imageUrl: ApiConfig.resolveMediaUrl(j['imageUrl']),
+      audioUrl: ApiConfig.resolveMediaUrl(j['audioUrl']),
+      voiceDurationSec: _intN(j['durationSec']),
+      fileMime: j['fileMime'] as String?,
+      fileBytes: _intN(j['fileBytes']),
       callStatus: call?['status'] as String?,
       callDurationSec: _intN(call?['durationSec']),
       createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
@@ -93,7 +111,7 @@ class ChatMessage {
 /// `/clients/me/…` and `/masters/me/…`; [kind] picks the prefix.
 class ChatService {
   ChatService({required this.kind, ApiClient? client})
-      : _client = client ?? ApiClient.instance;
+    : _client = client ?? ApiClient.instance;
 
   final String kind; // 'client' | 'master'
   final ApiClient _client;
@@ -113,24 +131,52 @@ class ChatService {
     return Conversation.fromJson(data as Map<String, dynamic>);
   }
 
-  Future<List<ChatMessage>> messages(int conversationId, {int? before, int limit = 30}) async {
-    final data = await _client.get('$_base/$conversationId/messages', query: {
-      'before': ?before,
-      'limit': limit,
-    });
+  Future<List<ChatMessage>> messages(
+    int conversationId, {
+    int? before,
+    int limit = 30,
+  }) async {
+    final data = await _client.get(
+      '$_base/$conversationId/messages',
+      query: {'before': ?before, 'limit': limit},
+    );
     return (data as List<dynamic>)
         .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
         .toList(growable: false);
   }
 
   Future<ChatMessage> sendText(int conversationId, String text) async {
-    final data = await _client.post('$_base/$conversationId/messages', body: {'text': text});
+    final data = await _client.post(
+      '$_base/$conversationId/messages',
+      body: {'text': text},
+    );
     return ChatMessage.fromJson(data as Map<String, dynamic>);
   }
 
   Future<ChatMessage> sendImage(int conversationId, String filePath) async {
-    final form = FormData.fromMap({'file': await MultipartFile.fromFile(filePath)});
-    final data = await _client.postMultipart('$_base/$conversationId/messages/image', form);
+    final form = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath),
+    });
+    final data = await _client.postMultipart(
+      '$_base/$conversationId/messages/image',
+      form,
+    );
+    return ChatMessage.fromJson(data as Map<String, dynamic>);
+  }
+
+  Future<ChatMessage> sendVoice(
+    int conversationId,
+    String filePath,
+    int durationSec,
+  ) async {
+    final form = FormData.fromMap({
+      'durationSec': durationSec,
+      'file': await MultipartFile.fromFile(filePath),
+    });
+    final data = await _client.postMultipart(
+      '$_base/$conversationId/messages/voice',
+      form,
+    );
     return ChatMessage.fromJson(data as Map<String, dynamic>);
   }
 

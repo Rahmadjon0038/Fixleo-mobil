@@ -7,8 +7,8 @@ import 'package:fixleo/features/admin/data/admin_model.dart';
 /// Persists the session as [AuthRole.admin].
 class AdminAuthService {
   AdminAuthService({ApiClient? client, AuthSession? session})
-      : _client = client ?? ApiClient.instance,
-        _session = session ?? AuthSession.instance;
+    : _client = client ?? ApiClient.instance,
+      _session = session ?? AuthSession.instance;
 
   final ApiClient _client;
   final AuthSession _session;
@@ -16,10 +16,12 @@ class AdminAuthService {
   /// `POST /auth/login`. On success persists the admin session and returns the
   /// admin profile.
   Future<Admin> login({required String email, required String password}) async {
-    final data = await _client.post(
-      '/auth/login',
-      body: {'email': email, 'password': password},
-    ) as Map<String, dynamic>;
+    final data =
+        await _client.post(
+              '/auth/login',
+              body: {'email': email, 'password': password},
+            )
+            as Map<String, dynamic>;
 
     final tokens = AuthTokens.fromJson(data);
     await _session.start(

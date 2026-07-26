@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/core/realtime/app_presence_service.dart';
 import 'package:fixleo/features/request/data/chat_service.dart' as api_chat;
 import 'package:fixleo/features/request/presentation/chat_screen.dart';
+import 'package:fixleo/features/request/presentation/widgets/chat_peer_avatar.dart';
+import 'package:fixleo/features/request/presentation/widgets/chat_presence_text.dart';
 
 /// Self-loading chats screen — fetches the real conversations for [kind]
 /// ('client' | 'master') and renders them with the shared [ChatsList].
@@ -20,15 +25,46 @@ class LiveChatsScreen extends StatefulWidget {
 }
 
 class _LiveChatsScreenState extends State<LiveChatsScreen> {
-  late final api_chat.ChatService _service = api_chat.ChatService(kind: widget.kind);
+  late final api_chat.ChatService _service = api_chat.ChatService(
+    kind: widget.kind,
+  );
   List<Conversation> _items = const [];
   bool _loading = true;
   String? _error;
+  StreamSubscription<PresenceUpdate>? _presenceSubscription;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _presenceSubscription = AppPresenceService.instance.updates.listen((
+      update,
+    ) {
+      if (!mounted) return;
+      final index = _items.indexWhere(
+        (item) => item.conversationId == update.conversationId,
+      );
+      if (index < 0) return;
+      final lang = LocaleController.language.value;
+      setState(() {
+        final next = [..._items];
+        next[index] = next[index].copyWith(
+          online: update.online,
+          presence: formatPresenceSummary(
+            lang,
+            update.online,
+            update.lastSeenAt,
+          ),
+        );
+        _items = next;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    unawaited(_presenceSubscription?.cancel());
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -57,7 +93,8 @@ class _LiveChatsScreenState extends State<LiveChatsScreen> {
     if (dt == null) return '';
     final local = dt.toLocal();
     final now = DateTime.now();
-    final sameDay = local.year == now.year &&
+    final sameDay =
+        local.year == now.year &&
         local.month == now.month &&
         local.day == now.day;
     String two(int v) => v.toString().padLeft(2, '0');
@@ -70,9 +107,11 @@ class _LiveChatsScreenState extends State<LiveChatsScreen> {
     final t = c.lastMessageType;
     final preview = t == 'image'
         ? '📷 ${tr(lang, 'Foto', 'Фото', 'Photo')}'
+        : t == 'voice'
+        ? '🎤 ${tr(lang, 'Ovozli xabar', 'Голосовое сообщение', 'Voice message')}'
         : t == 'call'
-            ? '📞 ${tr(lang, 'Qoʻngʻiroq', 'Звонок', 'Call')}'
-            : (c.lastMessageText ?? c.orderTitle);
+        ? '📞 ${tr(lang, 'Qoʻngʻiroq', 'Звонок', 'Call')}'
+        : (c.lastMessageText ?? c.orderTitle);
     return Conversation(
       name: c.peerName ?? c.orderTitle,
       last: preview,
@@ -80,6 +119,9 @@ class _LiveChatsScreenState extends State<LiveChatsScreen> {
       unread: c.unreadCount,
       conversationId: c.id,
       kind: widget.kind,
+      avatarUrl: c.peerAvatarUrl,
+      online: c.peerOnline,
+      presence: formatPresenceSummary(lang, c.peerOnline, c.peerLastSeenAt),
     );
   }
 
@@ -92,21 +134,31 @@ class _LiveChatsScreenState extends State<LiveChatsScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!, style: const TextStyle(color: Color(0xFF8D96A4))))
-              : _items.isEmpty
-                  ? Center(
-                      child: Text(
-                        tr(lang, 'Suhbatlar yoʻq', 'Чатов нет', 'No chats yet'),
-                        style: const TextStyle(color: Color(0xFF8D96A4)),
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      child: ChatsList(
-                        conversations: _items,
-                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-                      ),
-                    ),
+          ? Center(
+              child: Text(
+                _error!,
+                style: const TextStyle(color: Color(0xFF8D96A4)),
+              ),
+            )
+          : _items.isEmpty
+          ? Center(
+              child: Text(
+                tr(lang, 'Suhbatlar yoʻq', 'Чатов нет', 'No chats yet'),
+                style: const TextStyle(color: Color(0xFF8D96A4)),
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ChatsList(
+                conversations: _items,
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  4,
+                  16,
+                  widget.showBack ? 20 : 100,
+                ),
+              ),
+            ),
     );
   }
 }
@@ -120,6 +172,9 @@ class Conversation {
     this.unread = 0,
     this.conversationId = 0,
     this.kind = 'client',
+    this.avatarUrl,
+    this.online = false,
+    this.presence,
     this.seed,
   });
 
@@ -134,8 +189,28 @@ class Conversation {
   /// Which side is viewing ('client' | 'master').
   final String kind;
 
+  /// Resolved backend URL of the other participant's profile photo.
+  final String? avatarUrl;
+  final bool online;
+  final String? presence;
+
   /// Legacy: optional pre-seeded thread (no longer used once wired to the API).
   final List<ChatMessage>? seed;
+
+  Conversation copyWith({bool? online, String? presence}) {
+    return Conversation(
+      name: name,
+      last: last,
+      time: time,
+      unread: unread,
+      conversationId: conversationId,
+      kind: kind,
+      avatarUrl: avatarUrl,
+      online: online ?? this.online,
+      presence: presence ?? this.presence,
+      seed: seed,
+    );
+  }
 }
 
 /// Conversations list — one white card with divider-separated rows: round
@@ -179,6 +254,7 @@ class ChatsList extends StatelessWidget {
                       builder: (_) => ChatScreen(
                         conversationId: conversations[i].conversationId,
                         peerName: conversations[i].name,
+                        peerAvatarUrl: conversations[i].avatarUrl,
                         kind: conversations[i].kind,
                       ),
                     ),
@@ -233,15 +309,7 @@ class _ConversationTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: const BoxDecoration(
-                color: AppColors.background,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.person, size: 26, color: _gray),
-            ),
+            ChatPeerAvatar(imageUrl: c.avatarUrl),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -257,6 +325,36 @@ class _ConversationTile extends StatelessWidget {
                       color: AppColors.navy,
                     ),
                   ),
+                  if (c.presence != null) ...[
+                    const SizedBox(height: 1),
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: c.online
+                                ? const Color(0xFF22C55E)
+                                : const Color(0xFF94A3B8),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            c.presence!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              height: 15 / 11,
+                              color: c.online ? AppColors.blue : _gray,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 2),
                   Text(
                     c.last,

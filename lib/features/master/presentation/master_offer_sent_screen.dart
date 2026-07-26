@@ -4,35 +4,14 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
-import 'package:fixleo/features/master/presentation/master_current_request_screen.dart';
 
-/// Confirmation that the master's offer was sent, then auto-opens the
-/// current request screen after a short pause.
-class MasterOfferSentScreen extends StatefulWidget {
+/// Confirmation that the master's offer was sent. An offer is not an assigned
+/// job yet, so this screen must never open the work-status flow automatically.
+class MasterOfferSentScreen extends StatelessWidget {
   const MasterOfferSentScreen({super.key});
 
-  @override
-  State<MasterOfferSentScreen> createState() => _MasterOfferSentScreenState();
-}
-
-class _MasterOfferSentScreenState extends State<MasterOfferSentScreen> {
-  static const _autoNavigateDelay = Duration(milliseconds: 1400);
-  bool _navigated = false;
-
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(_autoNavigateDelay, _goToCurrentRequest);
-  }
-
-  void _goToCurrentRequest() {
-    if (!mounted || _navigated) return;
-    _navigated = true;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const MasterCurrentRequestScreen(),
-      ),
-    );
+  void _goToFeed(BuildContext context) {
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   @override
@@ -73,7 +52,12 @@ class _MasterOfferSentScreenState extends State<MasterOfferSentScreen> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        tr(lang, 'Javob yuborildi', 'Ответ отправлен', 'Response sent'),
+                        tr(
+                          lang,
+                          'Javob yuborildi',
+                          'Ответ отправлен',
+                          'Response sent',
+                        ),
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 24,
@@ -105,8 +89,13 @@ class _MasterOfferSentScreenState extends State<MasterOfferSentScreen> {
               ),
             ),
             PrimaryButton(
-              label: tr(lang, 'Buyurtmalar lentasiga', 'В ленту заказов', 'To requests feed'),
-              onPressed: _goToCurrentRequest,
+              label: tr(
+                lang,
+                'Buyurtmalar lentasiga',
+                'В ленту заказов',
+                'To requests feed',
+              ),
+              onPressed: () => _goToFeed(context),
             ),
           ],
         ),

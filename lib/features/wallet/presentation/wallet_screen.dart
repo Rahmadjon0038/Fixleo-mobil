@@ -13,7 +13,9 @@ import 'package:fixleo/features/wallet/presentation/add_card_screen.dart';
 /// and operations are real (`GET /clients/me/wallet[…]`); top-up charges the
 /// selected saved card through the mock provider.
 class WalletScreen extends StatefulWidget {
-  const WalletScreen({super.key});
+  const WalletScreen({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -37,7 +39,8 @@ String _fmtOpDate(AppLanguage lang, DateTime? dt) {
   final now = DateTime.now();
   String two(int v) => v.toString().padLeft(2, '0');
   final hm = '${two(local.hour)}:${two(local.minute)}';
-  final sameDay = local.year == now.year &&
+  final sameDay =
+      local.year == now.year &&
       local.month == now.month &&
       local.day == now.day;
   if (sameDay) {
@@ -93,9 +96,9 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Future<void> _openAddCard() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AddCardScreen()),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AddCardScreen()));
     if (mounted) _load();
   }
 
@@ -105,7 +108,9 @@ class _WalletScreenState extends State<WalletScreen> {
       if (mounted) _load();
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -123,10 +128,18 @@ class _WalletScreenState extends State<WalletScreen> {
   Future<void> _openTopupSheet() async {
     final lang = LocaleController.language.value;
     if (_cards.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(tr(lang, 'Avval karta qoʻshing',
-            'Сначала добавьте карту', 'Add a card first')),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              lang,
+              'Avval karta qoʻshing',
+              'Сначала добавьте карту',
+              'Add a card first',
+            ),
+          ),
+        ),
+      );
       return;
     }
     final done = await showModalBottomSheet<bool>(
@@ -143,14 +156,14 @@ class _WalletScreenState extends State<WalletScreen> {
     final lang = LocaleController.language.value;
     return BrandedScaffold(
       title: tr(lang, 'Hamyon', 'Кошелек', 'Wallet'),
-      showBack: true,
+      showBack: !widget.embedded,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
         child: RefreshIndicator(
           onRefresh: _load,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 20),
+            padding: EdgeInsets.only(bottom: widget.embedded ? 100 : 20),
             children: [
               _balanceCard(lang),
               const SizedBox(height: 10),
@@ -190,8 +203,11 @@ class _WalletScreenState extends State<WalletScreen> {
                 ),
               ),
               const Spacer(),
-              const Icon(Icons.account_balance_wallet_outlined,
-                  size: 22, color: Colors.white),
+              const Icon(
+                Icons.account_balance_wallet_outlined,
+                size: 22,
+                color: Colors.white,
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -329,8 +345,14 @@ class _WalletScreenState extends State<WalletScreen> {
           else if (_error != null)
             _placeholder(_error!)
           else if (_operations.isEmpty)
-            _placeholder(tr(lang, 'Hozircha operatsiyalar yoʻq',
-                'Пока нет операций', 'No operations yet'))
+            _placeholder(
+              tr(
+                lang,
+                'Hozircha operatsiyalar yoʻq',
+                'Пока нет операций',
+                'No operations yet',
+              ),
+            )
           else
             for (var i = 0; i < _operations.length; i++) ...[
               if (i != 0) const SizedBox(height: 8),
@@ -438,8 +460,14 @@ class _WalletScreenState extends State<WalletScreen> {
               child: Center(child: CircularProgressIndicator()),
             )
           else if (_cards.isEmpty)
-            _placeholder(tr(lang, 'Hali karta qoʻshilmagan',
-                'Пока нет сохранённых карт', 'No saved cards yet'))
+            _placeholder(
+              tr(
+                lang,
+                'Hali karta qoʻshilmagan',
+                'Пока нет сохранённых карт',
+                'No saved cards yet',
+              ),
+            )
           else
             for (var i = 0; i < _cards.length; i++) ...[
               if (i != 0) const SizedBox(height: 8),
@@ -538,10 +566,18 @@ class _TopupSheetState extends State<_TopupSheet> {
     final lang = LocaleController.language.value;
     final amount = int.tryParse(_amountController.text.replaceAll(' ', ''));
     if (amount == null || amount < 1000) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(tr(lang, 'Kamida 1 000 soʻm kiriting',
-            'Минимум 1 000 сум', 'Minimum 1 000 sum')),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              lang,
+              'Kamida 1 000 soʻm kiriting',
+              'Минимум 1 000 сум',
+              'Minimum 1 000 sum',
+            ),
+          ),
+        ),
+      );
       return;
     }
     setState(() => _busy = true);
@@ -551,7 +587,9 @@ class _TopupSheetState extends State<_TopupSheet> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -582,7 +620,12 @@ class _TopupSheetState extends State<_TopupSheet> {
           ),
           const SizedBox(height: 14),
           Text(
-            tr(lang, 'Hamyonni toʻldirish', 'Пополнить кошелёк', 'Top up wallet'),
+            tr(
+              lang,
+              'Hamyonni toʻldirish',
+              'Пополнить кошелёк',
+              'Top up wallet',
+            ),
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -616,8 +659,10 @@ class _TopupSheetState extends State<_TopupSheet> {
               onTap: () => setState(() => _cardId = card.id),
               child: Container(
                 margin: const EdgeInsets.only(bottom: 8),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: _cardId == card.id
                       ? const Color(0xFFEAF3FE)
@@ -626,8 +671,11 @@ class _TopupSheetState extends State<_TopupSheet> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.credit_card,
-                        size: 20, color: AppColors.navy),
+                    const Icon(
+                      Icons.credit_card,
+                      size: 20,
+                      color: AppColors.navy,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(

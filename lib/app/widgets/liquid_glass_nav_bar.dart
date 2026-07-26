@@ -128,9 +128,19 @@ class LiquidGlassNavBar extends StatelessWidget {
                             children: [
                               for (var i = 0; i < items.length; i++)
                                 Expanded(
-                                  child: _NavButton(
-                                    item: items[i],
-                                    active: i == currentIndex,
+                                  child: Semantics(
+                                    button: true,
+                                    selected: i == currentIndex,
+                                    label: items[i].label,
+                                    onTap: () {
+                                      if (i != currentIndex) onTap(i);
+                                    },
+                                    child: ExcludeSemantics(
+                                      child: _NavButton(
+                                        item: items[i],
+                                        active: i == currentIndex,
+                                      ),
+                                    ),
                                   ),
                                 ),
                             ],

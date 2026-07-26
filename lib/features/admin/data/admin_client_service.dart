@@ -9,7 +9,7 @@ import 'package:fixleo/features/admin/data/admin_client_model.dart';
 /// DB id (e.g. `3`), not the public `#U-...` id.
 class AdminClientService {
   AdminClientService({ApiClient? client})
-      : _client = client ?? ApiClient.instance;
+    : _client = client ?? ApiClient.instance;
 
   final ApiClient _client;
 
@@ -20,12 +20,15 @@ class AdminClientService {
     String? search,
     ClientStatus? status,
   }) async {
-    final data = await _client.get('/admin/clients', query: {
-      'page': page,
-      'limit': limit,
-      if (search != null && search.isNotEmpty) 'search': search,
-      if (status != null) 'status': status.apiValue,
-    });
+    final data = await _client.get(
+      '/admin/clients',
+      query: {
+        'page': page,
+        'limit': limit,
+        if (search != null && search.isNotEmpty) 'search': search,
+        if (status != null) 'status': status.apiValue,
+      },
+    );
     return Paginated.fromJson(
       data as Map<String, dynamic>,
       AdminClient.fromJson,
@@ -45,12 +48,15 @@ class AdminClientService {
     ClientStatus? status,
     String? blockReason,
   }) async {
-    final data = await _client.post('/admin/clients', body: {
-      'phone': phone,
-      'name': ?name,
-      'status': ?status?.apiValue,
-      'blockReason': ?blockReason,
-    });
+    final data = await _client.post(
+      '/admin/clients',
+      body: {
+        'phone': phone,
+        'name': ?name,
+        'status': ?status?.apiValue,
+        'blockReason': ?blockReason,
+      },
+    );
     return AdminClient.fromJson(data as Map<String, dynamic>);
   }
 
@@ -62,12 +68,15 @@ class AdminClientService {
     ClientStatus? status,
     String? blockReason,
   }) async {
-    final data = await _client.patch('/admin/clients/$id', body: {
-      'phone': ?phone,
-      'name': ?name,
-      'status': ?status?.apiValue,
-      'blockReason': ?blockReason,
-    });
+    final data = await _client.patch(
+      '/admin/clients/$id',
+      body: {
+        'phone': ?phone,
+        'name': ?name,
+        'status': ?status?.apiValue,
+        'blockReason': ?blockReason,
+      },
+    );
     return AdminClient.fromJson(data as Map<String, dynamic>);
   }
 
@@ -79,12 +88,15 @@ class AdminClientService {
     required ClientStatus status,
     String? blockReason,
   }) async {
-    final data = await _client.put('/admin/clients/$id', body: {
-      'phone': phone,
-      'name': name,
-      'status': status.apiValue,
-      'blockReason': ?blockReason,
-    });
+    final data = await _client.put(
+      '/admin/clients/$id',
+      body: {
+        'phone': phone,
+        'name': name,
+        'status': status.apiValue,
+        'blockReason': ?blockReason,
+      },
+    );
     return AdminClient.fromJson(data as Map<String, dynamic>);
   }
 

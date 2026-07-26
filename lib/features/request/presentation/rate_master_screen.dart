@@ -5,13 +5,23 @@ import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/feedback_service.dart';
+import 'package:fixleo/features/request/data/order_models.dart';
+import 'package:fixleo/features/request/data/order_service.dart';
+import 'package:fixleo/features/request/data/order_timing_label.dart';
 
 /// Rate the master after a completed order — star rating, quality tags and a
 /// free-text review, submitted via `POST /clients/me/orders/:id/review`.
 class RateMasterScreen extends StatefulWidget {
-  const RateMasterScreen({super.key, this.orderId});
+  const RateMasterScreen({
+    super.key,
+    this.orderId,
+    this.orderService,
+    this.feedbackService,
+  });
 
   final int? orderId;
+  final OrderService? orderService;
+  final FeedbackService? feedbackService;
 
   @override
   State<RateMasterScreen> createState() => _RateMasterScreenState();
@@ -21,22 +31,47 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
   static const _star = Color(0xFFFBBF24);
   static const _slate200 = Color(0xFFE2E8F0);
   static const _gray = Color(0xFF8D96A4);
-  static const _tagCodes = ['punctuality', 'quality', 'politeness', 'cleanliness', 'speed'];
+  static const _tagCodes = [
+    'punctuality',
+    'quality',
+    'politeness',
+    'cleanliness',
+    'speed',
+  ];
 
   final _controller = TextEditingController();
-  final FeedbackService _feedback = FeedbackService();
+  late final FeedbackService _feedback =
+      widget.feedbackService ?? FeedbackService();
+  late final OrderService _orders = widget.orderService ?? OrderService();
 
   int _rating = 5;
   bool _busy = false;
+  OrderDetail? _order;
   final _selectedTags = <String>{};
 
   List<String> _tagLabels(AppLanguage lang) => [
-        tr(lang, 'Punktuallik', 'Пунктуальность', 'Punctuality'),
-        tr(lang, 'Sifat', 'Качество', 'Quality'),
-        tr(lang, 'Xushmuomalalik', 'Вежливость', 'Courtesy'),
-        tr(lang, 'Tozalik', 'Чистота', 'Cleanliness'),
-        tr(lang, 'Tezlik', 'Скорость', 'Speed'),
-      ];
+    tr(lang, 'Punktuallik', 'Пунктуальность', 'Punctuality'),
+    tr(lang, 'Sifat', 'Качество', 'Quality'),
+    tr(lang, 'Xushmuomalalik', 'Вежливость', 'Courtesy'),
+    tr(lang, 'Tozalik', 'Чистота', 'Cleanliness'),
+    tr(lang, 'Tezlik', 'Скорость', 'Speed'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOrder();
+  }
+
+  Future<void> _loadOrder() async {
+    if (widget.orderId == null) return;
+    try {
+      final order = await _orders.detail(widget.orderId!);
+      if (mounted) setState(() => _order = order);
+    } on ApiException {
+      // Rating remains available even if the header cannot be refreshed.
+    }
+  }
 
   @override
   void dispose() {
@@ -54,29 +89,42 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
       ];
       setState(() => _busy = true);
       try {
-        await _feedback.review(widget.orderId!,
-            rating: _rating, tags: codes, text: _controller.text.trim());
+        await _feedback.review(
+          widget.orderId!,
+          rating: _rating,
+          tags: codes,
+          text: _controller.text.trim(),
+        );
       } on ApiException catch (e) {
         if (!mounted) return;
         setState(() => _busy = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
         return;
       }
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(tr(lang, 'Sharhingiz uchun rahmat!', 'Спасибо за ваш отзыв!',
-            'Thanks for your review!')),
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              lang,
+              'Sharhingiz uchun rahmat!',
+              'Спасибо за ваш отзыв!',
+              'Thanks for your review!',
+            ),
+          ),
+        ),
+      );
     Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
-    final tags = _tagLabels(lang);
     return BrandedScaffold(
       title: tr(lang, 'Ustani baholang', 'Оцените мастера', 'Rate the master'),
       showBack: true,
@@ -109,7 +157,12 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
                   ),
                 ),
                 child: Text(
-                  tr(lang, 'Sharh yuborish', 'Отправить отзыв', 'Submit review'),
+                  tr(
+                    lang,
+                    'Sharh yuborish',
+                    'Отправить отзыв',
+                    'Submit review',
+                  ),
                   style: TextStyle(
                     fontSize: 16,
                     height: 22 / 16,
@@ -128,6 +181,27 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
   /// Master header: avatar, name, service, star rating and quality tags.
   Widget _masterCard() {
     final lang = LocaleController.language.value;
+    final master = _order?.master;
+    final name = master?.name?.trim().isNotEmpty == true
+        ? master!.name!.trim()
+        : tr(lang, 'Usta', 'Мастер', 'Master');
+    final serviceTitle = _order?.title.trim().isNotEmpty == true
+        ? _order!.title.trim()
+        : tr(
+            lang,
+            'Bajarilgan buyurtma',
+            'Выполненный заказ',
+            'Completed order',
+          );
+    final timing = _order == null
+        ? ''
+        : orderTimingLabel(
+            lang,
+            timing: _order!.timing,
+            scheduledDate: _order!.scheduledDate,
+            slotLabel: _order!.slotLabel,
+          );
+    final avatarUrl = master?.avatarUrl;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
@@ -137,22 +211,29 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
       ),
       child: Column(
         children: [
-          Container(
-            width: 61,
-            height: 61,
-            decoration: BoxDecoration(
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              width: 61,
+              height: 61,
               color: AppColors.background,
-              borderRadius: BorderRadius.circular(20),
+              child: avatarUrl?.isNotEmpty == true
+                  ? Image.network(
+                      avatarUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) =>
+                          const Icon(Icons.person, size: 33, color: _gray),
+                    )
+                  : const Icon(Icons.person, size: 33, color: _gray),
             ),
-            child: const Icon(Icons.person, size: 33, color: _gray),
           ),
           const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                tr(lang, 'Aleksey Ivanov', 'Алексей Иванов', 'Aleksey Ivanov'),
-                style: TextStyle(
+                name,
+                style: const TextStyle(
                   fontSize: 20,
                   height: 24 / 20,
                   fontWeight: FontWeight.w600,
@@ -165,13 +246,9 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
           ),
           const SizedBox(height: 2),
           Text(
-            tr(
-              lang,
-              'Smesitel almashtirish · bugun',
-              'Замена смесителя · сегодня',
-              'Faucet replacement · today',
-            ),
-            style: TextStyle(
+            timing.isEmpty ? serviceTitle : '$serviceTitle · $timing',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
               fontSize: 14,
               height: 20 / 14,
               letterSpacing: -0.16,
@@ -221,9 +298,7 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
       spacing: 8,
       runSpacing: 8,
       alignment: WrapAlignment.center,
-      children: [
-        for (final tag in tags) _tagChip(tag),
-      ],
+      children: [for (final tag in tags) _tagChip(tag)],
     );
   }
 

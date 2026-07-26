@@ -15,10 +15,10 @@ class Category {
   final DateTime? updatedAt;
 
   factory Category.fromJson(Map<String, dynamic> json) => Category(
-        id: (json['id'] as num).toInt(),
-        name: json['name'] as String,
-        order: (json['order'] as num?)?.toInt() ?? 0,
-        createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
-        updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
-      );
+    id: (json['id'] as num).toInt(),
+    name: json['name'] as String,
+    order: (json['order'] as num?)?.toInt() ?? 0,
+    createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+    updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
+  );
 }

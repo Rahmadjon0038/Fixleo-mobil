@@ -4,16 +4,10 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/request/data/order_models.dart';
+import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/presentation/rate_master_screen.dart';
 import 'package:fixleo/features/wallet/data/payment_service.dart';
-
-/// A saved payment card option.
-class _Card {
-  const _Card({required this.number, required this.brand});
-
-  final String number;
-  final String brand;
-}
 
 /// Shared payment screen for:
 /// - order payment in the client flow;
@@ -31,6 +25,7 @@ class PaymentScreen extends StatefulWidget {
     this.subtitle = 'Smesitel almashtirish · buyurtma #1024',
     this.primaryLabel,
     this.onSuccess,
+    this.orderService,
   });
 
   /// When set, this is a real order payment (`POST /clients/me/orders/:id/pay`).
@@ -54,6 +49,7 @@ class PaymentScreen extends StatefulWidget {
   /// Optional custom success action.
   /// When absent, the existing order-payment flow continues to rating.
   final VoidCallback? onSuccess;
+  final OrderService? orderService;
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
@@ -66,21 +62,40 @@ class _PaymentScreenState extends State<PaymentScreen> {
   static const _slate300 = Color(0xFFCBD5E1);
   static const _gray = Color(0xFF8D96A4);
 
-  static const _cards = <_Card>[
-    _Card(number: 'Karta **** 4267', brand: 'Visa'),
-    _Card(number: 'Karta **** 4267', brand: 'Uzcard'),
-    _Card(number: 'Karta **** 4267', brand: 'Humo'),
-  ];
-
   int _selected = 0;
   final PaymentService _payments = PaymentService();
+  late final OrderService _orders = widget.orderService ?? OrderService();
   List<SavedCard> _realCards = const [];
+  OrderDetail? _order;
   bool _busy = false;
 
   @override
   void initState() {
     super.initState();
-    if (widget.orderId != null) _loadCards();
+    if (widget.orderId != null) {
+      _loadCards();
+      _loadOrder();
+    }
+  }
+
+  Future<void> _loadOrder() async {
+    try {
+      final order = await _orders.detail(widget.orderId!);
+      if (mounted) setState(() => _order = order);
+    } on ApiException {
+      // OrderDoneScreen already passes a real amount/title, so keep those
+      // values if a refresh is temporarily unavailable.
+    }
+  }
+
+  static String _money(int value) {
+    final raw = value.toString();
+    final formatted = StringBuffer();
+    for (var i = 0; i < raw.length; i++) {
+      if (i > 0 && (raw.length - i) % 3 == 0) formatted.write(' ');
+      formatted.write(raw[i]);
+    }
+    return formatted.toString();
   }
 
   Future<void> _loadCards() async {
@@ -112,23 +127,45 @@ class _PaymentScreenState extends State<PaymentScreen> {
         if (!mounted) return;
         setState(() => _busy = false);
         if (status != 'succeeded') {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(tr(lang, 'Toʻlov amalga oshmadi', 'Оплата не прошла', 'Payment failed'))));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                tr(
+                  lang,
+                  'Toʻlov amalga oshmadi',
+                  'Оплата не прошла',
+                  'Payment failed',
+                ),
+              ),
+            ),
+          );
           return;
         }
       } on ApiException catch (e) {
         if (!mounted) return;
         setState(() => _busy = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
         return;
       }
     }
 
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(tr(lang, 'Toʻlov amalga oshirildi', 'Оплата выполнена', 'Payment completed')),
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              lang,
+              'Toʻlov amalga oshirildi',
+              'Оплата выполнена',
+              'Payment completed',
+            ),
+          ),
+        ),
+      );
 
     if (widget.onSuccess != null) {
       widget.onSuccess!.call();
@@ -136,7 +173,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => RateMasterScreen(orderId: widget.orderId)),
+      MaterialPageRoute(
+        builder: (_) => RateMasterScreen(orderId: widget.orderId),
+      ),
     );
   }
 
@@ -168,7 +207,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               width: double.infinity,
               height: 52,
               child: FilledButton(
-                onPressed: _pay,
+                onPressed: _busy ? null : _pay,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.blue,
                   foregroundColor: AppColors.background,
@@ -176,16 +215,25 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     borderRadius: BorderRadius.circular(40),
                   ),
                 ),
-                child: Text(
-                  widget.primaryLabel ??
-                      tr(lang, 'Toʻlash', 'Оплатить', 'Pay'),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    height: 22 / 16,
-                    letterSpacing: -0.18,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                child: _busy
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        widget.primaryLabel ??
+                            tr(lang, 'Toʻlash', 'Оплатить', 'Pay'),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          height: 22 / 16,
+                          letterSpacing: -0.18,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -195,6 +243,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Widget _amountCard(AppLanguage lang) {
+    final realAmount =
+        _order?.paymentAmount ?? _order?.finalAmount ?? _order?.agreedPrice;
+    final amount = realAmount == null
+        ? widget.amount
+        : '${_money(realAmount)} ${tr(lang, 'soʻm', 'сум', 'sum')}';
+    final realTitle = _order?.title.trim();
+    final subtitle = widget.orderId != null && realTitle?.isNotEmpty == true
+        ? '$realTitle · #${widget.orderId}'
+        : widget.subtitle;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -215,7 +272,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            widget.amount,
+            amount,
             style: const TextStyle(
               fontSize: 32,
               height: 38 / 32,
@@ -226,7 +283,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            widget.subtitle,
+            subtitle,
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 14,
@@ -261,7 +318,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          for (var i = 0; i < _cards.length; i++) ...[
+          if (_realCards.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          for (var i = 0; i < _realCards.length; i++) ...[
             if (i != 0) const SizedBox(height: 8),
             _cardTile(i),
           ],
@@ -272,7 +336,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Widget _cardTile(int index) {
     final selected = _selected == index;
-    final card = _cards[index];
+    final card = _realCards[index];
     return GestureDetector(
       onTap: () => setState(() => _selected = index),
       child: Container(
@@ -288,7 +352,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    card.number,
+                    'Karta **** ${card.last4}',
                     style: const TextStyle(
                       fontSize: 16,
                       height: 22 / 16,
@@ -298,7 +362,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     ),
                   ),
                   Text(
-                    card.brand,
+                    card.brand.isEmpty ? '—' : card.brand,
                     style: const TextStyle(
                       fontSize: 14,
                       height: 20 / 14,

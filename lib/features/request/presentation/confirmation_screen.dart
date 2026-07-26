@@ -220,16 +220,31 @@ class ConfirmationScreen extends StatelessWidget {
         children: [
           _SummaryRow(
             label: tr(lang, 'Xizmat', 'Услуга', 'Service'),
-            value: tr(lang, 'Smesitel almashtirish', 'Замена смесителя', 'Mixer replacement'),
+            value: tr(
+              lang,
+              'Smesitel almashtirish',
+              'Замена смесителя',
+              'Mixer replacement',
+            ),
           ),
           const SizedBox(height: 8),
           _SummaryRow(
             label: tr(lang, 'Vaqt', 'Время', 'Time'),
-            value: tr(lang, 'Bugun, 12:00–15:00', 'Сегодня, 12:00–15:00', 'Today, 12:00–15:00'),
+            value: tr(
+              lang,
+              'Bugun, 12:00–15:00',
+              'Сегодня, 12:00–15:00',
+              'Today, 12:00–15:00',
+            ),
           ),
           const SizedBox(height: 8),
           _SummaryRow(
-            label: tr(lang, 'Usta taklifi', 'Предложение мастера', 'Master offer'),
+            label: tr(
+              lang,
+              'Usta taklifi',
+              'Предложение мастера',
+              'Master offer',
+            ),
             value: tr(lang, '50 000 soʻm', '50 000 сум', '50 000 sum'),
           ),
         ],

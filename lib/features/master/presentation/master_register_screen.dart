@@ -172,7 +172,7 @@ class _MasterRegisterScreenState extends State<MasterRegisterScreen> {
             _LabeledField(
               label: tr(lang, 'Shahar', 'Город', 'City'),
               controller: _city,
-              hint: tr(lang, 'Toshkent', 'Ташкент', 'Tashkent'),
+              hint: tr(lang, 'Shahar nomi', 'Название города', 'City name'),
               textCapitalization: TextCapitalization.words,
               errorText: _cityError,
               onChanged: (_) => setState(() {

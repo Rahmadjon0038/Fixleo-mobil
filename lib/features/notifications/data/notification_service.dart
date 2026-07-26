@@ -20,27 +20,29 @@ class AppNotification {
   bool get isRead => readAt != null;
 
   factory AppNotification.fromJson(Map<String, dynamic> j) => AppNotification(
-        id: _int(j['id']),
-        type: j['type'] as String? ?? '',
-        title: j['title'] as String? ?? '',
-        body: j['body'] as String? ?? '',
-        readAt: DateTime.tryParse(j['readAt']?.toString() ?? ''),
-        createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
-      );
+    id: _int(j['id']),
+    type: j['type'] as String? ?? '',
+    title: j['title'] as String? ?? '',
+    body: j['body'] as String? ?? '',
+    readAt: DateTime.tryParse(j['readAt']?.toString() ?? ''),
+    createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
+  );
 }
 
 /// In-app notification feed / bell (see docs/v3/ReviewsComplaints.md).
 /// Same endpoints under `/clients/me/…` and `/masters/me/…`.
 class NotificationService {
   NotificationService({required this.kind, ApiClient? client})
-      : _client = client ?? ApiClient.instance;
+    : _client = client ?? ApiClient.instance;
 
   final String kind; // 'client' | 'master'
   final ApiClient _client;
 
   Future<List<AppNotification>> list({bool unreadOnly = false}) async {
-    final data = await _client.get('/${kind}s/me/notifications',
-        query: unreadOnly ? {'unread': 1} : null);
+    final data = await _client.get(
+      '/${kind}s/me/notifications',
+      query: unreadOnly ? {'unread': 1} : null,
+    );
     return (data as List<dynamic>)
         .map((e) => AppNotification.fromJson(e as Map<String, dynamic>))
         .toList(growable: false);

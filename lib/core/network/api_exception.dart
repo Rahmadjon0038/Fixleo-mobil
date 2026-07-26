@@ -9,9 +9,9 @@ class FieldError {
   final String message;
 
   factory FieldError.fromJson(Map<String, dynamic> json) => FieldError(
-        field: json['field']?.toString() ?? '',
-        message: json['message']?.toString() ?? '',
-      );
+    field: json['field']?.toString() ?? '',
+    message: json['message']?.toString() ?? '',
+  );
 }
 
 /// A typed error built from the backend's standard error envelope:
@@ -89,8 +89,8 @@ class ApiException implements Exception {
       requestId: json['requestId'] as String?,
       errors: rawErrors is List
           ? rawErrors
-              .map((e) => FieldError.fromJson(e as Map<String, dynamic>))
-              .toList(growable: false)
+                .map((e) => FieldError.fromJson(e as Map<String, dynamic>))
+                .toList(growable: false)
           : const [],
     );
   }
@@ -98,4 +98,12 @@ class ApiException implements Exception {
   @override
   String toString() =>
       'ApiException($statusCode): $message${requestId != null ? ' [$requestId]' : ''}';
+}
+
+/// The refresh token is expired, revoked or otherwise unusable. The root app
+/// observes the corresponding [AuthSession] event and returns to login, while
+/// callers can distinguish this from a normal endpoint-level 401.
+class SessionExpiredException extends ApiException {
+  const SessionExpiredException({required super.message})
+    : super(statusCode: 401);
 }

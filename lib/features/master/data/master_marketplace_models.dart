@@ -1,5 +1,5 @@
-/// Master-side marketplace models — field names mirror the backend DTOs
-/// (see docs/v3/Orders.md, Payments.md).
+// Master-side marketplace models — field names mirror the backend DTOs
+// (see docs/v3/Orders.md, Payments.md).
 
 int _int(dynamic v) => (v as num?)?.toInt() ?? 0;
 int? _intN(dynamic v) => (v as num?)?.toInt();
@@ -14,7 +14,9 @@ class FeedItem {
     required this.description,
     this.district,
     this.distanceKm = 0,
+    this.timing = '',
     this.slotLabel,
+    this.scheduledDate,
     this.budgetMax,
     this.createdAt,
   });
@@ -24,7 +26,9 @@ class FeedItem {
   final String description;
   final String? district;
   final double distanceKm;
+  final String timing;
   final String? slotLabel;
+  final String? scheduledDate;
   final int? budgetMax;
   final DateTime? createdAt;
 
@@ -36,7 +40,9 @@ class FeedItem {
       description: j['description'] as String? ?? '',
       district: j['district'] as String?,
       distanceKm: _dbl(j['distanceKm']),
+      timing: j['timing'] as String? ?? '',
       slotLabel: j['slotLabel'] as String?,
+      scheduledDate: j['scheduledDate'] as String?,
       budgetMax: _intN(j['budgetMax']),
       createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
     );
@@ -51,7 +57,9 @@ class FeedDetail {
     required this.addressText,
     this.district,
     this.distanceKm = 0,
+    this.timing = '',
     this.slotLabel,
+    this.scheduledDate,
     this.budgetMax,
     this.clientName,
     this.photos = const [],
@@ -66,7 +74,9 @@ class FeedDetail {
   final String addressText;
   final String? district;
   final double distanceKm;
+  final String timing;
   final String? slotLabel;
+  final String? scheduledDate;
   final int? budgetMax;
   final String? clientName;
   final List<String> photos;
@@ -86,7 +96,9 @@ class FeedDetail {
       addressText: j['addressText'] as String? ?? '',
       district: j['district'] as String?,
       distanceKm: _dbl(j['distanceKm']),
+      timing: j['timing'] as String? ?? '',
       slotLabel: j['slotLabel'] as String?,
+      scheduledDate: j['scheduledDate'] as String?,
       budgetMax: _intN(j['budgetMax']),
       clientName: j['clientName'] as String?,
       photos: (j['photos'] as List<dynamic>? ?? [])
@@ -149,15 +161,15 @@ class MasterOrder {
   final int? price;
   final DateTime? createdAt;
   factory MasterOrder.fromJson(Map<String, dynamic> j) => MasterOrder(
-        id: _int(j['id']),
-        title: j['title'] as String? ?? '',
-        description: j['description'] as String? ?? '',
-        status: j['status'] as String? ?? '',
-        addressText: j['addressText'] as String? ?? '',
-        addressDetails: j['addressDetails'] as String?,
-        price: _intN(j['price']),
-        createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
-      );
+    id: _int(j['id']),
+    title: j['title'] as String? ?? '',
+    description: j['description'] as String? ?? '',
+    status: j['status'] as String? ?? '',
+    addressText: j['addressText'] as String? ?? '',
+    addressDetails: j['addressDetails'] as String?,
+    price: _intN(j['price']),
+    createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
+  );
 }
 
 class MasterOrderDetail {
@@ -170,6 +182,9 @@ class MasterOrderDetail {
     this.addressDetails,
     this.price,
     this.priceType,
+    this.timing = '',
+    this.slotLabel,
+    this.scheduledDate,
     this.clientName,
     this.clientPhone,
     this.conversationId,
@@ -187,6 +202,9 @@ class MasterOrderDetail {
   final String? addressDetails;
   final int? price;
   final String? priceType;
+  final String timing;
+  final String? slotLabel;
+  final String? scheduledDate;
   final String? clientName;
   final String? clientPhone;
   final int? conversationId;
@@ -205,8 +223,11 @@ class MasterOrderDetail {
       status: j['status'] as String? ?? '',
       addressText: j['addressText'] as String? ?? '',
       addressDetails: j['addressDetails'] as String?,
-      price: _intN(j['price']),
+      price: _intN(j['finalAmount']) ?? _intN(j['agreedPrice']),
       priceType: j['priceType'] as String?,
+      timing: j['timing'] as String? ?? '',
+      slotLabel: j['slotLabel'] as String?,
+      scheduledDate: j['scheduledDate'] as String?,
       clientName: client?['name'] as String?,
       clientPhone: client?['phone'] as String?,
       conversationId: _intN(j['conversationId']),
@@ -214,11 +235,76 @@ class MasterOrderDetail {
       canComplete: cap?['canComplete'] == true,
       canCancel: cap?['canCancel'] == true,
       timeline: (j['timeline'] as List<dynamic>? ?? [])
-          .map((e) => MapEntry(
-                (e as Map<String, dynamic>)['to'] as String? ?? '',
-                DateTime.tryParse(e['at']?.toString() ?? ''),
-              ))
+          .map(
+            (e) => MapEntry(
+              (e as Map<String, dynamic>)['to'] as String? ?? '',
+              DateTime.tryParse(e['at']?.toString() ?? ''),
+            ),
+          )
           .toList(growable: false),
+    );
+  }
+}
+
+/// A review left by a real client for the authenticated master.
+class MasterReview {
+  const MasterReview({
+    required this.id,
+    required this.rating,
+    this.tags = const [],
+    this.text,
+    this.clientName,
+    this.createdAt,
+  });
+
+  final int id;
+  final int rating;
+  final List<String> tags;
+  final String? text;
+  final String? clientName;
+  final DateTime? createdAt;
+
+  factory MasterReview.fromJson(Map<String, dynamic> j) => MasterReview(
+    id: _int(j['id']),
+    rating: _int(j['rating']),
+    tags: (j['tags'] as List<dynamic>? ?? [])
+        .map((e) => e.toString())
+        .toList(growable: false),
+    text: j['text'] as String?,
+    clientName: j['clientName'] as String?,
+    createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
+  );
+}
+
+/// Paginated review response plus the backend-calculated rating aggregate.
+class MasterReviews {
+  const MasterReviews({
+    this.items = const [],
+    this.ratingAvg,
+    this.ratingCount = 0,
+    this.ratingHist = const {},
+  });
+
+  final List<MasterReview> items;
+  final double? ratingAvg;
+  final int ratingCount;
+  final Map<int, int> ratingHist;
+
+  factory MasterReviews.fromJson(Map<String, dynamic> j) {
+    final aggregate = j['aggregate'] as Map<String, dynamic>? ?? const {};
+    final rawHist =
+        aggregate['ratingHist'] as Map<String, dynamic>? ?? const {};
+    return MasterReviews(
+      items: (j['items'] as List<dynamic>? ?? [])
+          .map((e) => MasterReview.fromJson(e as Map<String, dynamic>))
+          .toList(growable: false),
+      ratingAvg: _dblN(aggregate['ratingAvg']),
+      ratingCount: _int(aggregate['ratingCount']),
+      ratingHist: {
+        for (final entry in rawHist.entries)
+          if (int.tryParse(entry.key) != null)
+            int.parse(entry.key): _int(entry.value),
+      },
     );
   }
 }
@@ -240,13 +326,13 @@ class MasterWallet {
   final double withdrawInstantFeePct;
   final int withdrawMin;
   factory MasterWallet.fromJson(Map<String, dynamic> j) => MasterWallet(
-        balance: _int(j['balance']),
-        monthEarned: _int(j['monthEarned']),
-        completedOrders: _int(j['completedOrders']),
-        ratingAvg: _dblN(j['ratingAvg']),
-        withdrawInstantFeePct: _dbl(j['withdrawInstantFeePct']),
-        withdrawMin: _int(j['withdrawMin']),
-      );
+    balance: _int(j['balance']),
+    monthEarned: _int(j['monthEarned']),
+    completedOrders: _int(j['completedOrders']),
+    ratingAvg: _dblN(j['ratingAvg']),
+    withdrawInstantFeePct: _dbl(j['withdrawInstantFeePct']),
+    withdrawMin: _int(j['withdrawMin']),
+  );
 }
 
 class WalletTx {
@@ -263,10 +349,10 @@ class WalletTx {
   final int balanceAfter;
   final DateTime? createdAt;
   factory WalletTx.fromJson(Map<String, dynamic> j) => WalletTx(
-        id: _int(j['id']),
-        type: j['type'] as String? ?? '',
-        amount: _int(j['amount']),
-        balanceAfter: _int(j['balanceAfter']),
-        createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
-      );
+    id: _int(j['id']),
+    type: j['type'] as String? ?? '',
+    amount: _int(j['amount']),
+    balanceAfter: _int(j['balanceAfter']),
+    createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
+  );
 }

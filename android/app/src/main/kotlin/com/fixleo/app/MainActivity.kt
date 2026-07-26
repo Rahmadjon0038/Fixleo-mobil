@@ -1,4 +1,4 @@
-package com.fixleo.fixleo
+package com.fixleo.app
 
 import io.flutter.embedding.android.FlutterActivity
 

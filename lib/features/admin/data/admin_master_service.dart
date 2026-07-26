@@ -7,7 +7,7 @@ import 'package:fixleo/features/master/data/master_model.dart';
 /// All routes require an admin token. `:id` paths take the **numeric** DB id.
 class AdminMasterService {
   AdminMasterService({ApiClient? client})
-      : _client = client ?? ApiClient.instance;
+    : _client = client ?? ApiClient.instance;
 
   final ApiClient _client;
 
@@ -21,14 +21,17 @@ class AdminMasterService {
     MasterStatus? status,
     VerificationStatus? verificationStatus,
   }) async {
-    final data = await _client.get('/admin/masters', query: {
-      'page': page,
-      'limit': limit,
-      if (search != null && search.isNotEmpty) 'search': search,
-      if (status != null) 'status': status.name,
-      if (verificationStatus != null)
-        'verificationStatus': _verificationApi(verificationStatus),
-    });
+    final data = await _client.get(
+      '/admin/masters',
+      query: {
+        'page': page,
+        'limit': limit,
+        if (search != null && search.isNotEmpty) 'search': search,
+        if (status != null) 'status': status.name,
+        if (verificationStatus != null)
+          'verificationStatus': _verificationApi(verificationStatus),
+      },
+    );
     return Paginated.fromJson(data as Map<String, dynamic>, Master.fromJson);
   }
 
@@ -61,11 +64,10 @@ class AdminMasterService {
     int limit = 20,
     String status = 'pending',
   }) async {
-    final data = await _client.get('/admin/verifications', query: {
-      'page': page,
-      'limit': limit,
-      'status': status,
-    });
+    final data = await _client.get(
+      '/admin/verifications',
+      query: {'page': page, 'limit': limit, 'status': status},
+    );
     return Paginated.fromJson(
       data as Map<String, dynamic>,
       VerificationListItem.fromJson,
@@ -85,11 +87,14 @@ class AdminMasterService {
     bool? photoMatchesSelfie,
     bool? dataMatchesForm,
   }) async {
-    final data = await _client.post('/admin/verifications/$id/approve', body: {
-      'documentReadable': ?documentReadable,
-      'photoMatchesSelfie': ?photoMatchesSelfie,
-      'dataMatchesForm': ?dataMatchesForm,
-    });
+    final data = await _client.post(
+      '/admin/verifications/$id/approve',
+      body: {
+        'documentReadable': ?documentReadable,
+        'photoMatchesSelfie': ?photoMatchesSelfie,
+        'dataMatchesForm': ?dataMatchesForm,
+      },
+    );
     return VerificationDetail.fromJson(data as Map<String, dynamic>);
   }
 
@@ -101,19 +106,22 @@ class AdminMasterService {
     bool? photoMatchesSelfie,
     bool? dataMatchesForm,
   }) async {
-    final data = await _client.post('/admin/verifications/$id/reject', body: {
-      'reason': reason,
-      'documentReadable': ?documentReadable,
-      'photoMatchesSelfie': ?photoMatchesSelfie,
-      'dataMatchesForm': ?dataMatchesForm,
-    });
+    final data = await _client.post(
+      '/admin/verifications/$id/reject',
+      body: {
+        'reason': reason,
+        'documentReadable': ?documentReadable,
+        'photoMatchesSelfie': ?photoMatchesSelfie,
+        'dataMatchesForm': ?dataMatchesForm,
+      },
+    );
     return VerificationDetail.fromJson(data as Map<String, dynamic>);
   }
 
   String _verificationApi(VerificationStatus s) => switch (s) {
-        VerificationStatus.notSubmitted => 'not_submitted',
-        VerificationStatus.pending => 'pending',
-        VerificationStatus.approved => 'approved',
-        VerificationStatus.rejected => 'rejected',
-      };
+    VerificationStatus.notSubmitted => 'not_submitted',
+    VerificationStatus.pending => 'pending',
+    VerificationStatus.approved => 'approved',
+    VerificationStatus.rejected => 'rejected',
+  };
 }

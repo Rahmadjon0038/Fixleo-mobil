@@ -1,6 +1,7 @@
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import 'package:fixleo/core/network/api_client.dart';
+import 'package:fixleo/core/network/api_config.dart';
 import 'package:fixleo/core/network/auth_session.dart';
 
 /// Payload of the `verification:update` event (see `api/Realtime.md`).
@@ -41,10 +42,9 @@ class MasterVerificationUpdate {
 /// [AuthSession]) and reconnects; on `forced_logout` it surfaces the reason so
 /// the app can return the user to the login / blocked screen.
 class MasterRealtimeService {
-  MasterRealtimeService({AuthSession? session, this.socketBase = _defaultBase})
-      : _session = session ?? AuthSession.instance;
-
-  static const _defaultBase = 'http://localhost:9000'; // LOCAL DEV (prod: https://api.fixleo.com)
+  MasterRealtimeService({AuthSession? session, String? socketBase})
+    : socketBase = socketBase ?? ApiConfig.socketBaseUrl,
+      _session = session ?? AuthSession.instance;
 
   final AuthSession _session;
   final String socketBase;
@@ -60,6 +60,7 @@ class MasterRealtimeService {
     void Function()? onUnauthorized,
     void Function(int orderId)? onNewOrderNearby,
     void Function(int orderId)? onOrderCancelled,
+    void Function(Map<String, dynamic> notification)? onNotification,
   }) {
     final token = _session.accessToken;
     if (token == null) return;
@@ -73,12 +74,35 @@ class MasterRealtimeService {
           .build(),
     );
 
+    var reconnecting = false;
+    Future<void> refreshAndReconnect(_) async {
+      if (reconnecting) return;
+      reconnecting = true;
+      try {
+        final refreshed = await ApiClient.instance.refreshTokens();
+        final fresh = _session.accessToken;
+        if (refreshed && fresh != null) {
+          socket.disconnect();
+          socket.auth = {'token': fresh};
+          socket.connect();
+        } else {
+          onUnauthorized?.call();
+        }
+      } on Object {
+        // Preserve the session on an offline/timeout error. A later reconnect
+        // can retry without forcing the user through login.
+      } finally {
+        reconnecting = false;
+      }
+    }
+
     socket
       ..on('connected', (_) => onConnected?.call())
       ..on('verification:update', (data) {
         if (data is Map) {
-          onUpdate(MasterVerificationUpdate.fromJson(
-              Map<String, dynamic>.from(data)));
+          onUpdate(
+            MasterVerificationUpdate.fromJson(Map<String, dynamic>.from(data)),
+          );
         }
       })
       ..on('new_order_nearby', (data) {
@@ -89,21 +113,16 @@ class MasterRealtimeService {
         final id = (data is Map ? data['orderId'] : null) as num?;
         onOrderCancelled?.call(id?.toInt() ?? 0);
       })
-      ..on('unauthorized', (_) => onUnauthorized?.call())
-      ..on('token_expired', (_) async {
-        // Live sockets can't ride the REST 401 interceptor: refresh the token
-        // pair explicitly, then reconnect with the fresh access token —
-        // otherwise the socket dies with the stale token and realtime feed
-        // updates silently stop.
-        await ApiClient.instance.refreshTokens();
-        final fresh = _session.accessToken;
-        if (fresh != null) {
-          socket.auth = {'token': fresh};
-          socket.connect();
+      ..on('notification', (data) {
+        if (data is Map) {
+          onNotification?.call(Map<String, dynamic>.from(data));
         }
       })
+      ..on('unauthorized', refreshAndReconnect)
+      ..on('token_expired', refreshAndReconnect)
       ..on('forced_logout', (data) {
-        final reason = (data is Map ? data['reason'] : null) as String? ??
+        final reason =
+            (data is Map ? data['reason'] : null) as String? ??
             'account_blocked';
         onForcedLogout?.call(reason);
       });

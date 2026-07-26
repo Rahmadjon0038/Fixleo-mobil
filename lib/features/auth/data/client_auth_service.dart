@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:fixleo/core/network/api_client.dart';
 import 'package:fixleo/core/network/auth_session.dart';
 import 'package:fixleo/core/network/auth_tokens.dart';
@@ -25,21 +26,27 @@ class ClientVerifyResult {
 /// [AuthSession] so subsequent requests are authenticated.
 class ClientAuthService {
   ClientAuthService({ApiClient? client, AuthSession? session})
-      : _client = client ?? ApiClient.instance,
-        _session = session ?? AuthSession.instance;
+    : _client = client ?? ApiClient.instance,
+      _session = session ?? AuthSession.instance;
 
   final ApiClient _client;
   final AuthSession _session;
 
   /// `POST /clients/auth/send-otp`. Returns OTP lifetime in seconds.
   Future<int> sendOtp(String phone) async {
-    final data = await _client.post('/clients/auth/send-otp', body: {'phone': phone});
+    final data = await _client.post(
+      '/clients/auth/send-otp',
+      body: {'phone': phone},
+    );
     return (data?['expiresInSeconds'] as num?)?.toInt() ?? 300;
   }
 
   /// `POST /clients/auth/resend-otp` — alias of send-otp (same cooldown).
   Future<int> resendOtp(String phone) async {
-    final data = await _client.post('/clients/auth/resend-otp', body: {'phone': phone});
+    final data = await _client.post(
+      '/clients/auth/resend-otp',
+      body: {'phone': phone},
+    );
     return (data?['expiresInSeconds'] as num?)?.toInt() ?? 300;
   }
 
@@ -49,10 +56,12 @@ class ClientAuthService {
     required String phone,
     required String code,
   }) async {
-    final data = await _client.post(
-      '/clients/auth/verify-otp',
-      body: {'phone': phone, 'code': code},
-    ) as Map<String, dynamic>;
+    final data =
+        await _client.post(
+              '/clients/auth/verify-otp',
+              body: {'phone': phone, 'code': code},
+            )
+            as Map<String, dynamic>;
 
     final isRegistered = data['isRegistered'] == true;
     if (!isRegistered) {
@@ -79,10 +88,12 @@ class ClientAuthService {
     required String code,
     required String name,
   }) async {
-    final data = await _client.post(
-      '/clients/auth/register',
-      body: {'phone': phone, 'code': code, 'name': name},
-    ) as Map<String, dynamic>;
+    final data =
+        await _client.post(
+              '/clients/auth/register',
+              body: {'phone': phone, 'code': code, 'name': name},
+            )
+            as Map<String, dynamic>;
 
     final tokens = AuthTokens.fromJson(data);
     await _session.start(
@@ -99,9 +110,37 @@ class ClientAuthService {
     return Client.fromJson(data as Map<String, dynamic>);
   }
 
-  /// `PATCH /clients/me` — the user can only change their own name.
-  Future<Client> updateName(String name) async {
-    final data = await _client.patch('/clients/me', body: {'name': name});
+  /// `PATCH /clients/me` — updates all editable personal data in one request.
+  Future<Client> updateProfile({
+    required String name,
+    DateTime? birthDate,
+    String? gender,
+  }) async {
+    final data = await _client.patch(
+      '/clients/me',
+      body: {
+        'name': name,
+        'birthDate': birthDate == null
+            ? null
+            : '${birthDate.year.toString().padLeft(4, '0')}-'
+                  '${birthDate.month.toString().padLeft(2, '0')}-'
+                  '${birthDate.day.toString().padLeft(2, '0')}',
+        'gender': gender,
+      },
+    );
+    return Client.fromJson(data as Map<String, dynamic>);
+  }
+
+  Future<Client> uploadAvatar(String filePath) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath),
+    });
+    final data = await _client.postMultipart('/clients/me/avatar', formData);
+    return Client.fromJson(data as Map<String, dynamic>);
+  }
+
+  Future<Client> deleteAvatar() async {
+    final data = await _client.delete('/clients/me/avatar');
     return Client.fromJson(data as Map<String, dynamic>);
   }
 
@@ -111,7 +150,10 @@ class ClientAuthService {
     final refresh = _session.refreshToken;
     if (refresh != null) {
       try {
-        await _client.post('/clients/auth/logout', body: {'refreshToken': refresh});
+        await _client.post(
+          '/clients/auth/logout',
+          body: {'refreshToken': refresh},
+        );
       } on Object {
         // Logout is best-effort; clear locally regardless.
       }

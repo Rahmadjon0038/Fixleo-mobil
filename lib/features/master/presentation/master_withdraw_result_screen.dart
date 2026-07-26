@@ -23,8 +23,18 @@ class MasterWithdrawResultScreen extends StatelessWidget {
     final iconBg = success ? const Color(0xFFEFF6FF) : const Color(0xFFFEE2E2);
     final iconColor = success ? AppColors.blue : const Color(0xFFEF4444);
     final title = success
-        ? tr(lang, 'Oʻtkazma muvaffaqiyatli', 'Перевод прошел', 'Transfer successful')
-        : tr(lang, 'Oʻtkazma muvaffaqiyatsiz', 'Перевод не прошел', 'Transfer failed');
+        ? tr(
+            lang,
+            'Oʻtkazma muvaffaqiyatli',
+            'Перевод прошел',
+            'Transfer successful',
+          )
+        : tr(
+            lang,
+            'Oʻtkazma muvaffaqiyatsiz',
+            'Перевод не прошел',
+            'Transfer failed',
+          );
     final subtitle = success
         ? tr(
             lang,
@@ -100,9 +110,7 @@ class MasterWithdrawResultScreen extends StatelessWidget {
               label: tr(lang, 'Bosh sahifaga', 'На главную', 'To home'),
               onPressed: () {
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(
-                    builder: (_) => const MasterHomeScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const MasterHomeScreen()),
                   (route) => false,
                 );
               },

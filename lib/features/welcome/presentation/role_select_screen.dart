@@ -39,20 +39,31 @@ class _RoleSelectScreenState extends State<RoleSelectScreen> {
                 children: [
                   _RoleOption(
                     icon: Icons.person_outline,
-                    title: tr(lang, 'Men mijozman', 'Я заказчик',
-                        'I am a client'),
-                    subtitle: tr(lang, 'Usta chaqirmoqchiman',
-                        'Хочу заказать услуги', 'I want to order services'),
+                    title: tr(
+                      lang,
+                      'Men mijozman',
+                      'Я заказчик',
+                      'I am a client',
+                    ),
+                    subtitle: tr(
+                      lang,
+                      'Usta chaqirmoqchiman',
+                      'Хочу заказать услуги',
+                      'I want to order services',
+                    ),
                     selected: !_isMaster,
                     onTap: () => setState(() => _isMaster = false),
                   ),
                   const SizedBox(height: 8),
                   _RoleOption(
                     icon: Icons.construction,
-                    title: tr(lang, 'Men ustaman', 'Я мастер',
-                        'I am a master'),
-                    subtitle: tr(lang, 'Buyurtmalar olmoqchiman',
-                        'Хочу получать заказы', 'I want to take orders'),
+                    title: tr(lang, 'Men ustaman', 'Я мастер', 'I am a master'),
+                    subtitle: tr(
+                      lang,
+                      'Buyurtmalar olmoqchiman',
+                      'Хочу получать заказы',
+                      'I want to take orders',
+                    ),
                     selected: _isMaster,
                     onTap: () => setState(() => _isMaster = true),
                   ),
@@ -69,7 +80,11 @@ class _RoleSelectScreenState extends State<RoleSelectScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, size: 20, color: AppColors.blue),
+                  const Icon(
+                    Icons.info_outline,
+                    size: 20,
+                    color: AppColors.blue,
+                  ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(

@@ -15,9 +15,9 @@ class WorkRadius {
   final DateTime? updatedAt;
 
   factory WorkRadius.fromJson(Map<String, dynamic> json) => WorkRadius(
-        id: (json['id'] as num).toInt(),
-        km: (json['km'] as num).toInt(),
-        createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
-        updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
-      );
+    id: (json['id'] as num).toInt(),
+    km: (json['km'] as num).toInt(),
+    createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+    updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
+  );
 }

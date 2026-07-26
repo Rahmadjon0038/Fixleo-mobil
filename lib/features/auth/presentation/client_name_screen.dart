@@ -71,8 +71,14 @@ class _ClientNameScreenState extends State<ClientNameScreen> {
       setState(() => _error = e.errorFor('name') ?? e.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = tr(lang, 'Xatolik yuz berdi',
-          'Произошла ошибка', 'Something went wrong'));
+      setState(
+        () => _error = tr(
+          lang,
+          'Xatolik yuz berdi',
+          'Произошла ошибка',
+          'Something went wrong',
+        ),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -91,8 +97,12 @@ class _ClientNameScreenState extends State<ClientNameScreen> {
           children: [
             const SizedBox(height: 4),
             Text(
-              tr(lang, 'Oʻzingiz haqingizda', 'Расскажите о себе',
-                  'Tell us about yourself'),
+              tr(
+                lang,
+                'Oʻzingiz haqingizda',
+                'Расскажите о себе',
+                'Tell us about yourself',
+              ),
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
@@ -103,15 +113,19 @@ class _ClientNameScreenState extends State<ClientNameScreen> {
             _LabeledField(
               label: tr(lang, 'Ism va familiya', 'Имя и фамилия', 'Full name'),
               controller: _name,
-              hint: tr(lang, 'Aleksey Ivanov', 'Алексей Иванов',
-                  'Alexey Ivanov'),
+              hint: tr(
+                lang,
+                'Aleksey Ivanov',
+                'Алексей Иванов',
+                'Alexey Ivanov',
+              ),
               onChanged: (_) => setState(() => _error = null),
             ),
             const SizedBox(height: 12),
             _LabeledField(
               label: tr(lang, 'Shahar', 'Город', 'City'),
               controller: _city,
-              hint: tr(lang, 'Toshkent', 'Ташкент', 'Tashkent'),
+              hint: tr(lang, 'Shahar nomi', 'Название города', 'City name'),
               onChanged: (_) => setState(() => _error = null),
             ),
             if (_error != null) ...[
@@ -159,10 +173,7 @@ class _LabeledField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 14, color: AppColors.muted),
-        ),
+        Text(label, style: TextStyle(fontSize: 14, color: AppColors.muted)),
         const SizedBox(height: 4),
         Container(
           height: 56,

@@ -35,8 +35,12 @@ class WelcomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              tr(lang, 'Ustalar yaqin va tez', 'Мастера рядом и быстро',
-                  'Masters nearby and fast'),
+              tr(
+                lang,
+                'Ustalar yaqin va tez',
+                'Мастера рядом и быстро',
+                'Masters nearby and fast',
+              ),
               style: TextStyle(
                 fontSize: 15,
                 color: _navy.withValues(alpha: 0.55),
@@ -44,12 +48,16 @@ class WelcomeScreen extends StatelessWidget {
             ),
             const Spacer(flex: 4),
             _PrimaryButton(
-              label: tr(lang, 'Birinchi buyurtma yaratish',
-                  'Создать первую заявку', 'Create first request'),
+              label: tr(
+                lang,
+                'Birinchi buyurtma yaratish',
+                'Создать первую заявку',
+                'Create first request',
+              ),
               onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const PhoneScreen()),
-                );
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const PhoneScreen()));
               },
             ),
             const SizedBox(height: 12),
@@ -62,9 +70,12 @@ class WelcomeScreen extends StatelessWidget {
                 );
               },
               child: Text(
-                tr(lang, 'Men ustaman — buyurtma olmoqchiman',
-                    'Я мастер — хочу брать заказы',
-                    'I am a master — I want to take orders'),
+                tr(
+                  lang,
+                  'Men ustaman — buyurtma olmoqchiman',
+                  'Я мастер — хочу брать заказы',
+                  'I am a master — I want to take orders',
+                ),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,

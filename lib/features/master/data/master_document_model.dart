@@ -41,12 +41,12 @@ class MasterDocument {
   final DateTime? updatedAt;
 
   factory MasterDocument.fromJson(Map<String, dynamic> json) => MasterDocument(
-        id: (json['id'] as num).toInt(),
-        type: MasterDocumentType.fromApi(json['type'] as String?),
-        mimeType: json['mimeType'] as String? ?? '',
-        sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
-        url: json['url'] as String? ?? '',
-        createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
-        updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
-      );
+    id: (json['id'] as num).toInt(),
+    type: MasterDocumentType.fromApi(json['type'] as String?),
+    mimeType: json['mimeType'] as String? ?? '',
+    sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
+    url: json['url'] as String? ?? '',
+    createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+    updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
+  );
 }

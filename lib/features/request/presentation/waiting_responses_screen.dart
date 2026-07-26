@@ -45,7 +45,9 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
         _navigated = true;
         _timer?.cancel();
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => MastersResponsesScreen(orderId: widget.orderId)),
+          MaterialPageRoute(
+            builder: (_) => MastersResponsesScreen(orderId: widget.orderId),
+          ),
         );
       }
     } catch (_) {
@@ -106,7 +108,12 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
                   ),
                 ),
                 child: Text(
-                  tr(lang, 'Arizani bekor qilish', 'Отменить заявку', 'Cancel request'),
+                  tr(
+                    lang,
+                    'Arizani bekor qilish',
+                    'Отменить заявку',
+                    'Cancel request',
+                  ),
                   style: TextStyle(
                     fontSize: 16,
                     height: 22 / 16,

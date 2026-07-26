@@ -3,45 +3,161 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/request/data/order_models.dart';
+import 'package:fixleo/features/request/data/order_service.dart';
+import 'package:fixleo/features/request/data/order_timing_label.dart';
 import 'package:fixleo/features/request/presentation/order_complaint_screen.dart';
 import 'package:fixleo/features/wallet/presentation/payment_screen.dart';
 
 /// "Buyurtma bajarildimi?" — the master marked the work done; the user confirms
-/// completion or reports a problem. Mock data for now.
-class OrderDoneScreen extends StatelessWidget {
-  const OrderDoneScreen({super.key, this.orderId});
+/// completion or reports a problem, using the real order details.
+class OrderDoneScreen extends StatefulWidget {
+  const OrderDoneScreen({super.key, required this.orderId, this.orderService});
 
-  /// The order this screen refers to (used for pay / rate / complaint).
-  final int? orderId;
+  final int orderId;
+  final OrderService? orderService;
 
   static const _slate100 = Color(0xFFF1F5F9);
   static const _gray = Color(0xFF8D96A4);
 
   @override
+  State<OrderDoneScreen> createState() => _OrderDoneScreenState();
+}
+
+class _OrderDoneScreenState extends State<OrderDoneScreen> {
+  late final OrderService _service = widget.orderService ?? OrderService();
+  OrderDetail? _order;
+  bool _loading = true;
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final order = await _service.detail(widget.orderId);
+      if (!mounted) return;
+      setState(() {
+        _order = order;
+        _loading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _loading = false;
+      });
+    }
+  }
+
+  static String _money(int? value) {
+    if (value == null) return '—';
+    final raw = value.toString();
+    final formatted = StringBuffer();
+    for (var i = 0; i < raw.length; i++) {
+      if (i > 0 && (raw.length - i) % 3 == 0) formatted.write(' ');
+      formatted.write(raw[i]);
+    }
+    return formatted.toString();
+  }
+
+  String _serviceTitle(OrderDetail order) => order.title.trim().isNotEmpty
+      ? order.title.trim()
+      : order.description.trim();
+
+  Future<void> _confirm() async {
+    final order = _order;
+    if (order == null || _busy) return;
+    final lang = LocaleController.language.value;
+    setState(() => _busy = true);
+    try {
+      await _service.confirmCompletion(widget.orderId);
+      if (!mounted) return;
+      final amount = order.finalAmount ?? order.agreedPrice;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => PaymentScreen(
+            orderId: widget.orderId,
+            amount: '${_money(amount)} ${tr(lang, 'soʻm', 'сум', 'sum')}',
+            subtitle: '${_serviceTitle(order)} · #${widget.orderId}',
+          ),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: tr(lang, 'Buyurtma bajarildimi?', 'Заказ выполнен?', 'Was the job completed?'),
+      title: tr(
+        lang,
+        'Buyurtma bajarildimi?',
+        'Заказ выполнен?',
+        'Was the job completed?',
+      ),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null || _order == null
+            ? Center(
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _statusCard(),
-                    const SizedBox(height: 10),
-                    _detailsCard(),
+                    Text(
+                      _error ??
+                          tr(
+                            lang,
+                            'Buyurtmani yuklab boʻlmadi',
+                            'Не удалось загрузить заказ',
+                            'Could not load the order',
+                          ),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: OrderDoneScreen._gray),
+                    ),
+                    TextButton(
+                      onPressed: _load,
+                      child: Text(
+                        tr(lang, 'Qayta urinish', 'Повторить', 'Retry'),
+                      ),
+                    ),
                   ],
                 ),
+              )
+            : Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          _statusCard(),
+                          const SizedBox(height: 10),
+                          _detailsCard(_order!),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _actions(context),
+                ],
               ),
-            ),
-            const SizedBox(height: 16),
-            _actions(context),
-          ],
-        ),
       ),
     );
   }
@@ -62,7 +178,7 @@ class OrderDoneScreen extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: _slate100,
+              color: OrderDoneScreen._slate100,
               borderRadius: BorderRadius.circular(32),
             ),
             child: const Icon(Icons.verified, size: 42, color: AppColors.blue),
@@ -93,8 +209,12 @@ class OrderDoneScreen extends StatelessWidget {
   }
 
   /// Order summary rows.
-  Widget _detailsCard() {
+  Widget _detailsCard(OrderDetail order) {
     final lang = LocaleController.language.value;
+    final price = order.finalAmount ?? order.agreedPrice;
+    final afterPhotos = order.photos
+        .where((photo) => photo.kind == 'after' && photo.url.isNotEmpty)
+        .toList(growable: false);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -106,18 +226,69 @@ class OrderDoneScreen extends StatelessWidget {
         children: [
           _DetailRow(
             label: tr(lang, 'Xizmat', 'Услуга', 'Service'),
-            value: tr(lang, 'Smesitel almashtirish', 'Замена смесителя', 'Mixer replacement'),
+            value: _serviceTitle(order),
           ),
           const SizedBox(height: 8),
           _DetailRow(
             label: tr(lang, 'Vaqt', 'Время', 'Time'),
-            value: tr(lang, 'Bugun, 12:00–15:00', 'Сегодня, 12:00–15:00', 'Today, 12:00–15:00'),
+            value: orderTimingLabel(
+              lang,
+              timing: order.timing,
+              scheduledDate: order.scheduledDate,
+              slotLabel: order.slotLabel,
+            ),
           ),
           const SizedBox(height: 8),
           _DetailRow(
-            label: tr(lang, 'Usta taklifi', 'Предложение мастера', 'Master offer'),
-            value: tr(lang, '50 000 soʻm', '50 000 сум', '50 000 sum'),
+            label: tr(
+              lang,
+              'Usta taklifi',
+              'Предложение мастера',
+              'Master offer',
+            ),
+            value: '${_money(price)} ${tr(lang, 'soʻm', 'сум', 'sum')}',
           ),
+          if (afterPhotos.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                tr(lang, 'Ish natijasi', 'Результат работы', 'Work result'),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.navy,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 72,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: afterPhotos.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (_, index) => ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    afterPhotos[index].url,
+                    width: 72,
+                    height: 72,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(
+                      width: 72,
+                      height: 72,
+                      color: const Color(0xFFE2E8F0),
+                      child: const Icon(
+                        Icons.broken_image_outlined,
+                        color: OrderDoneScreen._gray,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -132,11 +303,7 @@ class OrderDoneScreen extends StatelessWidget {
           width: double.infinity,
           height: 52,
           child: FilledButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => PaymentScreen(orderId: orderId)),
-              );
-            },
+            onPressed: _busy ? null : _confirm,
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.blue,
               foregroundColor: AppColors.background,
@@ -144,36 +311,52 @@ class OrderDoneScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(40),
               ),
             ),
-            child: Text(
-              tr(
-                lang,
-                'Bajarilganini tasdiqlash',
-                'Подтвердить выполнение',
-                'Confirm completion',
-              ),
-              style: TextStyle(
-                fontSize: 16,
-                height: 22 / 16,
-                letterSpacing: -0.18,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            child: _busy
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    tr(
+                      lang,
+                      'Bajarilganini tasdiqlash',
+                      'Подтвердить выполнение',
+                      'Confirm completion',
+                    ),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      height: 22 / 16,
+                      letterSpacing: -0.18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
           ),
         ),
         const SizedBox(height: 14),
         GestureDetector(
           onTap: () {
             Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => OrderComplaintScreen(orderId: orderId)),
+              MaterialPageRoute(
+                builder: (_) => OrderComplaintScreen(orderId: widget.orderId),
+              ),
             );
           },
           child: Text(
-            tr(lang, 'Buyurtmada muammo bor', 'Есть проблема с заказом', 'There is a problem with the order'),
+            tr(
+              lang,
+              'Buyurtmada muammo bor',
+              'Есть проблема с заказом',
+              'There is a problem with the order',
+            ),
             style: TextStyle(
               fontSize: 16,
               height: 22 / 16,
               letterSpacing: -0.18,
-              color: _gray,
+              color: OrderDoneScreen._gray,
             ),
           ),
         ),

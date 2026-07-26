@@ -11,10 +11,17 @@ import 'package:fixleo/features/request/presentation/order_tracking_screen.dart'
 /// "My orders" — the user's orders split into Active and Completed tabs.
 /// Live data from `GET /clients/me/orders?status=active|done`.
 class MyOrdersScreen extends StatefulWidget {
-  const MyOrdersScreen({super.key, this.initialTab = 0});
+  const MyOrdersScreen({
+    super.key,
+    this.initialTab = 0,
+    this.embedded = false,
+    this.service,
+  });
 
   /// 0 = Active, 1 = Completed. Profile → "Order history" opens on Completed.
   final int initialTab;
+  final bool embedded;
+  final OrderService? service;
 
   @override
   State<MyOrdersScreen> createState() => _MyOrdersScreenState();
@@ -27,7 +34,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   static const _emerald50 = Color(0xFFECFDF5);
   static const _teal600 = Color(0xFF0D9488);
 
-  final OrderService _service = OrderService();
+  late final OrderService _service = widget.service ?? OrderService();
 
   /// 0 = Active, 1 = Completed.
   late int _tab = widget.initialTab;
@@ -74,9 +81,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
     return BrandedScaffold(
       title: tr(lang, 'Mening buyurtmalarim', 'Мои заказы', 'My orders'),
-      showBack: true,
+      showBack: !widget.embedded,
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+        padding: EdgeInsets.fromLTRB(16, 4, 16, widget.embedded ? 100 : 20),
         child: Column(
           children: [
             _tabBar(lang),
@@ -97,7 +104,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     }
     if (_items.isEmpty) {
       return _placeholder(
-        tr(lang, 'Hozircha buyurtmalar yoʻq', 'Пока нет заказов', 'No orders yet'),
+        tr(
+          lang,
+          'Hozircha buyurtmalar yoʻq',
+          'Пока нет заказов',
+          'No orders yet',
+        ),
       );
     }
     return RefreshIndicator(
@@ -148,10 +160,15 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 
   String _subtitle(OrderSummary o, AppLanguage lang) {
-    final who = o.masterName ??
+    final who =
+        o.masterName ??
         (o.offersCount > 0
-            ? tr(lang, 'Otkliklar: ${o.offersCount}', 'Откликов: ${o.offersCount}',
-                'Offers: ${o.offersCount}')
+            ? tr(
+                lang,
+                'Otkliklar: ${o.offersCount}',
+                'Откликов: ${o.offersCount}',
+                'Offers: ${o.offersCount}',
+              )
             : tr(lang, 'Usta qidirilmoqda', 'Поиск мастера', 'Searching'));
     final d = o.createdAt;
     final date = d == null
@@ -303,8 +320,18 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       child: Center(
         child: Text(
           active
-              ? tr(LocaleController.language.value, 'Ishda', 'В работе', 'In progress')
-              : tr(LocaleController.language.value, 'Bajarildi', 'Выполнено', 'Done'),
+              ? tr(
+                  LocaleController.language.value,
+                  'Ishda',
+                  'В работе',
+                  'In progress',
+                )
+              : tr(
+                  LocaleController.language.value,
+                  'Bajarildi',
+                  'Выполнено',
+                  'Done',
+                ),
           style: TextStyle(
             fontSize: 12,
             height: 16 / 12,

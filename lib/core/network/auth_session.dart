@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Which kind of account the stored tokens belong to. Each has its own auth
@@ -37,12 +40,65 @@ class AuthSession {
   String? _accessToken;
   String? _refreshToken;
 
+  /// Increments only when a persisted login becomes unusable (expired/revoked
+  /// refresh token). The app listens to this and returns to the login flow.
+  /// Explicit logout uses [clear] and keeps its existing screen transition.
+  final ValueNotifier<int> expirationEvents = ValueNotifier<int>(0);
+
+  /// Increments whenever the active account starts or ends. App-wide services
+  /// (presence, call signalling, etc.) can follow login/logout without being
+  /// tied to a particular screen.
+  final ValueNotifier<int> sessionEvents = ValueNotifier<int>(0);
+
   AuthRole? get role => _role;
   String? get accessToken => _accessToken;
   String? get refreshToken => _refreshToken;
 
   bool get isLoggedIn => _accessToken != null && _accessToken!.isNotEmpty;
   bool get hasToken => isLoggedIn;
+  bool get canRefresh =>
+      _role != null && _refreshToken != null && _refreshToken!.isNotEmpty;
+
+  Map<String, dynamic>? get _accessTokenPayload {
+    final token = _accessToken;
+    if (token == null) return null;
+    final parts = token.split('.');
+    if (parts.length != 3) return null;
+    try {
+      return jsonDecode(
+            utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+          )
+          as Map<String, dynamic>;
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Numeric backend account id (`sub`) carried by the active access token.
+  ///
+  /// This is not trusted for authorization; it only lets app-wide services tie
+  /// durable local work (for example a pending call recording) to the account
+  /// that created it, so another login can never upload the wrong user's file.
+  int? get subjectId {
+    final sub = _accessTokenPayload?['sub'];
+    if (sub is num) return sub.toInt();
+    return int.tryParse(sub?.toString() ?? '');
+  }
+
+  /// JWT access-token expiry, read locally without trusting it for
+  /// authorization. This is used only to refresh shortly before expiry rather
+  /// than first sending a request that is guaranteed to receive a 401.
+  DateTime? get accessTokenExpiresAt {
+    final exp = (_accessTokenPayload?['exp'] as num?)?.toInt();
+    if (exp == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(exp * 1000, isUtc: true);
+  }
+
+  bool accessTokenExpiresWithin(Duration duration) {
+    final expiresAt = accessTokenExpiresAt;
+    if (expiresAt == null) return false;
+    return !expiresAt.isAfter(DateTime.now().toUtc().add(duration));
+  }
 
   /// Loads any persisted session at app startup. Call once from `main()`.
   Future<void> load() async {
@@ -50,6 +106,15 @@ class AuthSession {
     _role = AuthRole.fromName(prefs.getString(_kRole));
     _accessToken = prefs.getString(_kAccess);
     _refreshToken = prefs.getString(_kRefresh);
+
+    // A partially-written/corrupted session cannot be refreshed safely.
+    if (_role == null ||
+        _accessToken == null ||
+        _accessToken!.isEmpty ||
+        _refreshToken == null ||
+        _refreshToken!.isEmpty) {
+      await clear();
+    }
   }
 
   /// Starts a new session after a successful login / register and persists it.
@@ -65,6 +130,7 @@ class AuthSession {
     await prefs.setString(_kRole, role.name);
     await prefs.setString(_kAccess, accessToken);
     await prefs.setString(_kRefresh, refreshToken);
+    sessionEvents.value++;
   }
 
   /// Replaces the token pair after a refresh, keeping the same role.
@@ -81,6 +147,8 @@ class AuthSession {
 
   /// Clears the session (logout / account deleted / refresh failed).
   Future<void> clear() async {
+    final hadSession =
+        _role != null || _accessToken != null || _refreshToken != null;
     _role = null;
     _accessToken = null;
     _refreshToken = null;
@@ -88,5 +156,18 @@ class AuthSession {
     await prefs.remove(_kRole);
     await prefs.remove(_kAccess);
     await prefs.remove(_kRefresh);
+    if (hadSession) {
+      sessionEvents.value++;
+    }
+  }
+
+  /// Clears an unusable login and notifies the root navigator exactly once.
+  Future<void> expire() async {
+    final hadSession =
+        _role != null || _accessToken != null || _refreshToken != null;
+    await clear();
+    if (hadSession) {
+      expirationEvents.value++;
+    }
   }
 }

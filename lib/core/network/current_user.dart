@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:fixleo/core/network/api_client.dart';
 import 'package:fixleo/core/network/auth_session.dart';
+import 'package:fixleo/core/network/api_config.dart';
 
 /// The signed-in user's own profile (name/phone), cached app-wide so screens
 /// like the Home greeting show the real account instead of a hardcoded name.
@@ -37,6 +38,7 @@ class CurrentUser {
           name: data['name'] as String?,
           phone: data['phone'] as String?,
           city: data['city'] as String?,
+          avatarUrl: ApiConfig.resolveMediaUrl(data['avatarUrl']),
         );
       }
     } catch (_) {
@@ -48,10 +50,11 @@ class CurrentUser {
 }
 
 class UserProfile {
-  const UserProfile({this.name, this.phone, this.city});
+  const UserProfile({this.name, this.phone, this.city, this.avatarUrl});
   final String? name;
   final String? phone;
   final String? city;
+  final String? avatarUrl;
 
   /// First name only, for the greeting ("Добрый день, Арслан!").
   String? get firstName {

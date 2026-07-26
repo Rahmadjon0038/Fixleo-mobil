@@ -14,8 +14,9 @@ class LocaleController {
 
   static const _kLanguage = 'app_language';
 
-  static final ValueNotifier<AppLanguage> language =
-      ValueNotifier<AppLanguage>(AppLanguage.ru);
+  static final ValueNotifier<AppLanguage> language = ValueNotifier<AppLanguage>(
+    AppLanguage.ru,
+  );
 
   static Future<void> load() async {
     language.value = AppLanguage.ru;
@@ -26,10 +27,6 @@ class LocaleController {
         language.value = lang;
         break;
       }
-    }
-    if (language.value != AppLanguage.ru) {
-      language.value = AppLanguage.ru;
-      unawaited(_save(AppLanguage.ru));
     }
   }
 

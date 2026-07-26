@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -6,6 +8,7 @@ import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/new_order_draft.dart';
+import 'package:fixleo/features/request/data/order_timing_label.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/presentation/waiting_responses_screen.dart';
 
@@ -38,8 +41,18 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
     final lang = LocaleController.language.value;
     final d = widget.draft;
     if (!d.hasLocation || d.categoryId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(tr(lang, 'Maʼlumot yetarli emas', 'Недостаточно данных', 'Missing data'))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              lang,
+              'Maʼlumot yetarli emas',
+              'Недостаточно данных',
+              'Missing data',
+            ),
+          ),
+        ),
+      );
       return;
     }
     setState(() => _sending = true);
@@ -60,12 +73,16 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => WaitingResponsesScreen(orderId: order.id)),
+        MaterialPageRoute(
+          builder: (_) => WaitingResponsesScreen(orderId: order.id),
+        ),
       );
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _sending = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -73,7 +90,12 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: tr(lang, 'Arizani tekshiring', 'Проверьте заявку', 'Review the request'),
+      title: tr(
+        lang,
+        'Arizani tekshiring',
+        'Проверьте заявку',
+        'Review the request',
+      ),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -108,9 +130,18 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : Text(
-                        tr(lang, 'Arizani yuborish', 'Отправить заявку', 'Send request'),
+                        tr(
+                          lang,
+                          'Arizani yuborish',
+                          'Отправить заявку',
+                          'Send request',
+                        ),
                         style: TextStyle(
                           fontSize: 16,
                           height: 22 / 16,
@@ -129,9 +160,12 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
   Widget _summaryCard() {
     final lang = LocaleController.language.value;
     final d = widget.draft;
-    final timeLabel = d.timing == 'asap'
-        ? tr(lang, 'Shoshilinch', 'Срочно — сейчас', 'Urgent — now')
-        : '${d.timing == 'today' ? tr(lang, 'Bugun', 'Сегодня', 'Today') : (d.scheduledDate ?? '')}${d.slot != null ? ', ${_slotLabels[d.slot]}' : ''}';
+    final timeLabel = orderTimingLabel(
+      lang,
+      timing: d.timing,
+      scheduledDate: d.scheduledDate,
+      slotLabel: d.slot == null ? null : _slotLabels[d.slot],
+    );
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -189,10 +223,44 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
           if (d.photoKeys.isNotEmpty) const SizedBox(height: 6),
           if (d.photoKeys.isNotEmpty)
             Text(
-              tr(lang, '${d.photoKeys.length} ta rasm', '${d.photoKeys.length} фото',
-                  '${d.photoKeys.length} photos'),
+              tr(
+                lang,
+                '${d.photoKeys.length} ta rasm',
+                '${d.photoKeys.length} фото',
+                '${d.photoKeys.length} photos',
+              ),
               style: const TextStyle(fontSize: 13, color: _gray),
             ),
+          if (d.photoPaths.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 72,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: d.photoPaths.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (context, index) => ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    File(d.photoPaths[index]),
+                    width: 72,
+                    height: 72,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(
+                      width: 72,
+                      height: 72,
+                      alignment: Alignment.center,
+                      color: const Color(0xFFE2E8F0),
+                      child: const Icon(
+                        Icons.broken_image_outlined,
+                        color: _gray,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 6),
           _infoRow(Icons.location_on_outlined, d.addressText),
           const SizedBox(height: 6),
@@ -236,11 +304,7 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
           'Мастера предложат цену в ответах',
           'Masters will offer prices in their replies',
         ),
-        style: TextStyle(
-          fontSize: 14,
-          height: 20 / 14,
-          color: AppColors.blue,
-        ),
+        style: TextStyle(fontSize: 14, height: 20 / 14, color: AppColors.blue),
       ),
     );
   }

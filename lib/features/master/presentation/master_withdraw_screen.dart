@@ -54,8 +54,13 @@ class _MasterWithdrawScreenState extends State<MasterWithdrawScreen> {
     final lang = LocaleController.language.value;
     final amount = int.tryParse(_amount.text.replaceAll(RegExp(r'[^0-9]'), ''));
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(tr(lang, 'Summani kiriting', 'Введите сумму', 'Enter an amount'))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(lang, 'Summani kiriting', 'Введите сумму', 'Enter an amount'),
+          ),
+        ),
+      );
       return;
     }
     setState(() => _busy = true);
@@ -80,7 +85,8 @@ class _MasterWithdrawScreenState extends State<MasterWithdrawScreen> {
       setState(() => _busy = false);
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => MasterWithdrawResultScreen(success: false, amount: e.message),
+          builder: (_) =>
+              MasterWithdrawResultScreen(success: false, amount: e.message),
         ),
       );
     }

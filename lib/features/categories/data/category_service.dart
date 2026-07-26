@@ -24,19 +24,19 @@ class CategoryService {
 
   /// `POST /admin/categories` — admin. `name` must be unique.
   Future<Category> create({required String name, int? order}) async {
-    final data = await _client.post('/admin/categories', body: {
-      'name': name,
-      'order': ?order,
-    });
+    final data = await _client.post(
+      '/admin/categories',
+      body: {'name': name, 'order': ?order},
+    );
     return Category.fromJson(data as Map<String, dynamic>);
   }
 
   /// `PATCH /admin/categories/:id` — admin, partial update.
   Future<Category> update(int id, {String? name, int? order}) async {
-    final data = await _client.patch('/admin/categories/$id', body: {
-      'name': ?name,
-      'order': ?order,
-    });
+    final data = await _client.patch(
+      '/admin/categories/$id',
+      body: {'name': ?name, 'order': ?order},
+    );
     return Category.fromJson(data as Map<String, dynamic>);
   }
 

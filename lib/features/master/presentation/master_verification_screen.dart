@@ -75,10 +75,14 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
           // Rejected — let the master fix documents and resubmit.
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
-            ..showSnackBar(SnackBar(
-              content: Text(update.rejectionReason ??
-                  'Hujjatlar rad etildi. Qayta yuklang.'),
-            ));
+            ..showSnackBar(
+              SnackBar(
+                content: Text(
+                  update.rejectionReason ??
+                      'Hujjatlar rad etildi. Qayta yuklang.',
+                ),
+              ),
+            );
           Navigator.of(context).maybePop();
         }
       },
@@ -131,7 +135,12 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    tr(lang, 'Hujjatlar tekshiruvda', 'Документы на проверке', 'Documents under review'),
+                    tr(
+                      lang,
+                      'Hujjatlar tekshiruvda',
+                      'Документы на проверке',
+                      'Documents under review',
+                    ),
                     style: TextStyle(
                       fontSize: 16,
                       height: 22 / 16,
@@ -141,7 +150,12 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
                     ),
                   ),
                   Text(
-                    tr(lang, 'Odatda 24 soat davom etadi', 'Обычно занимает 24 часа', 'Usually takes 24 hours'),
+                    tr(
+                      lang,
+                      'Odatda 24 soat davom etadi',
+                      'Обычно занимает 24 часа',
+                      'Usually takes 24 hours',
+                    ),
                     style: TextStyle(
                       fontSize: 14,
                       height: 20 / 14,
@@ -165,17 +179,32 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
                 children: [
                   _StatusRow(
                     icon: Icons.verified,
-                    label: tr(lang, 'Pasport yuklandi', 'Паспорт загружен', 'Passport uploaded'),
+                    label: tr(
+                      lang,
+                      'Pasport yuklandi',
+                      'Паспорт загружен',
+                      'Passport uploaded',
+                    ),
                     done: true,
                   ),
                   _StatusRow(
                     icon: Icons.verified,
-                    label: tr(lang, 'Selfi yuklandi', 'Селфи загружено', 'Selfie uploaded'),
+                    label: tr(
+                      lang,
+                      'Selfi yuklandi',
+                      'Селфи загружено',
+                      'Selfie uploaded',
+                    ),
                     done: true,
                   ),
                   _StatusRow(
                     icon: Icons.schedule,
-                    label: tr(lang, 'Moderator qarori', 'Решение модератора', 'Moderator decision'),
+                    label: tr(
+                      lang,
+                      'Moderator qarori',
+                      'Решение модератора',
+                      'Moderator decision',
+                    ),
                     done: false,
                   ),
                 ],

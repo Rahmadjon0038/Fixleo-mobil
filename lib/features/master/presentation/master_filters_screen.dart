@@ -4,31 +4,151 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/features/categories/data/category_model.dart';
+import 'package:fixleo/features/categories/data/category_service.dart';
+import 'package:fixleo/features/master/data/master_marketplace_service.dart';
+
+class MasterFeedFilters {
+  const MasterFeedFilters({
+    this.categoryIds = const [],
+    this.radiusKm = 10,
+    this.sort = 'new',
+  });
+
+  final List<int> categoryIds;
+  final int radiusKm;
+  final String sort;
+}
 
 /// Filters for the nearby-requests feed — categories (multi-select),
 /// distance (single) and sort order (single).
 class MasterFiltersScreen extends StatefulWidget {
-  const MasterFiltersScreen({super.key});
+  const MasterFiltersScreen({
+    super.key,
+    this.initial = const MasterFeedFilters(),
+    this.categories = const [],
+    this.service,
+  });
+
+  final MasterFeedFilters initial;
+  final List<Category> categories;
+  final MasterMarketplaceService? service;
 
   @override
   State<MasterFiltersScreen> createState() => _MasterFiltersScreenState();
 }
 
 class _MasterFiltersScreenState extends State<MasterFiltersScreen> {
-  final _selectedCategories = <int>{0, 1};
-  int _distance = 1;
-  int _sort = 0;
+  static const _distances = [3, 5, 10];
+  static const _sortCodes = ['new', 'near', 'budget'];
+
+  late final MasterMarketplaceService _market;
+  late final Set<int> _selectedCategories;
+  late int _distance;
+  late String _sort;
+  List<Category> _categories = const [];
+  bool _loadingCategories = true;
+  int? _resultCount;
+  int _countRequest = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _market = widget.service ?? MasterMarketplaceService();
+    _selectedCategories = widget.initial.categoryIds.toSet();
+    _distance = _distances.contains(widget.initial.radiusKm)
+        ? widget.initial.radiusKm
+        : 10;
+    _sort = _sortCodes.contains(widget.initial.sort)
+        ? widget.initial.sort
+        : 'new';
+    if (widget.categories.isNotEmpty) {
+      _categories = widget.categories;
+      _normalizeSelection();
+      _loadingCategories = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _refreshCount());
+    } else {
+      _loadCategories();
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await CategoryService().getAll();
+      if (!mounted) return;
+      setState(() {
+        _categories = categories;
+        _normalizeSelection();
+        _loadingCategories = false;
+      });
+      _refreshCount();
+    } on Object {
+      if (mounted) setState(() => _loadingCategories = false);
+    }
+  }
+
+  void _normalizeSelection() {
+    final available = _categories.map((c) => c.id).toSet();
+    _selectedCategories.retainWhere(available.contains);
+    if (_selectedCategories.isEmpty) {
+      _selectedCategories.addAll(available);
+    }
+  }
+
+  Future<void> _refreshCount() async {
+    final request = ++_countRequest;
+    if (mounted) setState(() => _resultCount = null);
+    try {
+      final count = await _market.feedCount(
+        categoryIds: _selectedCategories.toList(growable: false),
+        radiusKm: _distance,
+        sort: _sort,
+      );
+      if (mounted && request == _countRequest) {
+        setState(() => _resultCount = count);
+      }
+    } on Object {
+      if (mounted && request == _countRequest) {
+        setState(() => _resultCount = null);
+      }
+    }
+  }
+
+  void _toggleCategory(int id) {
+    setState(() {
+      if (_selectedCategories.contains(id)) {
+        if (_selectedCategories.length > 1) _selectedCategories.remove(id);
+      } else {
+        _selectedCategories.add(id);
+      }
+    });
+    _refreshCount();
+  }
+
+  void _setDistance(int value) {
+    setState(() => _distance = value);
+    _refreshCount();
+  }
+
+  void _setSort(String value) {
+    setState(() => _sort = value);
+    _refreshCount();
+  }
+
+  void _apply() {
+    Navigator.of(context).pop(
+      MasterFeedFilters(
+        categoryIds: _selectedCategories.toList(growable: false),
+        radiusKm: _distance,
+        sort: _sort,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
-    final categories = [
-      tr(lang, 'Santexnika', 'Сантехника', 'Plumbing'),
-      tr(lang, 'Elektrika', 'Электрика', 'Electrical'),
-      tr(lang, 'Tozalash', 'Уборка', 'Cleaning'),
-      tr(lang, 'Mebel', 'Мебель', 'Furniture'),
-    ];
-    final distances = [
+    final distanceLabels = [
       tr(lang, '3 km gacha', 'До 3 км', 'Up to 3 km'),
       tr(lang, '5 km gacha', 'До 5 км', 'Up to 5 km'),
       tr(lang, '10 km gacha', 'До 10 км', 'Up to 10 km'),
@@ -56,16 +176,31 @@ class _MasterFiltersScreenState extends State<MasterFiltersScreen> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        for (var i = 0; i < categories.length; i++)
-                          _Chip(
-                            label: categories[i],
-                            selected: _selectedCategories.contains(i),
-                            onTap: () => setState(() {
-                              if (!_selectedCategories.remove(i)) {
-                                _selectedCategories.add(i);
-                              }
-                            }),
-                          ),
+                        if (_loadingCategories)
+                          const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else if (_categories.isEmpty)
+                          Text(
+                            tr(
+                              lang,
+                              'Kategoriyalar topilmadi',
+                              'Категории не найдены',
+                              'No categories found',
+                            ),
+                            style: const TextStyle(color: Color(0xFF8D96A4)),
+                          )
+                        else
+                          for (final category in _categories)
+                            _Chip(
+                              label: category.name,
+                              selected: _selectedCategories.contains(
+                                category.id,
+                              ),
+                              onTap: () => _toggleCategory(category.id),
+                            ),
                       ],
                     ),
                   ),
@@ -75,14 +210,14 @@ class _MasterFiltersScreenState extends State<MasterFiltersScreen> {
                     title: tr(lang, 'Masofa', 'Расстояние', 'Distance'),
                     child: Row(
                       children: [
-                        for (var i = 0; i < distances.length; i++) ...[
+                        for (var i = 0; i < _distances.length; i++) ...[
                           if (i != 0) const SizedBox(width: 8),
                           Expanded(
                             child: _Chip(
-                              label: distances[i],
-                              selected: _distance == i,
+                              label: distanceLabels[i],
+                              selected: _distance == _distances[i],
                               fullWidth: true,
-                              onTap: () => setState(() => _distance = i),
+                              onTap: () => _setDistance(_distances[i]),
                             ),
                           ),
                         ],
@@ -100,8 +235,8 @@ class _MasterFiltersScreenState extends State<MasterFiltersScreen> {
                           if (i != 0) const SizedBox(height: 8),
                           _SortRow(
                             label: sorts[i],
-                            selected: _sort == i,
-                            onTap: () => setState(() => _sort = i),
+                            selected: _sort == _sortCodes[i],
+                            onTap: () => _setSort(_sortCodes[i]),
                           ),
                         ],
                       ],
@@ -114,8 +249,22 @@ class _MasterFiltersScreenState extends State<MasterFiltersScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
             child: PrimaryButton(
-              label: tr(lang, '12 ta buyurtmani koʻrsatish', 'Показать 12 заказов', 'Show 12 requests'),
-              onPressed: () => Navigator.of(context).maybePop(),
+              label: _resultCount == null
+                  ? tr(
+                      lang,
+                      'Buyurtmalarni ko‘rsatish',
+                      'Показать заказы',
+                      'Show requests',
+                    )
+                  : tr(
+                      lang,
+                      '$_resultCount ta buyurtmani ko‘rsatish',
+                      'Показать $_resultCount заказов',
+                      'Show $_resultCount requests',
+                    ),
+              onPressed: _loadingCategories || _categories.isEmpty
+                  ? null
+                  : _apply,
             ),
           ),
         ],

@@ -36,10 +36,12 @@ class _MasterOrderStatusScreenState extends State<MasterOrderStatusScreen> {
   Future<void> _load() async {
     try {
       final o = await _market.orderDetail(widget.orderId);
-      if (mounted) setState(() {
-        _order = o;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _order = o;
+          _loading = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -47,12 +49,12 @@ class _MasterOrderStatusScreenState extends State<MasterOrderStatusScreen> {
 
   /// Timeline index from the live status.
   int get _selectedIndex => switch (_order?.status) {
-        'assigned' => 0,
-        'on_the_way' => 1,
-        'arrived' => 2,
-        'work_done' || 'completed' || 'disputed' => 3,
-        _ => 0,
-      };
+    'assigned' => 0,
+    'on_the_way' => 1,
+    'arrived' => 2,
+    'work_done' || 'completed' || 'disputed' => 3,
+    _ => 0,
+  };
 
   Future<void> _advance() async {
     final o = _order;
@@ -61,17 +63,28 @@ class _MasterOrderStatusScreenState extends State<MasterOrderStatusScreen> {
     try {
       if (o.status == 'assigned') {
         final u = await _market.setStatus(widget.orderId, 'on_the_way');
-        if (mounted) setState(() { _order = u; _busy = false; });
+        if (mounted) {
+          setState(() {
+            _order = u;
+            _busy = false;
+          });
+        }
       } else if (o.status == 'on_the_way') {
         final u = await _market.setStatus(widget.orderId, 'arrived');
-        if (mounted) setState(() { _order = u; _busy = false; });
+        if (mounted) {
+          setState(() {
+            _order = u;
+            _busy = false;
+          });
+        }
       } else {
         // arrived → complete the job
         if (!mounted) return;
         setState(() => _busy = false);
         await Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => MasterOrderCompletionScreen(orderId: widget.orderId),
+            builder: (_) =>
+                MasterOrderCompletionScreen(orderId: widget.orderId),
           ),
         );
         if (mounted) _load();
@@ -79,7 +92,9 @@ class _MasterOrderStatusScreenState extends State<MasterOrderStatusScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -108,7 +123,9 @@ class _MasterOrderStatusScreenState extends State<MasterOrderStatusScreen> {
                   for (var i = 0; i < statuses.length; i++) ...[
                     if (i != 0) const SizedBox(height: 10),
                     _StatusRow(
-                      status: statuses[i].copyWith(selected: i <= _selectedIndex),
+                      status: statuses[i].copyWith(
+                        selected: i <= _selectedIndex,
+                      ),
                       onTap: null,
                     ),
                   ],
@@ -158,31 +175,36 @@ class _MasterOrderStatusScreenState extends State<MasterOrderStatusScreen> {
   }
 
   List<_OrderStatus> _statuses(AppLanguage lang) => [
-        _OrderStatus(
-          label: tr(lang, 'Ariza qabul qilindi', 'Заявка принята', 'Request accepted'),
-          icon: Icons.verified_rounded,
-          activeColor: const Color(0xFF7C869E),
-          selected: false,
-        ),
-        _OrderStatus(
-          label: tr(lang, 'Usta yoʻlda', 'Мастер в пути', 'Master on the way'),
-          icon: Icons.radio_button_checked,
-          activeColor: AppColors.blue,
-          selected: true,
-        ),
-        _OrderStatus(
-          label: tr(lang, 'Manzilda', 'На месте', 'On site'),
-          icon: Icons.radio_button_unchecked,
-          activeColor: const Color(0xFFC9D2E3),
-          selected: false,
-        ),
-        _OrderStatus(
-          label: tr(lang, 'Bajarildi', 'Выполнено', 'Completed'),
-          icon: Icons.radio_button_unchecked,
-          activeColor: const Color(0xFFC9D2E3),
-          selected: false,
-        ),
-      ];
+    _OrderStatus(
+      label: tr(
+        lang,
+        'Ariza qabul qilindi',
+        'Заявка принята',
+        'Request accepted',
+      ),
+      icon: Icons.verified_rounded,
+      activeColor: const Color(0xFF7C869E),
+      selected: false,
+    ),
+    _OrderStatus(
+      label: tr(lang, 'Usta yoʻlda', 'Мастер в пути', 'Master on the way'),
+      icon: Icons.radio_button_checked,
+      activeColor: AppColors.blue,
+      selected: true,
+    ),
+    _OrderStatus(
+      label: tr(lang, 'Manzilda', 'На месте', 'On site'),
+      icon: Icons.radio_button_unchecked,
+      activeColor: const Color(0xFFC9D2E3),
+      selected: false,
+    ),
+    _OrderStatus(
+      label: tr(lang, 'Bajarildi', 'Выполнено', 'Completed'),
+      icon: Icons.radio_button_unchecked,
+      activeColor: const Color(0xFFC9D2E3),
+      selected: false,
+    ),
+  ];
 }
 
 class _OrderStatus {
@@ -199,11 +221,11 @@ class _OrderStatus {
   final bool selected;
 
   _OrderStatus copyWith({bool? selected}) => _OrderStatus(
-        label: label,
-        icon: icon,
-        activeColor: activeColor,
-        selected: selected ?? this.selected,
-      );
+    label: label,
+    icon: icon,
+    activeColor: activeColor,
+    selected: selected ?? this.selected,
+  );
 }
 
 class _StatusRow extends StatelessWidget {
@@ -218,7 +240,9 @@ class _StatusRow extends StatelessWidget {
         ? const Color(0xFFF1F5F9)
         : const Color(0xFFF8FAFC);
     final textColor = AppColors.navy;
-    final iconColor = status.selected ? status.activeColor : const Color(0xFFC1CADB);
+    final iconColor = status.selected
+        ? status.activeColor
+        : const Color(0xFFC1CADB);
 
     return GestureDetector(
       onTap: onTap,
@@ -261,7 +285,10 @@ class _StatusRow extends StatelessWidget {
                 height: 26,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFC9D2E3), width: 2.5),
+                  border: Border.all(
+                    color: const Color(0xFFC9D2E3),
+                    width: 2.5,
+                  ),
                 ),
               ),
           ],

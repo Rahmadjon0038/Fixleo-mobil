@@ -43,15 +43,24 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
     if (priceType != 'after_inspection') {
       price = int.tryParse(_price.text.replaceAll(RegExp(r'[^0-9]'), ''));
       if (price == null || price <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(tr(lang, 'Narxni kiriting', 'Введите цену', 'Enter a price'))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              tr(lang, 'Narxni kiriting', 'Введите цену', 'Enter a price'),
+            ),
+          ),
+        );
         return;
       }
     }
     setState(() => _busy = true);
     try {
-      await _market.makeOffer(widget.orderId,
-          priceType: priceType, price: price, comment: _comment.text.trim());
+      await _market.makeOffer(
+        widget.orderId,
+        priceType: priceType,
+        price: price,
+        comment: _comment.text.trim(),
+      );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const MasterOfferSentScreen()),
@@ -59,7 +68,9 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -127,9 +138,7 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
                       child: TextField(
                         controller: _price,
                         keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[0-9 ]')),
-                        ],
+                        inputFormatters: [_ThousandsSeparatorInputFormatter()],
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
@@ -152,7 +161,12 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
             const SizedBox(height: 10),
             // Comment.
             _Card(
-              title: tr(lang, 'Mijozga izoh', 'Комментарий клиенту', 'Note to the client'),
+              title: tr(
+                lang,
+                'Mijozga izoh',
+                'Комментарий клиенту',
+                'Note to the client',
+              ),
               child: Container(
                 height: 110,
                 padding: const EdgeInsets.all(16),
@@ -189,13 +203,87 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
             PrimaryButton(
               label: _busy
                   ? tr(lang, 'Yuborilmoqda…', 'Отправка…', 'Sending…')
-                  : tr(lang, 'Javobni yuborish', 'Отправить ответ', 'Send reply'),
+                  : tr(
+                      lang,
+                      'Javobni yuborish',
+                      'Отправить ответ',
+                      'Send reply',
+                    ),
               onPressed: _busy ? null : _submit,
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+/// Keeps a monetary amount grouped from the right: `200000000` becomes
+/// `200 000 000`. Non-digit input is ignored and the caret stays beside the
+/// same digit when editing in the middle of the amount.
+class _ThousandsSeparatorInputFormatter extends TextInputFormatter {
+  static final _nonDigits = RegExp(r'\D');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(_nonDigits, '');
+    if (digits.isEmpty) {
+      return const TextEditingValue(
+        selection: TextSelection.collapsed(offset: 0),
+      );
+    }
+
+    final baseDigitCount = _digitCountBefore(
+      newValue.text,
+      newValue.selection.baseOffset,
+    );
+    final extentDigitCount = _digitCountBefore(
+      newValue.text,
+      newValue.selection.extentOffset,
+    );
+    final formatted = _format(digits);
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection(
+        baseOffset: _offsetAfterDigits(formatted, baseDigitCount),
+        extentOffset: _offsetAfterDigits(formatted, extentDigitCount),
+        affinity: newValue.selection.affinity,
+        isDirectional: newValue.selection.isDirectional,
+      ),
+    );
+  }
+
+  int _digitCountBefore(String text, int rawOffset) {
+    final offset = rawOffset.clamp(0, text.length);
+    return text.substring(0, offset).replaceAll(_nonDigits, '').length;
+  }
+
+  String _format(String digits) {
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) {
+        buffer.write(' ');
+      }
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
+  }
+
+  int _offsetAfterDigits(String formatted, int digitCount) {
+    if (digitCount <= 0) return 0;
+
+    var seen = 0;
+    for (var i = 0; i < formatted.length; i++) {
+      if (formatted.codeUnitAt(i) != 0x20) {
+        seen++;
+        if (seen == digitCount) return i + 1;
+      }
+    }
+    return formatted.length;
   }
 }
 

@@ -6,15 +6,17 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fixleo/app/app.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
-import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
 import 'package:fixleo/core/network/current_user.dart';
 import 'package:fixleo/core/realtime/call_service.dart';
 import 'package:fixleo/features/categories/data/category_service.dart';
+import 'package:fixleo/features/notifications/data/notification_service.dart';
+import 'package:fixleo/features/notifications/presentation/notifications_screen.dart';
 import 'package:fixleo/features/profile/presentation/profile_screen.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/presentation/chats_list_screen.dart';
+import 'package:fixleo/features/request/presentation/address_screen.dart';
 import 'package:fixleo/features/request/presentation/my_orders_screen.dart';
 import 'package:fixleo/features/request/presentation/order_tracking_screen.dart';
 import 'package:fixleo/features/wallet/presentation/wallet_screen.dart';
@@ -23,7 +25,17 @@ import 'package:fixleo/features/request/presentation/new_request_screen.dart';
 /// Main home feed shown after a successful login. A single scrollable page
 /// with a floating "liquid glass" bottom navigation bar.
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({
+    super.key,
+    this.orderService,
+    this.notificationService,
+    this.categoryService,
+  });
+
+  /// Injectable for widget tests; production uses the shared API client.
+  final OrderService? orderService;
+  final NotificationService? notificationService;
+  final CategoryService? categoryService;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -31,104 +43,223 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _navIndex = 0;
+  final Set<int> _visitedTabs = {0};
+  late final OrderService _orders;
+  late final NotificationService _notifications;
+  late final CategoryService _categories;
+  ClientAddress? _defaultAddress;
+  List<OrderSummary> _activeOrders = const [];
+  int _unreadNotifications = 0;
 
   @override
   void initState() {
     super.initState();
+    _orders = widget.orderService ?? OrderService();
+    _notifications =
+        widget.notificationService ?? NotificationService(kind: 'client');
+    _categories = widget.categoryService ?? CategoryService();
     // Load the real signed-in profile so the greeting shows the actual name.
     CurrentUser.instance.refresh();
+    _loadDefaultAddress();
+    _loadActiveOrders();
+    _loadUnreadNotifications();
     // Voice-call signalling app-wide: an incoming call rings on any screen.
     CallService.instance.connect('client', onIncoming: showIncomingCallUi);
   }
 
+  Future<void> _loadDefaultAddress() async {
+    try {
+      final addresses = await _orders.addresses();
+      if (!mounted || addresses.isEmpty) return;
+      setState(() => _defaultAddress = addresses.first);
+    } on Object {
+      // The fallback city remains visible when the address book is unavailable.
+    }
+  }
+
+  Future<void> _changeLocation() async {
+    final saved = await Navigator.of(context).push<ClientAddress>(
+      MaterialPageRoute(
+        builder: (_) =>
+            AddressScreen(isEditingHome: true, initialAddress: _defaultAddress),
+      ),
+    );
+    if (saved != null && mounted) setState(() => _defaultAddress = saved);
+  }
+
+  Future<void> _loadActiveOrders() async {
+    try {
+      final items = await _orders.list(status: 'active');
+      if (!mounted) return;
+      setState(() => _activeOrders = items);
+    } on Object {
+      // Keep the last known state on a temporary network failure.
+    }
+  }
+
+  void _openActiveOrders() => _setTab(1);
+
+  Future<void> _loadUnreadNotifications() async {
+    try {
+      final items = await _notifications.list(unreadOnly: true);
+      if (!mounted) return;
+      setState(() => _unreadNotifications = items.length);
+    } on Object {
+      // Keep the last known badge count during a temporary network failure.
+    }
+  }
+
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            NotificationsScreen(kind: 'client', service: _notifications),
+      ),
+    );
+    if (mounted) await _loadUnreadNotifications();
+  }
+
+  List<LiquidGlassNavItem> _navItems(AppLanguage lang) => [
+    LiquidGlassNavItem(
+      tr(lang, 'Asosiy', 'Главная', 'Home'),
+      'assets/icon/Home.svg',
+    ),
+    LiquidGlassNavItem(
+      tr(lang, 'Buyurtmalar', 'Заказы', 'Orders'),
+      'assets/icon/History.svg',
+    ),
+    LiquidGlassNavItem(
+      tr(lang, 'Chatlar', 'Чаты', 'Chats'),
+      'assets/icon/chat.svg',
+    ),
+    LiquidGlassNavItem(
+      tr(lang, 'Hamyon', 'Кошелек', 'Wallet'),
+      'assets/icon/wallet.svg',
+    ),
+    LiquidGlassNavItem(
+      tr(lang, 'Profil', 'Профиль', 'Profile'),
+      'assets/icon/usericon.svg',
+    ),
+  ];
+
+  void _setTab(int index) {
+    if (index == _navIndex) return;
+    setState(() {
+      _visitedTabs.add(index);
+      _navIndex = index;
+    });
+    if (index == 0) {
+      _loadActiveOrders();
+      _loadUnreadNotifications();
+    }
+  }
+
+  Widget _tabWhenVisited(int index, Widget child) {
+    return _visitedTabs.contains(index) ? child : const SizedBox.shrink();
+  }
+
+  Widget _homeTab(AppLanguage lang) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // BrandedScaffold previously supplied this top spacing. Keep the
+          // home layout unchanged while the top-level tabs share one shell.
+          const SizedBox(height: 44),
+          _HomeHeader(
+            lang: lang,
+            unreadNotifications: _unreadNotifications,
+            onNotifications: _openNotifications,
+          ),
+          const SizedBox(height: 14),
+          _GreetingCard(
+            lang: lang,
+            locationText: _defaultAddress?.addressText,
+            onChangeLocation: _changeLocation,
+          ),
+          const SizedBox(height: 14),
+          if (_activeOrders.isNotEmpty) ...[
+            _ActiveOrdersBanner(
+              lang: lang,
+              count: _activeOrders.length,
+              onView: _openActiveOrders,
+            ),
+            const SizedBox(height: 14),
+          ],
+          _SearchHero(lang: lang),
+          const SizedBox(height: 14),
+          _CategoriesCard(lang: lang, service: _categories),
+          const SizedBox(height: 14),
+          const _PhotosCard(),
+          const SizedBox(height: 14),
+          _FeedbackRow(lang: lang),
+          const SizedBox(height: 14),
+          _SpecialistCard(lang: lang),
+          const SizedBox(height: 14),
+          _ActiveOrderCard(
+            lang: lang,
+            order: _activeOrders.isEmpty ? null : _activeOrders.first,
+            onChanged: _loadActiveOrders,
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final lang = LocaleController.language.value;
-    return BrandedScaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: LocaleController.language,
+      builder: (context, lang, _) {
+        final navItems = _navItems(lang);
+        return PopScope(
+          canPop: _navIndex == 0,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop && _navIndex != 0) _setTab(0);
+          },
+          child: Scaffold(
+            backgroundColor: AppColors.background,
+            body: SafeArea(
+              child: Stack(
                 children: [
-                  const SizedBox(height: 12),
-                  _HomeHeader(lang: lang),
-                  const SizedBox(height: 14),
-                  _GreetingCard(lang: lang),
-                  const SizedBox(height: 14),
-                  _SearchHero(lang: lang),
-                  const SizedBox(height: 14),
-                  _CategoriesCard(lang: lang),
-                  const SizedBox(height: 14),
-                  const _PhotosCard(),
-                  const SizedBox(height: 14),
-                  _FeedbackRow(lang: lang),
-                  const SizedBox(height: 14),
-                  _SpecialistCard(lang: lang),
-                  const SizedBox(height: 14),
-                  _ActiveOrderCard(lang: lang),
+                  Positioned.fill(
+                    child: IndexedStack(
+                      index: _navIndex,
+                      children: [
+                        _homeTab(lang),
+                        _tabWhenVisited(
+                          1,
+                          MyOrdersScreen(embedded: true, service: _orders),
+                        ),
+                        _tabWhenVisited(
+                          2,
+                          const LiveChatsScreen(
+                            kind: 'client',
+                            showBack: false,
+                          ),
+                        ),
+                        _tabWhenVisited(3, const WalletScreen(embedded: true)),
+                        _tabWhenVisited(4, const ProfileScreen(embedded: true)),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: 8,
+                    child: LiquidGlassNavBar(
+                      items: navItems,
+                      currentIndex: _navIndex,
+                      onTap: _setTab,
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-          Positioned(
-            left: 12,
-            right: 12,
-            bottom: 8,
-            child: LiquidGlassNavBar(
-              items: [
-                LiquidGlassNavItem(
-                  tr(lang, 'Asosiy', 'Главная', 'Home'),
-                  'assets/icon/Home.svg',
-                ),
-                LiquidGlassNavItem(
-                  tr(lang, 'Buyurtmalar', 'Заказы', 'Orders'),
-                  'assets/icon/History.svg',
-                ),
-                LiquidGlassNavItem(
-                  tr(lang, 'Chatlar', 'Чаты', 'Chats'),
-                  'assets/icon/chat.svg',
-                ),
-                LiquidGlassNavItem(
-                  tr(lang, 'Hamyon', 'Кошелек', 'Wallet'),
-                  'assets/icon/wallet.svg',
-                ),
-                LiquidGlassNavItem(
-                  tr(lang, 'Profil', 'Профиль', 'Profile'),
-                  'assets/icon/usericon.svg',
-                ),
-              ],
-              currentIndex: _navIndex,
-              onTap: (i) async {
-                if (i == 0) {
-                  setState(() => _navIndex = 0);
-                  return;
-                }
-                setState(() => _navIndex = i);
-                // Tabs 1–4 push a full screen. Await it and reset the highlight
-                // back to Home on return, so the selected tab never desyncs from
-                // the visible screen.
-                Widget dest;
-                if (i == 1) {
-                  dest = const MyOrdersScreen();
-                } else if (i == 2) {
-                  dest = const LiveChatsScreen(kind: 'client');
-                } else if (i == 3) {
-                  dest = const WalletScreen();
-                } else {
-                  dest = const ProfileScreen();
-                }
-                await Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => dest),
-                );
-                if (mounted) setState(() => _navIndex = 0);
-              },
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -171,67 +302,114 @@ class _CircleIconButton extends StatelessWidget {
   const _CircleIconButton({
     required this.asset,
     this.iconSize = 22,
+    this.onTap,
+    this.badgeCount = 0,
+    this.semanticLabel,
   });
 
   final String asset;
   final double iconSize;
+  final VoidCallback? onTap;
+  final int badgeCount;
+  final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+    return Semantics(
+      button: onTap != null,
+      label: semanticLabel,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: ClipOval(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.65),
-                      Colors.white.withValues(alpha: 0.30),
-                    ],
+              child: ClipOval(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.65),
+                          Colors.white.withValues(alpha: 0.30),
+                        ],
+                      ),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        width: 1,
+                      ),
+                    ),
+                    child: SvgPicture.asset(
+                      asset,
+                      width: iconSize,
+                      height: iconSize,
+                    ),
                   ),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    width: 1,
-                  ),
-                ),
-                child: SvgPicture.asset(
-                  asset,
-                  width: iconSize,
-                  height: iconSize,
                 ),
               ),
             ),
-          ),
+            if (badgeCount > 0)
+              Positioned(
+                right: -4,
+                top: -4,
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minWidth: 20,
+                    minHeight: 20,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.danger,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: Text(
+                    badgeCount > 99 ? '99+' : '$badgeCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      height: 1,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.lang});
+  const _HomeHeader({
+    required this.lang,
+    required this.unreadNotifications,
+    required this.onNotifications,
+  });
 
   final AppLanguage lang;
+  final int unreadNotifications;
+  final VoidCallback onNotifications;
 
   @override
   Widget build(BuildContext context) {
@@ -273,12 +451,17 @@ class _HomeHeader extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        const _CircleIconButton(
-          // No fabricated unread badge: there's no unread-count source wired yet,
-          // so showing a fixed "21" to every user was misleading. Re-add `badge`
-          // once a real notifications count endpoint exists.
+        _CircleIconButton(
           asset: 'assets/icon/notificationicon.svg',
           iconSize: 21,
+          badgeCount: unreadNotifications,
+          semanticLabel: tr(
+            lang,
+            'Bildirishnomalar',
+            'Уведомления',
+            'Notifications',
+          ),
+          onTap: onNotifications,
         ),
         const SizedBox(width: 12),
         const _CircleIconButton(
@@ -291,9 +474,15 @@ class _HomeHeader extends StatelessWidget {
 }
 
 class _GreetingCard extends StatelessWidget {
-  const _GreetingCard({required this.lang});
+  const _GreetingCard({
+    required this.lang,
+    required this.locationText,
+    required this.onChangeLocation,
+  });
 
   final AppLanguage lang;
+  final String? locationText;
+  final VoidCallback onChangeLocation;
 
   @override
   Widget build(BuildContext context) {
@@ -310,8 +499,12 @@ class _GreetingCard extends StatelessWidget {
                     final name = profile?.firstName;
                     final text = name == null
                         ? tr(lang, 'Xayrli kun!', 'Добрый день!', 'Good day!')
-                        : tr(lang, 'Xayrli kun, $name!', 'Добрый день, $name!',
-                            'Good day, $name!');
+                        : tr(
+                            lang,
+                            'Xayrli kun, $name!',
+                            'Добрый день, $name!',
+                            'Good day, $name!',
+                          );
                     return Text(
                       text,
                       style: TextStyle(
@@ -327,17 +520,22 @@ class _GreetingCard extends StatelessWidget {
                   children: [
                     Icon(Icons.location_on, size: 14, color: AppColors.navy),
                     SizedBox(width: 4),
-                    Text(
-                      tr(
-                        lang,
-                        'Yashnobod, Toshkent',
-                        'Яшнабад, Ташкент',
-                        'Yashnobod, Tashkent',
-                      ),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.navy,
+                    Expanded(
+                      child: Text(
+                        locationText ??
+                            tr(
+                              lang,
+                              'Lokatsiya tanlanmagan',
+                              'Локация не выбрана',
+                              'Location not selected',
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.navy,
+                        ),
                       ),
                     ),
                   ],
@@ -346,30 +544,33 @@ class _GreetingCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.blue,
-              borderRadius: BorderRadius.circular(40),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.blue.withValues(alpha: 0.30),
-                  offset: const Offset(0, 6),
-                  blurRadius: 14,
-                ),
-              ],
-            ),
-            child: Text(
-              tr(
-                lang,
-                'Lokatsiyani oʻzgartirish',
-                'Изменить локацию',
-                'Change location',
+          GestureDetector(
+            onTap: onChangeLocation,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.blue,
+                borderRadius: BorderRadius.circular(40),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.blue.withValues(alpha: 0.30),
+                    offset: const Offset(0, 6),
+                    blurRadius: 14,
+                  ),
+                ],
               ),
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+              child: Text(
+                tr(
+                  lang,
+                  'Lokatsiyani oʻzgartirish',
+                  'Изменить локацию',
+                  'Change location',
+                ),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
@@ -455,22 +656,126 @@ class _SearchHero extends StatelessWidget {
   }
 }
 
+class _ActiveOrdersBanner extends StatelessWidget {
+  const _ActiveOrdersBanner({
+    required this.lang,
+    required this.count,
+    required this.onView,
+  });
+
+  final AppLanguage lang;
+  final int count;
+  final VoidCallback onView;
+
+  String get _title {
+    if (count == 1) {
+      return tr(
+        lang,
+        'Sizda 1 ta faol buyurtma bor',
+        'У вас 1 активный заказ',
+        'You have 1 active order',
+      );
+    }
+    return tr(
+      lang,
+      'Sizda $count ta faol buyurtma bor',
+      'У вас активных заказов: $count',
+      'You have $count active orders',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      radius: 24,
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: Color(0xFFE0F2FE),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.assignment_outlined,
+              size: 23,
+              color: AppColors.blue,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    height: 1.25,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navy,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  tr(
+                    lang,
+                    'Jarayonni Buyurtmalar boʻlimida kuzating',
+                    'Следите за ходом выполнения в разделе заказов',
+                    'Track progress in the Orders section',
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    height: 1.3,
+                    color: AppColors.muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          FilledButton(
+            onPressed: onView,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(72, 40),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              backgroundColor: AppColors.blue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
+              ),
+              elevation: 0,
+            ),
+            child: Text(
+              tr(lang, 'Koʻrish', 'Смотреть', 'View'),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Category {
   const _Category(this.label);
   final String label;
 }
 
 class _CategoriesCard extends StatefulWidget {
-  const _CategoriesCard({required this.lang});
+  const _CategoriesCard({required this.lang, required this.service});
 
   final AppLanguage lang;
+  final CategoryService service;
 
   @override
   State<_CategoriesCard> createState() => _CategoriesCardState();
 }
 
 class _CategoriesCardState extends State<_CategoriesCard> {
-  final _service = CategoryService();
   late List<_Category> _items;
 
   @override
@@ -493,7 +798,7 @@ class _CategoriesCardState extends State<_CategoriesCard> {
 
   Future<void> _load() async {
     try {
-      final categories = await _service.getAll();
+      final categories = await widget.service.getAll();
       if (!mounted || categories.isEmpty) return;
       setState(() {
         _items = categories
@@ -589,12 +894,17 @@ IconData _categoryIcon(String name) {
   if (n.contains('быт') || n.contains('техник') || n.contains('texnik')) {
     return Icons.kitchen_outlined;
   }
-  if (n.contains('крас') || n.contains('boʻyash') || n.contains("bo'yash") ||
+  if (n.contains('крас') ||
+      n.contains('boʻyash') ||
+      n.contains("bo'yash") ||
       n.contains('paint')) {
     return Icons.format_paint_outlined;
   }
-  if (n.contains('сбор') || n.contains('мебел') || n.contains('yigʻ') ||
-      n.contains("yig'") || n.contains('mebel')) {
+  if (n.contains('сбор') ||
+      n.contains('мебел') ||
+      n.contains('yigʻ') ||
+      n.contains("yig'") ||
+      n.contains('mebel')) {
     return Icons.chair_alt_outlined;
   }
   return Icons.handyman_outlined;
@@ -887,59 +1197,38 @@ String _activeStatusLabel(AppLanguage lang, OrderSummary o) {
     case 'arrived':
       return tr(lang, 'Usta yetib keldi', 'Мастер на месте', 'Master arrived');
     case 'work_done':
-      return tr(
-          lang, 'Ish bajarildi', 'Работа выполнена', 'Work completed');
+      return tr(lang, 'Ish bajarildi', 'Работа выполнена', 'Work completed');
     default:
       return tr(lang, 'Jarayonda', 'В процессе', 'In progress');
   }
 }
 
-/// Live "Активный заказ" card (FINAL) — bound to the client's real active
-/// order; hidden when there is none. Tapping opens order tracking.
-class _ActiveOrderCard extends StatefulWidget {
-  const _ActiveOrderCard({required this.lang});
+/// Live "Активный заказ" card (FINAL) — bound to the first active order and
+/// kept at the bottom as a compact shortcut. Tapping opens order tracking.
+class _ActiveOrderCard extends StatelessWidget {
+  const _ActiveOrderCard({
+    required this.lang,
+    required this.order,
+    required this.onChanged,
+  });
 
   final AppLanguage lang;
-
-  @override
-  State<_ActiveOrderCard> createState() => _ActiveOrderCardState();
-}
-
-class _ActiveOrderCardState extends State<_ActiveOrderCard> {
-  final OrderService _service = OrderService();
-  OrderSummary? _order;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final items = await _service.list(status: 'active');
-      if (mounted && items.isNotEmpty) {
-        setState(() => _order = items.first);
-      }
-    } catch (_) {
-      // No card on error — the home stays clean.
-    }
-  }
+  final OrderSummary? order;
+  final Future<void> Function() onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final order = _order;
     if (order == null) return const SizedBox.shrink();
-    final lang = widget.lang;
+    final activeOrder = order!;
 
     return GestureDetector(
       onTap: () async {
         await Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => OrderTrackingScreen(orderId: order.id),
+            builder: (_) => OrderTrackingScreen(orderId: activeOrder.id),
           ),
         );
-        if (mounted) _load();
+        await onChanged();
       },
       child: _Card(
         radius: 40,
@@ -959,7 +1248,7 @@ class _ActiveOrderCardState extends State<_ActiveOrderCard> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${tr(lang, 'Faol buyurtma', 'Активный заказ', 'Active order')} · ${order.title}',
+                    '${tr(lang, 'Faol buyurtma', 'Активный заказ', 'Active order')} · ${activeOrder.title}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -974,8 +1263,8 @@ class _ActiveOrderCardState extends State<_ActiveOrderCard> {
             const SizedBox(height: 6),
             Text(
               [
-                _activeStatusLabel(lang, order),
-                if (order.masterName != null) order.masterName!,
+                _activeStatusLabel(lang, activeOrder),
+                if (activeOrder.masterName != null) activeOrder.masterName!,
               ].join(' · '),
               style: const TextStyle(fontSize: 10, color: Color(0xFF4B5563)),
             ),

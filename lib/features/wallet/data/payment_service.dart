@@ -14,11 +14,11 @@ class SavedCard {
   final String last4;
   final bool isDefault;
   factory SavedCard.fromJson(Map<String, dynamic> j) => SavedCard(
-        id: _int(j['id']),
-        brand: j['brand'] as String? ?? '',
-        last4: j['last4'] as String? ?? '',
-        isDefault: j['isDefault'] == true,
-      );
+    id: _int(j['id']),
+    brand: j['brand'] as String? ?? '',
+    last4: j['last4'] as String? ?? '',
+    isDefault: j['isDefault'] == true,
+  );
 }
 
 class OrderPaymentInfo {
@@ -35,21 +35,21 @@ class OrderPaymentInfo {
   final String? paymentStatus;
   final List<SavedCard> cards;
   factory OrderPaymentInfo.fromJson(Map<String, dynamic> j) => OrderPaymentInfo(
-        orderId: _int(j['orderId']),
-        orderTitle: j['orderTitle'] as String? ?? '',
-        amount: _int(j['amount']),
-        paymentStatus: j['paymentStatus'] as String?,
-        cards: (j['cards'] as List<dynamic>? ?? [])
-            .map((e) => SavedCard.fromJson(e as Map<String, dynamic>))
-            .toList(growable: false),
-      );
+    orderId: _int(j['orderId']),
+    orderTitle: j['orderTitle'] as String? ?? '',
+    amount: _int(j['amount']),
+    paymentStatus: j['paymentStatus'] as String?,
+    cards: (j['cards'] as List<dynamic>? ?? [])
+        .map((e) => SavedCard.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false),
+  );
 }
 
 /// Client cards + order payment (see docs/v3/Payments.md). Cards live under
 /// `/{kind}s/me/cards`; [kind] lets masters reuse this for their payout cards.
 class PaymentService {
   PaymentService({this.kind = 'client', ApiClient? client})
-      : _client = client ?? ApiClient.instance;
+    : _client = client ?? ApiClient.instance;
 
   final String kind; // 'client' | 'master'
   final ApiClient _client;
@@ -61,18 +61,26 @@ class PaymentService {
         .toList(growable: false);
   }
 
-  Future<SavedCard> addCard({required String brand, required String last4, String? expiry}) async {
-    final data = await _client.post('/${kind}s/me/cards', body: {
-      'brand': brand,
-      'last4': last4,
-      if (expiry != null && expiry.isNotEmpty) 'expiry': expiry,
-    });
+  Future<SavedCard> addCard({
+    required String brand,
+    required String last4,
+    String? expiry,
+  }) async {
+    final data = await _client.post(
+      '/${kind}s/me/cards',
+      body: {
+        'brand': brand,
+        'last4': last4,
+        if (expiry != null && expiry.isNotEmpty) 'expiry': expiry,
+      },
+    );
     return SavedCard.fromJson(data as Map<String, dynamic>);
   }
 
   Future<void> deleteCard(int id) => _client.delete('/${kind}s/me/cards/$id');
 
-  Future<void> setDefault(int id) => _client.post('/${kind}s/me/cards/$id/default');
+  Future<void> setDefault(int id) =>
+      _client.post('/${kind}s/me/cards/$id/default');
 
   // ---- order payment (client only) ----
 
@@ -83,7 +91,10 @@ class PaymentService {
 
   /// `POST /clients/me/orders/:id/pay` → `{status, masterShare?}`.
   Future<String> pay(int orderId, int cardId) async {
-    final data = await _client.post('/clients/me/orders/$orderId/pay', body: {'cardId': cardId});
+    final data = await _client.post(
+      '/clients/me/orders/$orderId/pay',
+      body: {'cardId': cardId},
+    );
     return (data as Map<String, dynamic>)['status'] as String? ?? 'unknown';
   }
 
@@ -105,8 +116,10 @@ class PaymentService {
 
   /// `POST /clients/me/wallet/topup` → new balance.
   Future<int> topup({required int cardId, required int amount}) async {
-    final data = await _client
-        .post('/clients/me/wallet/topup', body: {'cardId': cardId, 'amount': amount});
+    final data = await _client.post(
+      '/clients/me/wallet/topup',
+      body: {'cardId': cardId, 'amount': amount},
+    );
     return _int((data as Map<String, dynamic>)['balance']);
   }
 }
@@ -136,12 +149,12 @@ class WalletOperation {
   final DateTime? createdAt;
 
   factory WalletOperation.fromJson(Map<String, dynamic> j) => WalletOperation(
-        id: j['id']?.toString() ?? '',
-        kind: j['kind'] as String? ?? '',
-        amount: _int(j['amount']),
-        orderTitle: j['orderTitle'] as String?,
-        categoryName: j['categoryName'] as String?,
-        note: j['note'] as String?,
-        createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
-      );
+    id: j['id']?.toString() ?? '',
+    kind: j['kind'] as String? ?? '',
+    amount: _int(j['amount']),
+    orderTitle: j['orderTitle'] as String?,
+    categoryName: j['categoryName'] as String?,
+    note: j['note'] as String?,
+    createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
+  );
 }

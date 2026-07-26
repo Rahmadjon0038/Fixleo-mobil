@@ -1,10 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:latlong2/latlong.dart';
 
-/// Tiny helper around OpenStreetMap Nominatim reverse-geocoding.
+/// Worldwide reverse-geocoding helper around OpenStreetMap Nominatim.
 ///
-/// The app already uses map tiles from OpenStreetMap, so this keeps the
-/// selected point readable without adding a backend dependency.
+/// Google Maps renders the map while this independent service converts the
+/// selected coordinate into a readable address.
 class ReverseGeocoder {
   ReverseGeocoder({Dio? dio}) : _dio = dio ?? _buildDio();
 

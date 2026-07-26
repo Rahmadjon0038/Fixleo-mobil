@@ -1,6 +1,7 @@
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import 'package:fixleo/core/network/api_client.dart';
+import 'package:fixleo/core/network/api_config.dart';
 import 'package:fixleo/core/network/auth_session.dart';
 import 'package:fixleo/features/request/data/chat_service.dart';
 
@@ -15,10 +16,9 @@ class ChatSocket {
     required this.kind,
     required this.conversationId,
     AuthSession? session,
-    this.socketBase = _defaultBase,
-  }) : _session = session ?? AuthSession.instance;
-
-  static const _defaultBase = 'http://localhost:9000'; // LOCAL DEV (prod: https://api.fixleo.com)
+    String? socketBase,
+  }) : socketBase = socketBase ?? ApiConfig.socketBaseUrl,
+       _session = session ?? AuthSession.instance;
 
   final String kind; // 'client' | 'master'
   final int conversationId;
@@ -42,6 +42,26 @@ class ChatSocket {
           .build(),
     );
 
+    var reconnecting = false;
+    Future<void> refreshAndReconnect(_) async {
+      if (reconnecting) return;
+      reconnecting = true;
+      try {
+        final refreshed = await ApiClient.instance.refreshTokens();
+        final fresh = _session.accessToken;
+        if (refreshed && fresh != null) {
+          socket.disconnect();
+          socket.auth = {'token': fresh};
+          socket.connect();
+        }
+      } on Object {
+        // A temporary network failure keeps the persisted session. The REST
+        // layer or a later socket reconnect will retry the same refresh token.
+      } finally {
+        reconnecting = false;
+      }
+    }
+
     socket
       ..on('chat_message', (data) {
         if (data is! Map) return;
@@ -52,16 +72,8 @@ class ChatSocket {
           onMessage(ChatMessage.fromJson(Map<String, dynamic>.from(msg)));
         }
       })
-      ..on('token_expired', (_) async {
-        // Refresh explicitly (sockets can't ride the REST 401 interceptor),
-        // then reconnect with the fresh access token.
-        await ApiClient.instance.refreshTokens();
-        final fresh = _session.accessToken;
-        if (fresh != null) {
-          socket.auth = {'token': fresh};
-          socket.connect();
-        }
-      });
+      ..on('token_expired', refreshAndReconnect)
+      ..on('unauthorized', refreshAndReconnect);
 
     socket.connect();
     _socket = socket;

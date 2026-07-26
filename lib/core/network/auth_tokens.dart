@@ -11,7 +11,7 @@ class AuthTokens {
   final String refreshToken;
 
   factory AuthTokens.fromJson(Map<String, dynamic> json) => AuthTokens(
-        accessToken: json['accessToken'] as String,
-        refreshToken: json['refreshToken'] as String,
-      );
+    accessToken: json['accessToken'] as String,
+    refreshToken: json['refreshToken'] as String,
+  );
 }

@@ -86,7 +86,5 @@ bool _hasRequiredDocuments(List<MasterDocument> documents) {
 }
 
 bool _hasSelfie(List<MasterDocument> documents) {
-  return documents.any(
-    (d) => d.type == MasterDocumentType.selfieWithPassport,
-  );
+  return documents.any((d) => d.type == MasterDocumentType.selfieWithPassport);
 }

@@ -13,7 +13,11 @@ enum _StepState { done, current, pending }
 
 /// One step in the order timeline.
 class _Step {
-  const _Step({required this.title, required this.subtitle, required this.state});
+  const _Step({
+    required this.title,
+    required this.subtitle,
+    required this.state,
+  });
 
   final String title;
   final String subtitle;
@@ -24,9 +28,14 @@ class _Step {
 /// completion, driven by the live `GET /clients/me/orders/:id` status +
 /// capabilities. The bottom button reflects the next available client action.
 class OrderStatusScreen extends StatefulWidget {
-  const OrderStatusScreen({super.key, required this.orderId});
+  const OrderStatusScreen({
+    super.key,
+    required this.orderId,
+    this.orderService,
+  });
 
   final int orderId;
+  final OrderService? orderService;
 
   static const _blue100 = Color(0xFFDBEAFE);
   static const _slate200 = Color(0xFFE2E8F0);
@@ -43,7 +52,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
   static const _text = OrderStatusScreen._text;
   static const _muted = OrderStatusScreen._muted;
 
-  final OrderService _service = OrderService();
+  late final OrderService _service = widget.orderService ?? OrderService();
   OrderDetail? _order;
   bool _loading = true;
   bool _busy = false;
@@ -76,33 +85,36 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
     }
   }
 
-  int get _doneSteps => switch (_order?.status) {
-        'assigned' => 1,
-        'on_the_way' => 2,
-        'arrived' => 3,
-        'work_done' || 'completed' || 'disputed' => 4,
-        _ => 0,
-      };
-
   /// True once a master is actually assigned — the 4-step timeline (assigned →
   /// … → work_done) only begins then. While the order is still `searching`
   /// (or expired/cancelled), none of these steps has started.
   bool get _started => const {
-        'assigned',
-        'on_the_way',
-        'arrived',
-        'work_done',
-        'completed',
-        'disputed',
-      }.contains(_order?.status);
+    'assigned',
+    'on_the_way',
+    'arrived',
+    'work_done',
+    'completed',
+    'disputed',
+  }.contains(_order?.status);
 
   _StepState _stepState(int i) {
     // Don't light up "Мастер назначен" as current while still searching — no
     // master is assigned yet, so every step is pending.
     if (!_started) return _StepState.pending;
-    final d = _doneSteps;
-    if (d >= i + 1) return _StepState.done;
-    if (d == i) return _StepState.current;
+
+    if (const {'completed', 'disputed'}.contains(_order?.status)) {
+      return _StepState.done;
+    }
+
+    final current = switch (_order?.status) {
+      'assigned' => 0,
+      'on_the_way' => 1,
+      'arrived' => 2,
+      'work_done' => 3,
+      _ => -1,
+    };
+    if (i < current) return _StepState.done;
+    if (i == current) return _StepState.current;
     return _StepState.pending;
   }
 
@@ -111,8 +123,8 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
     String sub(_StepState s) => s == pending
         ? tr(lang, 'Kutilmoqda', 'Ожидается', 'Pending')
         : s == _StepState.current
-            ? tr(lang, 'Hozir', 'Сейчас', 'Now')
-            : tr(lang, 'Bajarildi', 'Готово', 'Done');
+        ? tr(lang, 'Hozir', 'Сейчас', 'Now')
+        : tr(lang, 'Bajarildi', 'Готово', 'Done');
     final titles = [
       tr(lang, 'Usta tayinlandi', 'Мастер назначен', 'Master assigned'),
       tr(lang, 'Usta yoʻlda', 'Мастер в пути', 'Master on the way'),
@@ -121,25 +133,25 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
     ];
     return [
       for (int i = 0; i < 4; i++)
-        _Step(title: titles[i], subtitle: sub(_stepState(i)), state: _stepState(i)),
+        _Step(
+          title: titles[i],
+          subtitle: sub(_stepState(i)),
+          state: _stepState(i),
+        ),
     ];
   }
 
-  Future<void> _confirm() async {
+  Future<void> _reviewCompletion() async {
     setState(() => _busy = true);
-    try {
-      await _service.confirmCompletion(widget.orderId);
-      if (!mounted) return;
-      setState(() => _busy = false);
-      await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => OrderDoneScreen(orderId: widget.orderId)),
-      );
-      if (mounted) _load();
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-    }
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            OrderDoneScreen(orderId: widget.orderId, orderService: _service),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _busy = false);
+    await _load();
   }
 
   @override
@@ -153,24 +165,26 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
-                ? Center(child: Text(_error!, style: const TextStyle(color: _muted)))
-                : Column(
-                    children: [
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            children: [
-                              _timelineCard(_steps(lang)),
-                              const SizedBox(height: 10),
-                              _noticeBanner(),
-                            ],
-                          ),
-                        ),
+            ? Center(
+                child: Text(_error!, style: const TextStyle(color: _muted)),
+              )
+            : Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          _timelineCard(_steps(lang)),
+                          const SizedBox(height: 10),
+                          _noticeBanner(),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      _actionButton(lang),
-                    ],
+                    ),
                   ),
+                  const SizedBox(height: 16),
+                  _actionButton(lang),
+                ],
+              ),
       ),
     );
   }
@@ -179,22 +193,40 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
     final caps = _order?.capabilities;
     final canConfirm = caps?.canConfirm == true;
     final label = canConfirm
-        ? tr(lang, 'Bajarilganini tasdiqlash', 'Подтвердить выполнение', 'Confirm completion')
-        : tr(lang, 'Holat kuzatilmoqda', 'Статус отслеживается', 'Tracking status');
+        ? tr(
+            lang,
+            'Bajarilganini tasdiqlash',
+            'Подтвердить выполнение',
+            'Confirm completion',
+          )
+        : tr(
+            lang,
+            'Holat kuzatilmoqda',
+            'Статус отслеживается',
+            'Tracking status',
+          );
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: FilledButton(
-        onPressed: (canConfirm && !_busy) ? _confirm : null,
+        onPressed: (canConfirm && !_busy) ? _reviewCompletion : null,
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.blue,
           foregroundColor: AppColors.background,
           disabledBackgroundColor: _slate200,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(40),
+          ),
         ),
         child: _busy
             ? const SizedBox(
-                width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
             : Text(
                 label,
                 style: const TextStyle(

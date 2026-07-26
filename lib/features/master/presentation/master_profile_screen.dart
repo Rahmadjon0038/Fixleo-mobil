@@ -41,20 +41,38 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
     setState(() => _photo = file);
   }
 
-  /// Saves the "about me" bio (`PATCH /masters/me/about`) then moves on. The
-  /// bio is optional, so an empty field just skips the call.
+  /// Uploads the mandatory profile photo, saves the optional bio, then moves on.
   Future<void> _next() async {
     if (_loading) return;
+    if (_photo == null) {
+      final lang = LocaleController.language.value;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              tr(
+                lang,
+                'Profil rasmini tanlang',
+                'Выберите фото профиля',
+                'Choose a profile photo',
+              ),
+            ),
+          ),
+        );
+      return;
+    }
     setState(() => _loading = true);
     try {
+      await _service.uploadAvatar(_photo!.path);
       final bio = _about.text.trim();
       if (bio.isNotEmpty) {
         await _service.updateAbout(bio);
       }
       if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const MasterCategoriesScreen()),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const MasterCategoriesScreen()));
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -81,27 +99,41 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
     return BrandedScaffold(
       title: tr(lang, 'Profil', 'Профиль', 'Profile'),
       showBack: true,
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _PhotoCard(file: _photo, onTap: _pickPhoto),
-            const SizedBox(height: 12),
-            _AboutCard(controller: _about),
-            const Spacer(),
-            PrimaryButton(
-              label: _loading
-                  ? tr(lang, 'Saqlanmoqda...', 'Сохранение...', 'Saving...')
-                  : tr(
-                      lang,
-                      'Saqlash va davom etish',
-                      'Сохранить и продолжить',
-                      'Save and continue',
-                    ),
-              onPressed: _loading ? null : _next,
+      body: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 28),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _PhotoCard(file: _photo, onTap: _pickPhoto),
+                  const SizedBox(height: 12),
+                  _AboutCard(controller: _about),
+                  const Spacer(),
+                  const SizedBox(height: 12),
+                  PrimaryButton(
+                    label: _loading
+                        ? tr(
+                            lang,
+                            'Saqlanmoqda...',
+                            'Сохранение...',
+                            'Saving...',
+                          )
+                        : tr(
+                            lang,
+                            'Saqlash va davom etish',
+                            'Сохранить и продолжить',
+                            'Save and continue',
+                          ),
+                    onPressed: _loading ? null : _next,
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -205,6 +237,7 @@ class _AboutCard extends StatelessWidget {
             ),
             child: TextField(
               controller: controller,
+              scrollPadding: const EdgeInsets.only(bottom: 120),
               maxLines: null,
               expands: true,
               textAlignVertical: TextAlignVertical.top,
@@ -214,9 +247,9 @@ class _AboutCard extends StatelessWidget {
                 height: 1.4,
                 color: AppColors.navy,
               ),
-                decoration: InputDecoration(
-                  isCollapsed: true,
-                  border: InputBorder.none,
+              decoration: InputDecoration(
+                isCollapsed: true,
+                border: InputBorder.none,
                 hintText: tr(
                   lang,
                   'Tajribali santexnik. Ozoda ishlayman, oʻz asboblarim bor.',

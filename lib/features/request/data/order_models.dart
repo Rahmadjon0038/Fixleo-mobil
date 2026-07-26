@@ -1,9 +1,44 @@
+import 'package:fixleo/core/network/api_config.dart';
+
 /// Client-side marketplace models. Field names mirror the backend response
 /// DTOs exactly (see docs/v3/Orders.md) so `fromJson` is a direct mapping.
 
 int _int(dynamic v) => (v as num?)?.toInt() ?? 0;
 int? _intN(dynamic v) => (v as num?)?.toInt();
 double? _dbl(dynamic v) => (v as num?)?.toDouble();
+
+class ClientAddress {
+  const ClientAddress({
+    required this.id,
+    required this.addressText,
+    required this.latitude,
+    required this.longitude,
+    this.label,
+    this.district,
+    this.details,
+    this.isDefault = false,
+  });
+
+  final int id;
+  final String addressText;
+  final double latitude;
+  final double longitude;
+  final String? label;
+  final String? district;
+  final String? details;
+  final bool isDefault;
+
+  factory ClientAddress.fromJson(Map<String, dynamic> j) => ClientAddress(
+    id: _int(j['id']),
+    addressText: j['addressText'] as String? ?? '',
+    latitude: _dbl(j['latitude']) ?? 0,
+    longitude: _dbl(j['longitude']) ?? 0,
+    label: j['label'] as String?,
+    district: j['district'] as String?,
+    details: j['details'] as String?,
+    isDefault: j['isDefault'] == true,
+  );
+}
 
 /// A row in the client's "Мои заказы" list.
 class OrderSummary {
@@ -26,20 +61,21 @@ class OrderSummary {
   final DateTime? createdAt;
 
   factory OrderSummary.fromJson(Map<String, dynamic> j) => OrderSummary(
-        id: _int(j['id']),
-        title: j['title'] as String? ?? '',
-        status: j['status'] as String? ?? '',
-        masterName: j['masterName'] as String?,
-        price: _intN(j['price']),
-        offersCount: _int(j['offersCount']),
-        createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
-      );
+    id: _int(j['id']),
+    title: j['title'] as String? ?? '',
+    status: j['status'] as String? ?? '',
+    masterName: j['masterName'] as String?,
+    price: _intN(j['price']),
+    offersCount: _int(j['offersCount']),
+    createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
+  );
 }
 
 class OrderMasterInfo {
   const OrderMasterInfo({
     required this.numericId,
     this.name,
+    this.avatarUrl,
     this.ratingAvg,
     this.phone,
     this.categoryName,
@@ -47,17 +83,19 @@ class OrderMasterInfo {
 
   final int numericId;
   final String? name;
+  final String? avatarUrl;
   final double? ratingAvg;
   final String? phone;
   final String? categoryName;
 
   factory OrderMasterInfo.fromJson(Map<String, dynamic> j) => OrderMasterInfo(
-        numericId: _int(j['numericId']),
-        name: j['name'] as String?,
-        ratingAvg: _dbl(j['ratingAvg']),
-        phone: j['phone'] as String?,
-        categoryName: j['categoryName'] as String?,
-      );
+    numericId: _int(j['numericId']),
+    name: j['name'] as String?,
+    avatarUrl: ApiConfig.resolveMediaUrl(j['avatarUrl']),
+    ratingAvg: _dbl(j['ratingAvg']),
+    phone: j['phone'] as String?,
+    categoryName: j['categoryName'] as String?,
+  );
 }
 
 class OrderPhoto {
@@ -65,15 +103,19 @@ class OrderPhoto {
   final int id;
   final String kind;
   final String url;
-  factory OrderPhoto.fromJson(Map<String, dynamic> j) =>
-      OrderPhoto(id: _int(j['id']), kind: j['kind'] as String? ?? '', url: j['url'] as String? ?? '');
+  factory OrderPhoto.fromJson(Map<String, dynamic> j) => OrderPhoto(
+    id: _int(j['id']),
+    kind: j['kind'] as String? ?? '',
+    url: ApiConfig.resolveMediaUrl(j['url']) ?? '',
+  );
 }
 
 class OrderTimelineEntry {
   const OrderTimelineEntry({required this.to, this.at});
   final String to;
   final DateTime? at;
-  factory OrderTimelineEntry.fromJson(Map<String, dynamic> j) => OrderTimelineEntry(
+  factory OrderTimelineEntry.fromJson(Map<String, dynamic> j) =>
+      OrderTimelineEntry(
         to: j['to'] as String? ?? '',
         at: DateTime.tryParse(j['at']?.toString() ?? ''),
       );
@@ -94,7 +136,8 @@ class OrderCapabilities {
   final bool canReview;
   final bool canPay;
 
-  factory OrderCapabilities.fromJson(Map<String, dynamic>? j) => OrderCapabilities(
+  factory OrderCapabilities.fromJson(Map<String, dynamic>? j) =>
+      OrderCapabilities(
         canCancel: j?['canCancel'] == true,
         canConfirm: j?['canConfirm'] == true,
         canDispute: j?['canDispute'] == true,
@@ -111,8 +154,11 @@ class OrderDetail {
     required this.description,
     required this.status,
     required this.addressText,
+    this.latitude,
+    this.longitude,
     this.slotLabel,
     this.timing = '',
+    this.scheduledDate,
     this.agreedPrice,
     this.finalAmount,
     this.photos = const [],
@@ -134,8 +180,11 @@ class OrderDetail {
   final String description;
   final String status;
   final String addressText;
+  final double? latitude;
+  final double? longitude;
   final String? slotLabel;
   final String timing;
+  final String? scheduledDate;
   final int? agreedPrice;
   final int? finalAmount;
   final List<OrderPhoto> photos;
@@ -161,8 +210,11 @@ class OrderDetail {
       description: j['description'] as String? ?? '',
       status: j['status'] as String? ?? '',
       addressText: j['addressText'] as String? ?? '',
+      latitude: _dbl(j['latitude']),
+      longitude: _dbl(j['longitude']),
       slotLabel: j['slotLabel'] as String?,
       timing: j['timing'] as String? ?? '',
+      scheduledDate: j['scheduledDate'] as String?,
       agreedPrice: _intN(j['agreedPrice']),
       finalAmount: _intN(j['finalAmount']),
       photos: (j['photos'] as List<dynamic>? ?? [])
@@ -181,7 +233,9 @@ class OrderDetail {
       reviewId: _intN(review?['id']),
       complaintId: _intN(complaint?['id']),
       complaintStatus: complaint?['status'] as String?,
-      capabilities: OrderCapabilities.fromJson(j['capabilities'] as Map<String, dynamic>?),
+      capabilities: OrderCapabilities.fromJson(
+        j['capabilities'] as Map<String, dynamic>?,
+      ),
       matchedMastersCount: _intN(j['matchedMastersCount']),
     );
   }
@@ -232,29 +286,37 @@ class OfferView {
 
 /// A bookable time slot for the "when" step.
 class OrderSlot {
-  const OrderSlot({required this.slot, required this.label, required this.available});
+  const OrderSlot({
+    required this.slot,
+    required this.label,
+    required this.available,
+  });
   final String slot;
   final String label;
   final bool available;
   factory OrderSlot.fromJson(Map<String, dynamic> j) => OrderSlot(
-        slot: j['slot'] as String? ?? '',
-        label: j['label'] as String? ?? '',
-        available: j['available'] != false,
-      );
+    slot: j['slot'] as String? ?? '',
+    label: j['label'] as String? ?? '',
+    available: j['available'] != false,
+  );
 }
 
 class OrderSlots {
-  const OrderSlots({required this.date, required this.asapAvailable, required this.slots});
+  const OrderSlots({
+    required this.date,
+    required this.asapAvailable,
+    required this.slots,
+  });
   final String date;
   final bool asapAvailable;
   final List<OrderSlot> slots;
   factory OrderSlots.fromJson(Map<String, dynamic> j) => OrderSlots(
-        date: j['date'] as String? ?? '',
-        asapAvailable: j['asapAvailable'] != false,
-        slots: (j['slots'] as List<dynamic>? ?? [])
-            .map((e) => OrderSlot.fromJson(e as Map<String, dynamic>))
-            .toList(growable: false),
-      );
+    date: j['date'] as String? ?? '',
+    asapAvailable: j['asapAvailable'] != false,
+    slots: (j['slots'] as List<dynamic>? ?? [])
+        .map((e) => OrderSlot.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false),
+  );
 }
 
 /// Live tracking payload (c11): master location + ETA while on the way.
@@ -282,8 +344,8 @@ class UploadedPhoto {
   final String? mimeType;
   final int? sizeBytes;
   factory UploadedPhoto.fromJson(Map<String, dynamic> j) => UploadedPhoto(
-        fileKey: j['fileKey'] as String? ?? '',
-        mimeType: j['mimeType'] as String?,
-        sizeBytes: _intN(j['sizeBytes']),
-      );
+    fileKey: j['fileKey'] as String? ?? '',
+    mimeType: j['mimeType'] as String?,
+    sizeBytes: _intN(j['sizeBytes']),
+  );
 }

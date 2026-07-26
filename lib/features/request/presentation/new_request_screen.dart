@@ -1,10 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:latlong2/latlong.dart' hide Path;
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
@@ -14,6 +12,7 @@ import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/categories/data/category_model.dart';
 import 'package:fixleo/features/categories/data/category_service.dart';
 import 'package:fixleo/features/request/data/new_order_draft.dart';
+import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/presentation/address_screen.dart';
 
@@ -97,11 +96,19 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Text(tr(lang, 'Kategoriya', 'Категория', 'Category'),
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              child: Text(
+                tr(lang, 'Kategoriya', 'Категория', 'Category'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
             for (final c in _categories)
-              ListTile(title: Text(c.name), onTap: () => Navigator.of(ctx).pop(c)),
+              ListTile(
+                title: Text(c.name),
+                onTap: () => Navigator.of(ctx).pop(c),
+              ),
           ],
         ),
       ),
@@ -118,22 +125,38 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     final lang = LocaleController.language.value;
     final desc = _description.text.trim();
     if (_categoryId == null) {
-      _snack(tr(lang, 'Kategoriyani tanlang', 'Выберите категорию', 'Pick a category'));
+      _snack(
+        tr(
+          lang,
+          'Kategoriyani tanlang',
+          'Выберите категорию',
+          'Pick a category',
+        ),
+      );
       return;
     }
     if (desc.length < 10) {
-      _snack(tr(lang, 'Vazifani batafsilroq yozing (min 10 belgi)',
-          'Опишите задачу подробнее (мин. 10 символов)', 'Describe the task (min 10 chars)'));
+      _snack(
+        tr(
+          lang,
+          'Vazifani batafsilroq yozing (min 10 belgi)',
+          'Опишите задачу подробнее (мин. 10 символов)',
+          'Describe the task (min 10 chars)',
+        ),
+      );
       return;
     }
     setState(() => _submitting = true);
-    final draft = NewOrderDraft(categoryId: _categoryId, categoryName: _categoryName)
-      ..description = desc;
+    final draft = NewOrderDraft(
+      categoryId: _categoryId,
+      categoryName: _categoryName,
+    )..description = desc;
     try {
       for (final p in _photos) {
         if (p != null) {
           final uploaded = await _orders.uploadPhoto(p.path);
           draft.photoKeys.add(uploaded.fileKey);
+          draft.photoPaths.add(p.path);
         }
       }
     } on ApiException catch (e) {
@@ -144,8 +167,19 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     }
     if (!mounted) return;
     setState(() => _submitting = false);
+    ClientAddress? initialAddress;
+    try {
+      final addresses = await _orders.addresses();
+      if (addresses.isNotEmpty) initialAddress = addresses.first;
+    } on Object {
+      // Address picking still works from the neutral world view and GPS.
+    }
+    if (!mounted) return;
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => AddressScreen(draft: draft)),
+      MaterialPageRoute(
+        builder: (_) =>
+            AddressScreen(draft: draft, initialAddress: initialAddress),
+      ),
     );
   }
 
@@ -171,8 +205,14 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                     GestureDetector(
                       onTap: widget.categoryId == null ? _pickCategory : null,
                       child: _CategoryPill(
-                        label: _categoryName ??
-                            tr(lang, 'Kategoriya tanlang', 'Выберите категорию', 'Pick a category'),
+                        label:
+                            _categoryName ??
+                            tr(
+                              lang,
+                              'Kategoriya tanlang',
+                              'Выберите категорию',
+                              'Pick a category',
+                            ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -312,7 +352,12 @@ class _DescribeCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            tr(lang, 'Vazifani tasvirlang', 'Опишите задачу', 'Describe the task'),
+            tr(
+              lang,
+              'Vazifani tasvirlang',
+              'Опишите задачу',
+              'Describe the task',
+            ),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -348,101 +393,6 @@ class _DescribeCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Address preview card — a static mini-map with a pin and a
-/// "Manzilni tasdiqlash" row; tapping it opens the map picker.
-class _AddressCard extends StatelessWidget {
-  const _AddressCard({required this.onTap, required this.lang});
-
-  final VoidCallback onTap;
-  final AppLanguage lang;
-
-  /// Tashkent center, same starting point as the picker map.
-  static const _center = LatLng(41.311081, 69.279737);
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: SizedBox(
-                height: 140,
-                child: IgnorePointer(
-                  child: Stack(
-                    children: [
-                      FlutterMap(
-                        options: const MapOptions(
-                          initialCenter: _center,
-                          initialZoom: 13,
-                          interactionOptions: InteractionOptions(
-                            flags: InteractiveFlag.none,
-                          ),
-                        ),
-                        children: [
-                          TileLayer(
-                            urlTemplate:
-                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                            userAgentPackageName: 'com.fixleo.app',
-                          ),
-                        ],
-                      ),
-                      const Center(
-                        child: Icon(
-                          Icons.location_on,
-                          size: 36,
-                          color: AppColors.navy,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 10, 6, 6),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      tr(lang, 'Manzilni tasdiqlash', 'Подтвердить адрес', 'Confirm address'),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.navy,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    size: 22,
-                    color: AppColors.muted,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

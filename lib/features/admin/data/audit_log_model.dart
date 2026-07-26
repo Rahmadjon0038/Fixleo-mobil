@@ -24,13 +24,13 @@ class AuditLogEntry {
   final DateTime? createdAt;
 
   factory AuditLogEntry.fromJson(Map<String, dynamic> json) => AuditLogEntry(
-        id: (json['id'] as num).toInt(),
-        method: json['method'] as String,
-        path: json['path'] as String,
-        adminId: (json['adminId'] as num?)?.toInt(),
-        adminEmail: json['adminEmail'] as String?,
-        statusCode: (json['statusCode'] as num?)?.toInt(),
-        requestId: json['requestId'] as String?,
-        createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
-      );
+    id: (json['id'] as num).toInt(),
+    method: json['method'] as String,
+    path: json['path'] as String,
+    adminId: (json['adminId'] as num?)?.toInt(),
+    adminEmail: json['adminEmail'] as String?,
+    statusCode: (json['statusCode'] as num?)?.toInt(),
+    requestId: json['requestId'] as String?,
+    createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+  );
 }

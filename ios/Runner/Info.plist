@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>GoogleMapsAPIKey</key>
+	<string>$(GOOGLE_MAPS_API_KEY)</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>FixLeo manzilni tanlash va yaqin xizmatlarni ko‘rsatish uchun joylashuvingizdan foydalanadi.</string>
 	<!-- Microphone: required for client↔master voice calls (WebRTC). -->
 	<key>NSMicrophoneUsageDescription</key>
 	<string>FixLeo mijoz va usta oʻrtasidagi ovozli qoʻngʻiroqlar uchun mikrofondan foydalanadi.</string>

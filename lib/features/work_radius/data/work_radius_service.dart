@@ -7,7 +7,8 @@ import 'package:fixleo/features/work_radius/data/work_radius_model.dart';
 /// so the app only ever offers radii the backend actually allows. The admin
 /// methods ([add] / [remove]) require an admin token (see [AuthSession]).
 class WorkRadiusService {
-  WorkRadiusService({ApiClient? client}) : _client = client ?? ApiClient.instance;
+  WorkRadiusService({ApiClient? client})
+    : _client = client ?? ApiClient.instance;
 
   final ApiClient _client;
 

@@ -22,7 +22,6 @@ class MastersResponsesScreen extends StatefulWidget {
 
 class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
   static const _gray = Color(0xFF8D96A4);
-  static const _slate100 = Color(0xFFF1F5F9);
 
   final OrderService _orders = OrderService();
   List<OfferView> _offers = const [];
@@ -72,12 +71,16 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
       await _orders.selectOffer(widget.orderId, offer.id);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => OrderTrackingScreen(orderId: widget.orderId)),
+        MaterialPageRoute(
+          builder: (_) => OrderTrackingScreen(orderId: widget.orderId),
+        ),
       );
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -87,7 +90,9 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
       await _load();
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -96,90 +101,118 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: tr(lang, 'Otkliklar · ${_offers.length}', 'Отклики · ${_offers.length}',
-          'Offers · ${_offers.length}'),
+      title: tr(
+        lang,
+        'Otkliklar · ${_offers.length}',
+        'Отклики · ${_offers.length}',
+        'Offers · ${_offers.length}',
+      ),
       showBack: true,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!, style: const TextStyle(color: _gray)))
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          ? Center(
+              child: Text(_error!, style: const TextStyle(color: _gray)),
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            tr(lang, '${_offers.length} usta otklik qoldirdi',
-                                '${_offers.length} мастера откликнулись', '${_offers.length} masters responded'),
-                            style: const TextStyle(
-                              fontSize: 14,
-                              height: 20 / 14,
-                              letterSpacing: -0.16,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF23232E),
-                            ),
-                          ),
-                          const Spacer(),
-                          GestureDetector(
-                            onTap: _toggleSort,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.swap_vert,
-                                      size: 14, color: _gray),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _sort == 'rating'
-                                        ? tr(lang, 'Reyting boʻyicha',
-                                            'По рейтингу', 'By rating')
-                                        : tr(lang, 'Narx boʻyicha',
-                                            'По цене', 'By price'),
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      height: 16 / 12,
-                                      fontWeight: FontWeight.w500,
-                                      color: _gray,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        tr(
+                          lang,
+                          '${_offers.length} usta otklik qoldirdi',
+                          '${_offers.length} мастера откликнулись',
+                          '${_offers.length} masters responded',
+                        ),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          height: 20 / 14,
+                          letterSpacing: -0.16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF23232E),
+                        ),
                       ),
-                      const SizedBox(height: 10),
-                      if (_offers.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 80),
-                          child: Center(
-                            child: Text(
-                              tr(lang, 'Hozircha javoblar yoʻq', 'Пока нет ответов', 'No replies yet'),
-                              style: const TextStyle(color: _gray),
-                            ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: _toggleSort,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.swap_vert,
+                                size: 14,
+                                color: _gray,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _sort == 'rating'
+                                    ? tr(
+                                        lang,
+                                        'Reyting boʻyicha',
+                                        'По рейтингу',
+                                        'By rating',
+                                      )
+                                    : tr(
+                                        lang,
+                                        'Narx boʻyicha',
+                                        'По цене',
+                                        'By price',
+                                      ),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  height: 16 / 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: _gray,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      for (var i = 0; i < _offers.length; i++) ...[
-                        if (i != 0) const SizedBox(height: 10),
-                        _MasterCard(
-                          offer: _offers[i],
-                          lang: lang,
-                          busy: _busy,
-                          onSelect: () => _select(_offers[i]),
-                          onDecline: () => _decline(_offers[i]),
-                        ),
-                      ],
+                      ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  if (_offers.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 80),
+                      child: Center(
+                        child: Text(
+                          tr(
+                            lang,
+                            'Hozircha javoblar yoʻq',
+                            'Пока нет ответов',
+                            'No replies yet',
+                          ),
+                          style: const TextStyle(color: _gray),
+                        ),
+                      ),
+                    ),
+                  for (var i = 0; i < _offers.length; i++) ...[
+                    if (i != 0) const SizedBox(height: 10),
+                    _MasterCard(
+                      offer: _offers[i],
+                      lang: lang,
+                      busy: _busy,
+                      onSelect: () => _select(_offers[i]),
+                      onDecline: () => _decline(_offers[i]),
+                    ),
+                  ],
+                ],
+              ),
+            ),
     );
   }
 }
@@ -205,8 +238,12 @@ class _MasterCard extends StatelessWidget {
   String get _rating {
     final parts = <String>[
       if (offer.ratingAvg != null) offer.ratingAvg!.toStringAsFixed(1),
-      tr(lang, '${offer.ratingCount} sharh', '${offer.ratingCount} отзыва',
-          '${offer.ratingCount} reviews'),
+      tr(
+        lang,
+        '${offer.ratingCount} sharh',
+        '${offer.ratingCount} отзыва',
+        '${offer.ratingCount} reviews',
+      ),
       '${offer.distanceKm.toStringAsFixed(1)} ${tr(lang, 'km', 'км', 'km')}',
     ];
     return parts.join(' · ');
@@ -240,7 +277,8 @@ class _MasterCard extends StatelessWidget {
               GestureDetector(
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => MasterProfileScreen(masterId: offer.masterId),
+                    builder: (_) =>
+                        MasterProfileScreen(masterId: offer.masterId),
                   ),
                 ),
                 child: Container(
@@ -271,13 +309,21 @@ class _MasterCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.star_rounded, size: 16, color: AppColors.blue),
+                        const Icon(
+                          Icons.star_rounded,
+                          size: 16,
+                          color: AppColors.blue,
+                        ),
                         const SizedBox(width: 5),
                         Flexible(
                           child: Text(
                             _rating,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 14, height: 20 / 14, color: _gray),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              height: 20 / 14,
+                              color: _gray,
+                            ),
                           ),
                         ),
                       ],
@@ -289,8 +335,14 @@ class _MasterCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(tr(lang, 'dan', 'от', 'from'),
-                      style: const TextStyle(fontSize: 14, height: 20 / 14, color: _gray)),
+                  Text(
+                    tr(lang, 'dan', 'от', 'from'),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      height: 20 / 14,
+                      color: _gray,
+                    ),
+                  ),
                   Text(
                     _price,
                     style: const TextStyle(
@@ -308,8 +360,10 @@ class _MasterCard extends StatelessWidget {
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
-              child: Text(offer.comment!,
-                  style: const TextStyle(fontSize: 13, color: _gray)),
+              child: Text(
+                offer.comment!,
+                style: const TextStyle(fontSize: 13, color: _gray),
+              ),
             ),
           ],
           const SizedBox(height: 12),

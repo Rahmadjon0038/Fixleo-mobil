@@ -20,11 +20,11 @@ class PageMeta {
   bool get hasMore => page < totalPages;
 
   factory PageMeta.fromJson(Map<String, dynamic> json) => PageMeta(
-        total: (json['total'] as num?)?.toInt() ?? 0,
-        page: (json['page'] as num?)?.toInt() ?? 1,
-        limit: (json['limit'] as num?)?.toInt() ?? 0,
-        totalPages: (json['totalPages'] as num?)?.toInt() ?? 0,
-      );
+    total: (json['total'] as num?)?.toInt() ?? 0,
+    page: (json['page'] as num?)?.toInt() ?? 1,
+    limit: (json['limit'] as num?)?.toInt() ?? 0,
+    totalPages: (json['totalPages'] as num?)?.toInt() ?? 0,
+  );
 }
 
 /// A page of [items] plus its [meta], mirroring the backend's paginated

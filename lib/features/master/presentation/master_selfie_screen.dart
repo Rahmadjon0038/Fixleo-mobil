@@ -104,16 +104,21 @@ class _MasterSelfieScreenState extends State<MasterSelfieScreen> {
 
   void _goNext() {
     if (!mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const MasterVerificationScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const MasterVerificationScreen()));
   }
 
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: tr(lang, 'Pasport bilan selfi', 'Селфи с паспортом', 'Selfie with passport'),
+      title: tr(
+        lang,
+        'Pasport bilan selfi',
+        'Селфи с паспортом',
+        'Selfie with passport',
+      ),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
@@ -172,13 +177,13 @@ class _MasterSelfieScreenState extends State<MasterSelfieScreen> {
                             i == 0
                                 ? 'Лицо в кадре целиком'
                                 : i == 1
-                                    ? 'Паспорт открыт'
-                                    : 'Хорошее освещение',
+                                ? 'Паспорт открыт'
+                                : 'Хорошее освещение',
                             i == 0
                                 ? 'Face fully in frame'
                                 : i == 1
-                                    ? 'Passport open'
-                                    : 'Good lighting',
+                                ? 'Passport open'
+                                : 'Good lighting',
                           ),
                           style: const TextStyle(
                             fontSize: 14,
@@ -224,10 +229,12 @@ class _DashedCirclePainter extends CustomPainter {
       ..strokeWidth = 2;
 
     final path = Path()
-      ..addOval(Rect.fromCircle(
-        center: Offset(size.width / 2, size.height / 2),
-        radius: size.width / 2,
-      ));
+      ..addOval(
+        Rect.fromCircle(
+          center: Offset(size.width / 2, size.height / 2),
+          radius: size.width / 2,
+        ),
+      );
 
     for (final metric in path.computeMetrics()) {
       var distance = 0.0;

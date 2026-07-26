@@ -38,8 +38,12 @@ class IntroScreen extends StatelessWidget {
               child: Column(
                 children: [
                   Text(
-                    tr(lang, 'Ustalar yaqin\nva tez', 'Мастера рядом\nи быстро',
-                        'Masters nearby\nand fast'),
+                    tr(
+                      lang,
+                      'Ustalar yaqin\nva tez',
+                      'Мастера рядом\nи быстро',
+                      'Masters nearby\nand fast',
+                    ),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 24,

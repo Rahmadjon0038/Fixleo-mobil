@@ -5,10 +5,10 @@ enum ClientStatus {
   blocked;
 
   static ClientStatus fromString(String? value) => switch (value) {
-        'active' => ClientStatus.active,
-        'blocked' => ClientStatus.blocked,
-        _ => ClientStatus.unverified,
-      };
+    'active' => ClientStatus.active,
+    'blocked' => ClientStatus.blocked,
+    _ => ClientStatus.unverified,
+  };
 
   String get apiValue => name;
 }
@@ -37,12 +37,12 @@ class AdminClient {
   final DateTime? updatedAt;
 
   factory AdminClient.fromJson(Map<String, dynamic> json) => AdminClient(
-        id: json['id'].toString(),
-        phone: json['phone'] as String,
-        status: ClientStatus.fromString(json['status'] as String?),
-        name: json['name'] as String?,
-        blockReason: json['blockReason'] as String?,
-        createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
-        updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
-      );
+    id: json['id'].toString(),
+    phone: json['phone'] as String,
+    status: ClientStatus.fromString(json['status'] as String?),
+    name: json['name'] as String?,
+    blockReason: json['blockReason'] as String?,
+    createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+    updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
+  );
 }

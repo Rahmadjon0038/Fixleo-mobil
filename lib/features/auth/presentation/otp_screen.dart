@@ -150,16 +150,20 @@ class _OtpScreenState extends State<OtpScreen> {
       }
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error =
-          tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'));
+      setState(
+        () =>
+            _error = tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _verifyClient() async {
-    final result =
-        await _clientAuth.verifyOtp(phone: widget.phone, code: _code);
+    final result = await _clientAuth.verifyOtp(
+      phone: widget.phone,
+      code: _code,
+    );
     if (!mounted) return;
     if (result.isRegistered) {
       Navigator.of(context).pushAndRemoveUntil(
@@ -177,10 +181,15 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   Future<void> _verifyMaster() async {
-    final result =
-        await _masterService.verifyOtp(phone: widget.phone, code: _code);
+    final result = await _masterService.verifyOtp(
+      phone: widget.phone,
+      code: _code,
+    );
     if (!mounted) return;
-    final next = await resolveMasterStartupScreen(_masterService, result.master);
+    final next = await resolveMasterStartupScreen(
+      _masterService,
+      result.master,
+    );
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => next),
@@ -197,23 +206,36 @@ class _OtpScreenState extends State<OtpScreen> {
           : await _clientAuth.resendOtp(widget.phone);
       if (!mounted) return;
       _startCountdown(expiresIn >= 60 ? 60 : expiresIn);
-      _snack(tr(lang, 'Kod qayta yuborildi', 'Код отправлен повторно',
-          'Code resent'));
+      _snack(
+        tr(
+          lang,
+          'Kod qayta yuborildi',
+          'Код отправлен повторно',
+          'Code resent',
+        ),
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       // 429 carries the seconds to wait — block the button accordingly and
       // show a readable message (the resend line itself ticks the time down).
       final wait = e.retryAfterSeconds;
       if (wait != null) _startCountdown(wait);
-      setState(() => _error = e.isRateLimited && wait != null
-          ? tr(lang, 'Soʻrovlar juda koʻp — biroz kutib turing',
-              'Слишком много запросов — немного подождите',
-              'Too many requests — please wait a bit')
-          : e.message);
+      setState(
+        () => _error = e.isRateLimited && wait != null
+            ? tr(
+                lang,
+                'Soʻrovlar juda koʻp — biroz kutib turing',
+                'Слишком много запросов — немного подождите',
+                'Too many requests — please wait a bit',
+              )
+            : e.message,
+      );
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error =
-          tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'));
+      setState(
+        () =>
+            _error = tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'),
+      );
     }
   }
 
@@ -291,8 +313,12 @@ class _OtpScreenState extends State<OtpScreen> {
           children: [
             const SizedBox(height: 8),
             Text(
-              tr(lang, 'SMS dagi kodni kiriting', 'Введите код из SMS',
-                  'Enter the code from SMS'),
+              tr(
+                lang,
+                'SMS dagi kodni kiriting',
+                'Введите код из SMS',
+                'Enter the code from SMS',
+              ),
               style: const TextStyle(
                 fontSize: 30,
                 fontWeight: FontWeight.w500,
@@ -301,8 +327,12 @@ class _OtpScreenState extends State<OtpScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              tr(lang, '$_maskedPhone raqamiga yuborildi',
-                  'Отправлено на $_maskedPhone', 'Sent to $_maskedPhone'),
+              tr(
+                lang,
+                '$_maskedPhone raqamiga yuborildi',
+                'Отправлено на $_maskedPhone',
+                'Sent to $_maskedPhone',
+              ),
               style: TextStyle(fontSize: 15, color: AppColors.muted),
             ),
             const SizedBox(height: 28),
@@ -344,8 +374,12 @@ class _OtpScreenState extends State<OtpScreen> {
                   : TextButton(
                       onPressed: _resend,
                       child: Text(
-                        tr(lang, 'Kodni qayta yuborish', 'Отправить код снова',
-                            'Resend code'),
+                        tr(
+                          lang,
+                          'Kodni qayta yuborish',
+                          'Отправить код снова',
+                          'Resend code',
+                        ),
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,

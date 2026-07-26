@@ -1,4 +1,5 @@
 import 'package:fixleo/features/categories/data/category_model.dart';
+import 'package:fixleo/core/network/api_config.dart';
 
 /// Account status of a master.
 enum MasterStatus {
@@ -7,10 +8,10 @@ enum MasterStatus {
   blocked;
 
   static MasterStatus fromString(String? v) => switch (v) {
-        'active' => MasterStatus.active,
-        'blocked' => MasterStatus.blocked,
-        _ => MasterStatus.unverified,
-      };
+    'active' => MasterStatus.active,
+    'blocked' => MasterStatus.blocked,
+    _ => MasterStatus.unverified,
+  };
 }
 
 /// KYC moderation status of a master.
@@ -21,11 +22,11 @@ enum VerificationStatus {
   rejected;
 
   static VerificationStatus fromString(String? v) => switch (v) {
-        'pending' => VerificationStatus.pending,
-        'approved' => VerificationStatus.approved,
-        'rejected' => VerificationStatus.rejected,
-        _ => VerificationStatus.notSubmitted,
-      };
+    'pending' => VerificationStatus.pending,
+    'approved' => VerificationStatus.approved,
+    'rejected' => VerificationStatus.rejected,
+    _ => VerificationStatus.notSubmitted,
+  };
 }
 
 /// A master (usta) profile — `MasterResponseDto` (see `api/MasterRegister.md`).
@@ -66,23 +67,24 @@ class Master {
   final DateTime? updatedAt;
 
   factory Master.fromJson(Map<String, dynamic> json) => Master(
-        id: json['id'].toString(),
-        phone: json['phone'] as String,
-        status: MasterStatus.fromString(json['status'] as String?),
-        verificationStatus:
-            VerificationStatus.fromString(json['verificationStatus'] as String?),
-        name: json['name'] as String?,
-        city: json['city'] as String?,
-        experienceYears: (json['experienceYears'] as num?)?.toInt(),
-        bio: json['bio'] as String?,
-        avatarUrl: json['avatarUrl'] as String?,
-        latitude: (json['latitude'] as num?)?.toDouble(),
-        longitude: (json['longitude'] as num?)?.toDouble(),
-        workRadiusKm: (json['workRadiusKm'] as num?)?.toInt(),
-        categories: (json['categories'] as List<dynamic>? ?? const [])
-            .map((e) => Category.fromJson(e as Map<String, dynamic>))
-            .toList(growable: false),
-        createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
-        updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
-      );
+    id: json['id'].toString(),
+    phone: json['phone'] as String,
+    status: MasterStatus.fromString(json['status'] as String?),
+    verificationStatus: VerificationStatus.fromString(
+      json['verificationStatus'] as String?,
+    ),
+    name: json['name'] as String?,
+    city: json['city'] as String?,
+    experienceYears: (json['experienceYears'] as num?)?.toInt(),
+    bio: json['bio'] as String?,
+    avatarUrl: ApiConfig.resolveMediaUrl(json['avatarUrl']),
+    latitude: (json['latitude'] as num?)?.toDouble(),
+    longitude: (json['longitude'] as num?)?.toDouble(),
+    workRadiusKm: (json['workRadiusKm'] as num?)?.toInt(),
+    categories: (json['categories'] as List<dynamic>? ?? const [])
+        .map((e) => Category.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false),
+    createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+    updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
+  );
 }

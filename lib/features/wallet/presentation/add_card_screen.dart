@@ -37,9 +37,7 @@ class _AddCardScreenState extends State<AddCardScreen> {
   void _continue() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => AddCardSmsScreen(
-          maskedPhone: '+998 *** ** 67',
-        ),
+        builder: (_) => AddCardSmsScreen(maskedPhone: '+998 *** ** 67'),
       ),
     );
   }
@@ -59,7 +57,9 @@ class _AddCardScreenState extends State<AddCardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _label(tr(lang, 'Karta raqami', 'Номер карты', 'Card number')),
+                    _label(
+                      tr(lang, 'Karta raqami', 'Номер карты', 'Card number'),
+                    ),
                     _textField(
                       controller: _number,
                       hint: '1234 5678 9101 1213',
@@ -77,19 +77,22 @@ class _AddCardScreenState extends State<AddCardScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _label(tr(
-                                lang,
-                                'Amal qilish muddati',
-                                'Срок действия',
-                                'Expiry date',
-                              )),
+                              _label(
+                                tr(
+                                  lang,
+                                  'Amal qilish muddati',
+                                  'Срок действия',
+                                  'Expiry date',
+                                ),
+                              ),
                               _textField(
                                 controller: _expiry,
                                 hint: '12/12',
                                 keyboardType: TextInputType.number,
                                 inputFormatters: [
                                   FilteringTextInputFormatter.allow(
-                                      RegExp(r'[0-9/]')),
+                                    RegExp(r'[0-9/]'),
+                                  ),
                                   LengthLimitingTextInputFormatter(5),
                                 ],
                               ),
@@ -337,8 +340,12 @@ class _AddCardSmsScreenState extends State<AddCardSmsScreen> {
           children: [
             const SizedBox(height: 12),
             Text(
-              tr(lang, 'SMS kodini kiriting', 'Введите код из SMS',
-                  'Enter the SMS code'),
+              tr(
+                lang,
+                'SMS kodini kiriting',
+                'Введите код из SMS',
+                'Enter the SMS code',
+              ),
               style: const TextStyle(
                 fontSize: 24,
                 height: 30 / 24,
@@ -382,8 +389,12 @@ class _AddCardSmsScreenState extends State<AddCardSmsScreen> {
                       'Отправить код повторно через ${_secondsLeft ~/ 60}:${(_secondsLeft % 60).toString().padLeft(2, '0')}',
                       'Resend code in ${_secondsLeft ~/ 60}:${(_secondsLeft % 60).toString().padLeft(2, '0')}',
                     )
-                  : tr(lang, 'Kod qayta yuborildi', 'Код отправлен повторно',
-                      'Code resent'),
+                  : tr(
+                      lang,
+                      'Kod qayta yuborildi',
+                      'Код отправлен повторно',
+                      'Code resent',
+                    ),
               style: const TextStyle(
                 fontSize: 13,
                 height: 18 / 13,
@@ -394,10 +405,7 @@ class _AddCardSmsScreenState extends State<AddCardSmsScreen> {
               const SizedBox(height: 8),
               Text(
                 _error!,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.danger,
-                ),
+                style: const TextStyle(fontSize: 13, color: AppColors.danger),
               ),
             ],
             const Spacer(),
@@ -410,8 +418,12 @@ class _AddCardSmsScreenState extends State<AddCardSmsScreen> {
               child: TextButton(
                 onPressed: _secondsLeft == 0 ? _resend : null,
                 child: Text(
-                  tr(lang, 'Kodni qayta yuborish', 'Отправить код снова',
-                      'Resend code'),
+                  tr(
+                    lang,
+                    'Kodni qayta yuborish',
+                    'Отправить код снова',
+                    'Resend code',
+                  ),
                 ),
               ),
             ),
@@ -442,7 +454,10 @@ class _CodeBox extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.blue.withValues(alpha: 0.6), width: 1),
+          border: Border.all(
+            color: AppColors.blue.withValues(alpha: 0.6),
+            width: 1,
+          ),
         ),
         child: TextField(
           controller: controller,
@@ -509,7 +524,12 @@ class AddCardSuccessScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    tr(lang, 'Karta qoʻshildi', 'Карта добавлена', 'Card added'),
+                    tr(
+                      lang,
+                      'Karta qoʻshildi',
+                      'Карта добавлена',
+                      'Card added',
+                    ),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 22,
@@ -538,7 +558,12 @@ class AddCardSuccessScreen extends StatelessWidget {
             ),
             const Spacer(),
             PrimaryButton(
-              label: tr(lang, 'Hamyonga qaytish', 'На главную', 'Back to wallet'),
+              label: tr(
+                lang,
+                'Hamyonga qaytish',
+                'На главную',
+                'Back to wallet',
+              ),
               onPressed: () => Navigator.of(context).pop(),
             ),
           ],
@@ -621,7 +646,12 @@ class AddCardFailureScreen extends StatelessWidget {
             ),
             const Spacer(),
             PrimaryButton(
-              label: tr(lang, 'Hamyonga qaytish', 'На главную', 'Back to wallet'),
+              label: tr(
+                lang,
+                'Hamyonga qaytish',
+                'На главную',
+                'Back to wallet',
+              ),
               onPressed: () => Navigator.of(context).pop(),
             ),
           ],

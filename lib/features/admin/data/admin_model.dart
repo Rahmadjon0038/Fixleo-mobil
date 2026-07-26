@@ -22,11 +22,11 @@ class Admin {
   bool get isSuperadmin => role == 'superadmin';
 
   factory Admin.fromJson(Map<String, dynamic> json) => Admin(
-        id: json['id'].toString(),
-        email: json['email'] as String,
-        role: json['role'] as String? ?? 'admin',
-        fullname: json['fullname'] as String?,
-        createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
-        updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
-      );
+    id: json['id'].toString(),
+    email: json['email'] as String,
+    role: json['role'] as String? ?? 'admin',
+    fullname: json['fullname'] as String?,
+    createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+    updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
+  );
 }

@@ -81,9 +81,9 @@ class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
     try {
       await _masterService.setCategories(_selectedIds.toList());
       if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const MasterWorkZoneScreen()),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const MasterWorkZoneScreen()));
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -116,50 +116,52 @@ class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? _ErrorState(message: _error!, onRetry: _load)
-                    : SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        child: Container(
-                          padding: const EdgeInsets.fromLTRB(10, 14, 20, 14),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding:
-                                    const EdgeInsets.only(left: 10, bottom: 4),
-                                child: Text(
-                                  tr(
-                                    lang,
-                                    'Qaysi buyurtmalarni olishni tanlang.',
-                                    'Выберите, какие заказы получать.',
-                                    'Choose which requests to receive.',
-                                  ),
-                                  style: TextStyle(
-                                      fontSize: 14, color: AppColors.muted),
-                                ),
-                              ),
-                              for (var i = 0; i < _categories.length; i++) ...[
-                                if (i != 0)
-                                  const Divider(
-                                    height: 1,
-                                    thickness: 1,
-                                    color: Color(0xFFE2E8F0),
-                                  ),
-                                _CategoryRow(
-                                  name: _categories[i].name,
-                                  selected:
-                                      _selectedIds.contains(_categories[i].id),
-                                  onTap: () => _toggle(_categories[i].id),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
+                ? _ErrorState(message: _error!, onRetry: _load)
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(10, 14, 20, 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(30),
                       ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(left: 10, bottom: 4),
+                            child: Text(
+                              tr(
+                                lang,
+                                'Qaysi buyurtmalarni olishni tanlang.',
+                                'Выберите, какие заказы получать.',
+                                'Choose which requests to receive.',
+                              ),
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.muted,
+                              ),
+                            ),
+                          ),
+                          for (var i = 0; i < _categories.length; i++) ...[
+                            if (i != 0)
+                              const Divider(
+                                height: 1,
+                                thickness: 1,
+                                color: Color(0xFFE2E8F0),
+                              ),
+                            _CategoryRow(
+                              name: _categories[i].name,
+                              selected: _selectedIds.contains(
+                                _categories[i].id,
+                              ),
+                              onTap: () => _toggle(_categories[i].id),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
@@ -167,8 +169,9 @@ class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
               label: _saving
                   ? tr(lang, 'Saqlanmoqda...', 'Сохранение...', 'Saving...')
                   : tr(lang, 'Davom etish', 'Продолжить', 'Continue'),
-              onPressed:
-                  _selectedIds.isEmpty || _saving ? null : _saveAndContinue,
+              onPressed: _selectedIds.isEmpty || _saving
+                  ? null
+                  : _saveAndContinue,
             ),
           ),
         ],
@@ -200,8 +203,14 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: 12),
             TextButton(
               onPressed: onRetry,
-              child: Text(tr(LocaleController.language.value, 'Qayta urinish',
-                  'Повторить', 'Retry')),
+              child: Text(
+                tr(
+                  LocaleController.language.value,
+                  'Qayta urinish',
+                  'Повторить',
+                  'Retry',
+                ),
+              ),
             ),
           ],
         ),

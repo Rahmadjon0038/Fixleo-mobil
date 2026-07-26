@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as gmap;
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
@@ -6,6 +9,7 @@ import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
+import 'package:fixleo/features/request/data/order_timing_label.dart';
 import 'package:fixleo/features/request/presentation/chat_screen.dart';
 import 'package:fixleo/features/request/presentation/masters_responses_screen.dart';
 import 'package:fixleo/features/request/presentation/order_status_screen.dart';
@@ -13,9 +17,14 @@ import 'package:fixleo/features/request/presentation/order_status_screen.dart';
 /// Live order tracking — a map preview, a 4-step progress bar, the assigned
 /// master and the order details. Live data from `GET /clients/me/orders/:id`.
 class OrderTrackingScreen extends StatefulWidget {
-  const OrderTrackingScreen({super.key, required this.orderId});
+  const OrderTrackingScreen({
+    super.key,
+    required this.orderId,
+    this.orderService,
+  });
 
   final int orderId;
+  final OrderService? orderService;
 
   static const _sky50 = Color(0xFFF0F9FF);
   static const _slate200 = Color(0xFFE2E8F0);
@@ -36,15 +45,20 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   static const _gray = OrderTrackingScreen._gray;
   static const _mapBg = OrderTrackingScreen._mapBg;
 
-  final OrderService _service = OrderService();
+  late final OrderService _service = widget.orderService ?? OrderService();
   OrderDetail? _order;
   bool _loading = true;
   String? _error;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _refreshSilently(),
+    );
   }
 
   Future<void> _load() async {
@@ -68,24 +82,67 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     }
   }
 
+  Future<void> _refreshSilently() async {
+    if (!mounted || _loading) return;
+    try {
+      final order = await _service.detail(widget.orderId);
+      if (!mounted) return;
+      setState(() {
+        _order = order;
+        _error = null;
+      });
+      if (const {'completed', 'cancelled', 'expired'}.contains(order.status)) {
+        _refreshTimer?.cancel();
+      }
+    } on ApiException {
+      // Keep the last successfully rendered status during a transient outage.
+    }
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
   /// 0..4 — how many of the four tracking steps are complete.
   int get _doneSteps => switch (_order?.status) {
-        'assigned' => 1,
-        'on_the_way' => 2,
-        'arrived' => 3,
-        'work_done' || 'completed' || 'disputed' => 4,
-        _ => 0,
-      };
+    'assigned' => 1,
+    'on_the_way' => 2,
+    'arrived' => 3,
+    'work_done' || 'completed' || 'disputed' => 4,
+    _ => 0,
+  };
 
   String _statusText(AppLanguage lang) => switch (_order?.status) {
-        'searching' => tr(lang, 'Usta qidirilmoqda', 'Поиск мастера', 'Searching for a master'),
-        'assigned' => tr(lang, 'Usta tayinlandi', 'Мастер назначен', 'Master assigned'),
-        'on_the_way' => tr(lang, 'Usta yoʻlda', 'Мастер в пути', 'Master on the way'),
-        'arrived' => tr(lang, 'Usta yetib keldi', 'Мастер на месте', 'Master arrived'),
-        'work_done' => tr(lang, 'Ish bajarildi', 'Работа выполнена', 'Work done'),
-        'completed' => tr(lang, 'Yakunlandi', 'Завершён', 'Completed'),
-        _ => tr(lang, 'Buyurtma', 'Заказ', 'Order'),
-      };
+    'searching' => tr(
+      lang,
+      'Usta qidirilmoqda',
+      'Поиск мастера',
+      'Searching for a master',
+    ),
+    'assigned' => tr(
+      lang,
+      'Usta tayinlandi',
+      'Мастер назначен',
+      'Master assigned',
+    ),
+    'on_the_way' => tr(
+      lang,
+      'Usta yoʻlda',
+      'Мастер в пути',
+      'Master on the way',
+    ),
+    'arrived' => tr(
+      lang,
+      'Usta yetib keldi',
+      'Мастер на месте',
+      'Master arrived',
+    ),
+    'work_done' => tr(lang, 'Ish bajarildi', 'Работа выполнена', 'Work done'),
+    'completed' => tr(lang, 'Yakunlandi', 'Завершён', 'Completed'),
+    _ => tr(lang, 'Buyurtma', 'Заказ', 'Order'),
+  };
 
   String _money(int? v) {
     if (v == null) return '—';
@@ -103,92 +160,111 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     final lang = LocaleController.language.value;
     final order = _order;
     return BrandedScaffold(
-      title: tr(lang, 'Buyurtma №${widget.orderId}', 'Заказ №${widget.orderId}',
-          'Order No. ${widget.orderId}'),
+      title: tr(
+        lang,
+        'Buyurtma №${widget.orderId}',
+        'Заказ №${widget.orderId}',
+        'Order No. ${widget.orderId}',
+      ),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(_error!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: _gray)),
-                        TextButton(
-                          onPressed: _load,
-                          child: Text(tr(lang, 'Qayta urinish', 'Повторить', 'Retry')),
-                        ),
-                      ],
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: _gray),
                     ),
-                  )
-                : Column(
-                    children: [
-                      Expanded(
-                        child: RefreshIndicator(
-                          onRefresh: _load,
-                          child: SingleChildScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            child: Column(
-                              children: [
-                                _trackingCard(),
-                                const SizedBox(height: 10),
-                                if (order?.master != null) ...[
-                                  _masterCard(context, lang),
-                                  const SizedBox(height: 10),
-                                ],
-                                _detailsCard(lang),
-                              ],
-                            ),
-                          ),
+                    TextButton(
+                      onPressed: _load,
+                      child: Text(
+                        tr(lang, 'Qayta urinish', 'Повторить', 'Retry'),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : Column(
+                children: [
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _load,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Column(
+                          children: [
+                            _trackingCard(),
+                            const SizedBox(height: 10),
+                            if (order?.master != null) ...[
+                              _masterCard(context, lang),
+                              const SizedBox(height: 10),
+                            ],
+                            _detailsCard(lang),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: FilledButton(
-                          onPressed: () async {
-                            // While still searching, the client needs to pick a
-                            // master from the received offers — route to the
-                            // responses screen, not the (not-yet-started) status
-                            // timeline. Once assigned, go to the status timeline.
-                            final searching = _order?.status == 'searching';
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => searching
-                                    ? MastersResponsesScreen(orderId: widget.orderId)
-                                    : OrderStatusScreen(orderId: widget.orderId),
-                              ),
-                            );
-                            if (mounted) _load();
-                          },
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.blue,
-                            foregroundColor: AppColors.background,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(40),
-                            ),
-                          ),
-                          child: Text(
-                            _order?.status == 'searching'
-                                ? tr(lang, 'Ustani tanlash', 'Выбрать мастера', 'Choose a master')
-                                : tr(lang, 'Buyurtma statusiga oʻtish',
-                                    'Перейти к статусу заказа', 'Go to order status'),
-                            style: TextStyle(
-                              fontSize: 16,
-                              height: 22 / 16,
-                              letterSpacing: -0.18,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: FilledButton(
+                      onPressed: () async {
+                        // While still searching, the client needs to pick a
+                        // master from the received offers — route to the
+                        // responses screen, not the (not-yet-started) status
+                        // timeline. Once assigned, go to the status timeline.
+                        final searching = _order?.status == 'searching';
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => searching
+                                ? MastersResponsesScreen(
+                                    orderId: widget.orderId,
+                                  )
+                                : OrderStatusScreen(orderId: widget.orderId),
+                          ),
+                        );
+                        if (mounted) _load();
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.blue,
+                        foregroundColor: AppColors.background,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(40),
+                        ),
+                      ),
+                      child: Text(
+                        _order?.status == 'searching'
+                            ? tr(
+                                lang,
+                                'Ustani tanlash',
+                                'Выбрать мастера',
+                                'Choose a master',
+                              )
+                            : tr(
+                                lang,
+                                'Buyurtma statusiga oʻtish',
+                                'Перейти к статусу заказа',
+                                'Go to order status',
+                              ),
+                        style: TextStyle(
+                          fontSize: 16,
+                          height: 22 / 16,
+                          letterSpacing: -0.18,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -208,17 +284,21 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           _mapPreview(),
           const SizedBox(height: 12),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Flexible(
+              Expanded(
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const _Dot(),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: _Dot(),
+                    ),
                     const SizedBox(width: 4),
-                    Flexible(
+                    Expanded(
                       child: Text(
                         _statusText(lang),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        softWrap: true,
                         style: const TextStyle(
                           fontSize: 16,
                           height: 22 / 16,
@@ -231,15 +311,18 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   ],
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 10),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: _sky50,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  '${_doneSteps}/4',
+                  '$_doneSteps/4',
                   style: const TextStyle(
                     fontSize: 14,
                     height: 20 / 14,
@@ -257,37 +340,76 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     );
   }
 
-  /// Lightweight stylised map preview with a centred location pin.
+  /// Real OpenStreetMap preview centred on the order's saved coordinates.
   Widget _mapPreview() {
+    final latitude = _order?.latitude;
+    final longitude = _order?.longitude;
+    final validCoordinates =
+        latitude != null &&
+        longitude != null &&
+        latitude.isFinite &&
+        longitude.isFinite &&
+        latitude.abs() <= 90 &&
+        longitude.abs() <= 180 &&
+        !(latitude == 0 && longitude == 0);
+
+    if (!validCoordinates) {
+      final lang = LocaleController.language.value;
+      return Container(
+        height: 140,
+        width: double.infinity,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: _mapBg,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.location_off_outlined, size: 30, color: _gray),
+            const SizedBox(height: 6),
+            Text(
+              tr(
+                lang,
+                'Lokatsiya mavjud emas',
+                'Локация недоступна',
+                'Location unavailable',
+              ),
+              style: const TextStyle(fontSize: 13, color: _gray),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final center = gmap.LatLng(latitude, longitude);
     return Container(
-      height: 116,
+      height: 140,
       width: double.infinity,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: _mapBg,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Positioned.fill(
-            child: CustomPaint(painter: _MapLinesPainter()),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.location_on, size: 34, color: AppColors.blue),
-              Container(
-                width: 16,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-            ],
-          ),
-        ],
+      child: IgnorePointer(
+        child: gmap.GoogleMap(
+          initialCameraPosition: gmap.CameraPosition(target: center, zoom: 15),
+          markers: {
+            gmap.Marker(
+              markerId: const gmap.MarkerId('order-location'),
+              position: center,
+            ),
+          },
+          compassEnabled: false,
+          mapToolbarEnabled: false,
+          myLocationButtonEnabled: false,
+          myLocationEnabled: false,
+          rotateGesturesEnabled: false,
+          scrollGesturesEnabled: false,
+          tiltGesturesEnabled: false,
+          zoomControlsEnabled: false,
+          zoomGesturesEnabled: false,
+        ),
       ),
     );
   }
@@ -343,7 +465,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     final conversationId = _order?.conversationId;
     final rating = m?.ratingAvg;
     final subtitle = [
-      if (m?.categoryName != null && m!.categoryName!.isNotEmpty) m.categoryName!,
+      if (m?.categoryName != null && m!.categoryName!.isNotEmpty)
+        m.categoryName!,
       if (rating != null) rating.toStringAsFixed(1),
     ].join(' · ');
     return Material(
@@ -359,6 +482,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                     builder: (_) => ChatScreen(
                       conversationId: conversationId,
                       peerName: m?.name,
+                      peerAvatarUrl: m?.avatarUrl,
                     ),
                   ),
                 );
@@ -440,49 +564,37 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       child: Column(
         children: [
           _DetailRow(
-              label: tr(lang, 'Xizmat', 'Услуга', 'Service'),
-              value: o?.title ?? '—'),
+            label: tr(lang, 'Xizmat', 'Услуга', 'Service'),
+            value: o?.title ?? '—',
+          ),
           const SizedBox(height: 8),
           _DetailRow(
-              label: tr(lang, 'Manzil', 'Адрес', 'Address'),
-              value: o?.addressText ?? '—'),
-          if (o?.slotLabel != null) ...[
+            label: tr(lang, 'Manzil', 'Адрес', 'Address'),
+            value: o?.addressText ?? '—',
+          ),
+          if (o != null && o.timing.isNotEmpty) ...[
             const SizedBox(height: 8),
-            _DetailRow(label: tr(lang, 'Vaqt', 'Время', 'Time'), value: o!.slotLabel!),
+            _DetailRow(
+              label: tr(lang, 'Vaqt', 'Время', 'Time'),
+              value: orderTimingLabel(
+                lang,
+                timing: o.timing,
+                scheduledDate: o.scheduledDate,
+                slotLabel: o.slotLabel,
+              ),
+            ),
           ],
           const SizedBox(height: 8),
           _DetailRow(
-              label: tr(lang, 'Narx', 'Цена', 'Price'),
-              value: price != null
-                  ? _money(price)
-                  : tr(lang, 'Otkliklar boʻyicha', 'по откликам', 'by offers')),
+            label: tr(lang, 'Narx', 'Цена', 'Price'),
+            value: price != null
+                ? _money(price)
+                : tr(lang, 'Otkliklar boʻyicha', 'по откликам', 'by offers'),
+          ),
         ],
       ),
     );
   }
-}
-
-/// Faint "street" lines that give the map preview a city-map texture.
-class _MapLinesPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.7)
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke;
-
-    final w = size.width;
-    final h = size.height;
-
-    // A couple of diagonal + cross streets.
-    canvas.drawLine(Offset(0, h * 0.35), Offset(w, h * 0.55), paint);
-    canvas.drawLine(Offset(w * 0.25, 0), Offset(w * 0.45, h), paint);
-    canvas.drawLine(Offset(w * 0.7, 0), Offset(w * 0.85, h), paint);
-    canvas.drawLine(Offset(0, h * 0.78), Offset(w, h * 0.7), paint);
-  }
-
-  @override
-  bool shouldRepaint(_MapLinesPainter oldDelegate) => false;
 }
 
 /// Small blue status dot next to the tracking title.

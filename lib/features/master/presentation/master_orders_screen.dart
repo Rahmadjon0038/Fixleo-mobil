@@ -7,7 +7,7 @@ import 'package:fixleo/features/master/data/master_marketplace_service.dart';
 import 'package:fixleo/features/master/presentation/master_order_status_screen.dart';
 
 /// Order status shown as a colored pill on each history card.
-enum _OrderStatus { done, cancelled }
+enum _OrderStatus { done, cancelledByClient, cancelledByMaster, expired }
 
 /// A finished or cancelled job in the master's work history.
 class _Order {
@@ -135,9 +135,12 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
       ].join(', '),
       date: date,
       price: '${_money(o.price)} ${tr(lang, 'soʻm', 'сум', 'sum')}',
-      status: o.status == 'completed'
-          ? _OrderStatus.done
-          : _OrderStatus.cancelled,
+      status: switch (o.status) {
+        'completed' => _OrderStatus.done,
+        'cancelled_by_client' => _OrderStatus.cancelledByClient,
+        'cancelled_by_master' => _OrderStatus.cancelledByMaster,
+        _ => _OrderStatus.expired,
+      },
     );
   }
 
@@ -773,8 +776,29 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final done = status == _OrderStatus.done;
     final lang = LocaleController.language.value;
+    final done = status == _OrderStatus.done;
+    final label = switch (status) {
+      _OrderStatus.done => tr(lang, 'Bajarildi', 'Выполнено', 'Done'),
+      _OrderStatus.cancelledByClient => tr(
+        lang,
+        'Mijoz bekor qildi',
+        'Отменено клиентом',
+        'Cancelled by client',
+      ),
+      _OrderStatus.cancelledByMaster => tr(
+        lang,
+        'Usta bekor qildi',
+        'Отменено мастером',
+        'Cancelled by master',
+      ),
+      _OrderStatus.expired => tr(
+        lang,
+        'Muddati tugadi',
+        'Срок истёк',
+        'Expired',
+      ),
+    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -782,9 +806,7 @@ class _StatusPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        done
-            ? tr(lang, 'Bajarildi', 'Выполнено', 'Done')
-            : tr(lang, 'Bekor qilindi', 'Отменено', 'Cancelled'),
+        label,
         style: TextStyle(
           fontSize: 14,
           height: 20 / 14,

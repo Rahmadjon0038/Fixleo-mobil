@@ -8,6 +8,7 @@ import 'package:fixleo/app/app.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
+import 'package:fixleo/core/realtime/app_presence_service.dart';
 import 'package:fixleo/core/realtime/call_service.dart';
 import 'package:fixleo/core/realtime/master_realtime_service.dart';
 import 'package:fixleo/features/master/presentation/master_chats_screen.dart';
@@ -16,6 +17,7 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/features/master/presentation/master_orders_screen.dart';
 import 'package:fixleo/features/master/presentation/master_profile_tab_screen.dart';
 import 'package:fixleo/features/master/presentation/master_verification_screen.dart';
+import 'package:fixleo/features/master/presentation/master_verification_rejected_screen.dart';
 import 'package:fixleo/features/master/presentation/master_wallet_screen.dart';
 import 'package:fixleo/features/master/presentation/master_request_detail_screen.dart';
 import 'package:fixleo/core/network/current_user.dart';
@@ -26,6 +28,7 @@ import 'package:fixleo/features/master/data/master_service.dart';
 import 'package:fixleo/features/master/presentation/master_work_zone_screen.dart';
 import 'package:fixleo/features/notifications/data/notification_service.dart';
 import 'package:fixleo/features/notifications/presentation/notifications_screen.dart';
+import 'package:fixleo/features/request/data/chat_service.dart';
 import 'package:fixleo/features/request/data/order_timing_label.dart';
 
 /// "12 мин назад"-style relative label shown on feed cards (FINAL design).
@@ -110,6 +113,7 @@ class MasterHomeScreen extends StatefulWidget {
     this.marketplaceService,
     this.masterService,
     this.notificationService,
+    this.chatService,
     this.ordersService,
     this.initialMaster,
   });
@@ -117,6 +121,7 @@ class MasterHomeScreen extends StatefulWidget {
   final MasterMarketplaceService? marketplaceService;
   final MasterService? masterService;
   final NotificationService? notificationService;
+  final ChatService? chatService;
   final MasterMarketplaceService? ordersService;
   final Master? initialMaster;
 
@@ -145,6 +150,13 @@ class _MasterHomeAccessGateState extends State<MasterHomeScreen> {
       builder: (context, snapshot) {
         final master = snapshot.data;
         if (master != null) {
+          if (master.verificationStatus == VerificationStatus.rejected) {
+            return MasterVerificationRejectedScreen(
+              rejectionReason: master.rejectionReason,
+              rejectionReasons: master.rejectionReasons,
+              masterService: _masterService,
+            );
+          }
           if (master.verificationStatus != VerificationStatus.approved) {
             return const MasterVerificationScreen(submitOnOpen: false);
           }
@@ -152,6 +164,7 @@ class _MasterHomeAccessGateState extends State<MasterHomeScreen> {
             marketplaceService: widget.marketplaceService,
             masterService: _masterService,
             notificationService: widget.notificationService,
+            chatService: widget.chatService,
             ordersService: widget.ordersService,
           );
         }
@@ -212,12 +225,14 @@ class _ApprovedMasterHomeScreen extends StatefulWidget {
     this.marketplaceService,
     this.masterService,
     this.notificationService,
+    this.chatService,
     this.ordersService,
   });
 
   final MasterMarketplaceService? marketplaceService;
   final MasterService? masterService;
   final NotificationService? notificationService;
+  final ChatService? chatService;
   final MasterMarketplaceService? ordersService;
 
   @override
@@ -225,7 +240,8 @@ class _ApprovedMasterHomeScreen extends StatefulWidget {
       _ApprovedMasterHomeScreenState();
 }
 
-class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen> {
+class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
+    with WidgetsBindingObserver {
   late final MasterMarketplaceService _market =
       widget.marketplaceService ?? MasterMarketplaceService();
   late final MasterService _masterService =
@@ -233,6 +249,8 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen> {
   final MasterRealtimeService _realtime = MasterRealtimeService();
   late final NotificationService _notifications =
       widget.notificationService ?? NotificationService(kind: 'master');
+  late final ChatService _chats =
+      widget.chatService ?? ChatService(kind: 'master');
   List<FeedItem> _feedItems = const [];
   bool _feedLoading = true;
   String _query = '';
@@ -240,15 +258,21 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen> {
   MasterFeedFilters _feedFilters = const MasterFeedFilters();
   int _feedRequest = 0;
   int _unreadNotifications = 0;
+  int _unreadChats = 0;
   final Set<int> _visitedTabs = {0};
+  StreamSubscription<int>? _conversationSubscription;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     CurrentUser.instance.refresh();
     _loadMasterProfile();
     _loadFeed();
     _loadUnreadNotifications();
+    _loadUnreadChats();
+    _conversationSubscription = AppPresenceService.instance.conversationUpdates
+        .listen((_) => unawaited(_loadUnreadChats()));
     // Voice-call signalling app-wide: an incoming call now rings on any screen,
     // not only inside a chat.
     CallService.instance.connect('master', onIncoming: showIncomingCallUi);
@@ -308,8 +332,18 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _realtime.disconnect();
+    unawaited(_conversationSubscription?.cancel());
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    unawaited(_loadFeed());
+    unawaited(_loadUnreadNotifications());
+    unawaited(_loadUnreadChats());
   }
 
   Future<void> _loadFeed() async {
@@ -342,6 +376,26 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen> {
     } on Object {
       // Keep the last known count while the network is temporarily unavailable.
     }
+  }
+
+  Future<void> _loadUnreadChats() async {
+    try {
+      final conversations = await _chats.conversations();
+      if (!mounted) return;
+      setState(
+        () => _unreadChats = conversations.fold(
+          0,
+          (total, item) => total + item.unreadCount,
+        ),
+      );
+    } on Object {
+      // Keep the last known count while the network is temporarily unavailable.
+    }
+  }
+
+  void _setUnreadChats(int count) {
+    if (!mounted || count == _unreadChats) return;
+    setState(() => _unreadChats = count);
   }
 
   Future<void> _openNotifications() async {
@@ -390,6 +444,7 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen> {
     LiquidGlassNavItem(
       tr(lang, 'Chatlar', 'Чаты', 'Chats'),
       'assets/icon/chat.svg',
+      badgeCount: _unreadChats,
     ),
     LiquidGlassNavItem(
       tr(lang, 'Hamyon', 'Кошелек', 'Wallet'),
@@ -407,7 +462,10 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen> {
   int _ordersTargetSegment = 0;
 
   void _setTab(int index) {
-    if (index == _navIndex) return;
+    if (index == _navIndex) {
+      if (index == 2) unawaited(_loadUnreadChats());
+      return;
+    }
     setState(() {
       _visitedTabs.add(index);
       _navIndex = index;
@@ -417,6 +475,7 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen> {
       unawaited(_loadFeed());
       unawaited(_loadUnreadNotifications());
     }
+    unawaited(_loadUnreadChats());
   }
 
   void _goBackTab() {
@@ -477,7 +536,13 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen> {
                                 targetSegment: _ordersTargetSegment,
                               ),
                             ),
-                            _tabWhenVisited(2, const MasterChatsScreen()),
+                            _tabWhenVisited(
+                              2,
+                              MasterChatsScreen(
+                                service: _chats,
+                                onUnreadChanged: _setUnreadChats,
+                              ),
+                            ),
                             _tabWhenVisited(3, const MasterWalletScreen()),
                             _tabWhenVisited(
                               4,

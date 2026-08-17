@@ -6,15 +6,23 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/features/home/presentation/home_screen.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/presentation/masters_responses_screen.dart';
 
 /// Step 6 of the "new request" flow — the request is live; we poll for master
 /// responses and move to the responses list as soon as any arrive.
 class WaitingResponsesScreen extends StatefulWidget {
-  const WaitingResponsesScreen({super.key, required this.orderId});
+  const WaitingResponsesScreen({
+    super.key,
+    required this.orderId,
+    this.service,
+    this.homeBuilder,
+  });
 
   final int orderId;
+  final OrderService? service;
+  final WidgetBuilder? homeBuilder;
 
   @override
   State<WaitingResponsesScreen> createState() => _WaitingResponsesScreenState();
@@ -25,7 +33,7 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
   static const _blue400 = Color(0xFF60A5FA);
   static const _slate200 = Color(0xFFE2E8F0);
 
-  final OrderService _orders = OrderService();
+  late final OrderService _orders = widget.service ?? OrderService();
   Timer? _timer;
   bool _navigated = false;
 
@@ -60,7 +68,17 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
     try {
       await _orders.cancel(widget.orderId, reason: 'changed_mind');
     } catch (_) {}
-    if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+    if (mounted) _goHome();
+  }
+
+  void _goHome() {
+    _timer?.cancel();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: widget.homeBuilder ?? (_) => const HomeScreen(),
+      ),
+      (route) => false,
+    );
   }
 
   @override
@@ -72,58 +90,65 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
-    return BrandedScaffold(
-      title: tr(lang, 'Ariza yuborildi', 'Заявка отправлена', 'Request sent'),
-      showBack: true,
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _statusCard(),
-                    const SizedBox(height: 10),
-                    _skeletonCard(),
-                    const SizedBox(height: 10),
-                    _skeletonCard(),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // "Arizani bekor qilish" — white pill with blue text.
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: FilledButton(
-                onPressed: _cancel,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppColors.blue,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                ),
-                child: Text(
-                  tr(
-                    lang,
-                    'Arizani bekor qilish',
-                    'Отменить заявку',
-                    'Cancel request',
-                  ),
-                  style: TextStyle(
-                    fontSize: 16,
-                    height: 22 / 16,
-                    letterSpacing: -0.18,
-                    fontWeight: FontWeight.w500,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _goHome();
+      },
+      child: BrandedScaffold(
+        title: tr(lang, 'Ariza yuborildi', 'Заявка отправлена', 'Request sent'),
+        showBack: true,
+        onBack: _goHome,
+        body: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _statusCard(),
+                      const SizedBox(height: 10),
+                      _skeletonCard(),
+                      const SizedBox(height: 10),
+                      _skeletonCard(),
+                    ],
                   ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              // "Arizani bekor qilish" — white pill with blue text.
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton(
+                  onPressed: _cancel,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppColors.blue,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(40),
+                    ),
+                  ),
+                  child: Text(
+                    tr(
+                      lang,
+                      'Arizani bekor qilish',
+                      'Отменить заявку',
+                      'Cancel request',
+                    ),
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 22 / 16,
+                      letterSpacing: -0.18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

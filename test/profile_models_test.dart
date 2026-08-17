@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/core/network/api_config.dart';
 import 'package:fixleo/features/auth/data/client_model.dart';
 import 'package:fixleo/features/master/data/master_model.dart';
@@ -44,11 +45,42 @@ void main() {
         'status': 'active',
         'verificationStatus': 'approved',
         'avatarUrl': '/api/v1/profile-avatars/master/3?v=1',
+        'rejectionReason': null,
       });
 
       expect(
         master.avatarUrl,
         'https://api.fixleo.com/api/v1/profile-avatars/master/3?v=1',
+      );
+    });
+
+    test('master parses the latest verification rejection reason', () {
+      final master = Master.fromJson({
+        'id': '#M-00000000004',
+        'phone': '+998901234568',
+        'status': 'unverified',
+        'verificationStatus': 'rejected',
+        'rejectionReason': 'Passport photo is blurry',
+        'rejectionReasons': {
+          'uz': 'Pasport rasmi xira',
+          'ru': 'Фотография паспорта размыта',
+          'en': 'The passport photo is blurry',
+        },
+      });
+
+      expect(master.verificationStatus, VerificationStatus.rejected);
+      expect(master.rejectionReason, 'Passport photo is blurry');
+      expect(
+        master.rejectionReasons.forLanguage(AppLanguage.uz),
+        'Pasport rasmi xira',
+      );
+      expect(
+        master.rejectionReasons.forLanguage(AppLanguage.ru),
+        'Фотография паспорта размыта',
+      );
+      expect(
+        master.rejectionReasons.forLanguage(AppLanguage.en),
+        'The passport photo is blurry',
       );
     });
   });

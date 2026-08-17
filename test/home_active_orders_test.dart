@@ -7,6 +7,7 @@ import 'package:fixleo/features/categories/data/category_model.dart';
 import 'package:fixleo/features/categories/data/category_service.dart';
 import 'package:fixleo/features/home/presentation/home_screen.dart';
 import 'package:fixleo/features/notifications/data/notification_service.dart';
+import 'package:fixleo/features/request/data/chat_service.dart' as chat;
 import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/presentation/my_orders_screen.dart';
@@ -38,6 +39,26 @@ class _FakeCategoryService extends CategoryService {
   Future<List<Category>> getAll() async => const [];
 }
 
+class _FakeChatService extends chat.ChatService {
+  _FakeChatService() : super(kind: 'client');
+
+  @override
+  Future<List<chat.Conversation>> conversations() async => const [
+    chat.Conversation(
+      id: 1,
+      orderId: 11,
+      orderTitle: 'First job',
+      unreadCount: 2,
+    ),
+    chat.Conversation(
+      id: 2,
+      orderId: 12,
+      orderTitle: 'Second job',
+      unreadCount: 3,
+    ),
+  ];
+}
+
 void main() {
   testWidgets('home shows active count and View opens the Active orders tab', (
     tester,
@@ -57,6 +78,7 @@ void main() {
           orderService: _FakeHomeOrderService(),
           notificationService: _FakeNotificationService(),
           categoryService: _FakeCategoryService(),
+          chatService: _FakeChatService(),
         ),
       ),
     );
@@ -64,6 +86,19 @@ void main() {
 
     expect(find.text('You have 2 active orders'), findsOneWidget);
     expect(find.text('Active order · First job'), findsOneWidget);
+    expect(
+      tester
+          .widget<LiquidGlassNavBar>(find.byType(LiquidGlassNavBar))
+          .items[2]
+          .badgeCount,
+      5,
+    );
+    await tester.tap(find.text('Chats'));
+    await tester.pump();
+    // One screen title plus the bottom-tab label; no duplicate screen title.
+    expect(find.text('Chats'), findsNWidgets(2));
+    await tester.tap(find.text('Home'));
+    await tester.pump();
 
     await tester.tap(find.text('View'));
     await tester.pumpAndSettle();
@@ -97,6 +132,7 @@ void main() {
           orderService: _FakeHomeOrderService(),
           notificationService: _FakeNotificationService(),
           categoryService: _FakeCategoryService(),
+          chatService: _FakeChatService(),
         ),
       ),
     );

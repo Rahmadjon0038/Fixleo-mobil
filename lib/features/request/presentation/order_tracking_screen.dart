@@ -7,11 +7,14 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/core/realtime/app_presence_service.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
+import 'package:fixleo/features/request/data/order_status.dart';
 import 'package:fixleo/features/request/data/order_timing_label.dart';
 import 'package:fixleo/features/request/presentation/chat_screen.dart';
 import 'package:fixleo/features/request/presentation/masters_responses_screen.dart';
+import 'package:fixleo/features/request/presentation/order_declined_screen.dart';
 import 'package:fixleo/features/request/presentation/order_status_screen.dart';
 
 /// Live order tracking — a map preview, a 4-step progress bar, the assigned
@@ -50,10 +53,15 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   bool _loading = true;
   String? _error;
   Timer? _refreshTimer;
+  StreamSubscription<ClientOrderRealtimeEvent>? _orderEventsSubscription;
+  bool _declineScreenShown = false;
 
   @override
   void initState() {
     super.initState();
+    _orderEventsSubscription = AppPresenceService.instance.orderUpdates.listen(
+      _handleOrderEvent,
+    );
     _load();
     _refreshTimer = Timer.periodic(
       const Duration(seconds: 5),
@@ -73,6 +81,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         _order = order;
         _loading = false;
       });
+      if (isTerminalOrderStatus(order.status)) {
+        _refreshTimer?.cancel();
+      }
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -85,13 +96,20 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   Future<void> _refreshSilently() async {
     if (!mounted || _loading) return;
     try {
+      final previousStatus = _order?.status;
       final order = await _service.detail(widget.orderId);
       if (!mounted) return;
       setState(() {
         _order = order;
         _error = null;
       });
-      if (const {'completed', 'cancelled', 'expired'}.contains(order.status)) {
+      if (previousStatus != null &&
+          previousStatus != 'searching' &&
+          order.status == 'searching') {
+        await _showMasterDeclined(canChooseAnotherMaster: true);
+        return;
+      }
+      if (isTerminalOrderStatus(order.status)) {
         _refreshTimer?.cancel();
       }
     } on ApiException {
@@ -102,7 +120,37 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _orderEventsSubscription?.cancel();
     super.dispose();
+  }
+
+  void _handleOrderEvent(ClientOrderRealtimeEvent event) {
+    if (event.orderId != widget.orderId || !mounted) return;
+    if (event.kind == ClientOrderEventKind.reopened) {
+      unawaited(_showMasterDeclined(canChooseAnotherMaster: true));
+      return;
+    }
+    if (event.to == 'cancelled_by_master') {
+      unawaited(_showMasterDeclined(canChooseAnotherMaster: false));
+      return;
+    }
+    unawaited(_refreshSilently());
+  }
+
+  Future<void> _showMasterDeclined({
+    required bool canChooseAnotherMaster,
+  }) async {
+    if (!mounted || _declineScreenShown) return;
+    _declineScreenShown = true;
+    _refreshTimer?.cancel();
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => OrderDeclinedScreen(
+          orderId: widget.orderId,
+          canChooseAnotherMaster: canChooseAnotherMaster,
+        ),
+      ),
+    );
   }
 
   /// 0..4 — how many of the four tracking steps are complete.
@@ -114,35 +162,50 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     _ => 0,
   };
 
-  String _statusText(AppLanguage lang) => switch (_order?.status) {
-    'searching' => tr(
-      lang,
-      'Usta qidirilmoqda',
-      'Поиск мастера',
-      'Searching for a master',
-    ),
-    'assigned' => tr(
-      lang,
-      'Usta tayinlandi',
-      'Мастер назначен',
-      'Master assigned',
-    ),
-    'on_the_way' => tr(
-      lang,
-      'Usta yoʻlda',
-      'Мастер в пути',
-      'Master on the way',
-    ),
-    'arrived' => tr(
-      lang,
-      'Usta yetib keldi',
-      'Мастер на месте',
-      'Master arrived',
-    ),
-    'work_done' => tr(lang, 'Ish bajarildi', 'Работа выполнена', 'Work done'),
-    'completed' => tr(lang, 'Yakunlandi', 'Завершён', 'Completed'),
-    _ => tr(lang, 'Buyurtma', 'Заказ', 'Order'),
-  };
+  String _statusText(AppLanguage lang) =>
+      orderStatusLabel(lang, _order?.status ?? '');
+
+  Future<void> _handlePrimaryAction() async {
+    final status = _order?.status ?? '';
+    if (isCancelledOrderStatus(status) || status == 'expired') {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => status == 'searching'
+            ? MastersResponsesScreen(orderId: widget.orderId)
+            : OrderStatusScreen(orderId: widget.orderId),
+      ),
+    );
+    if (mounted) await _load();
+  }
+
+  String _primaryActionLabel(AppLanguage language) {
+    final status = _order?.status ?? '';
+    if (isCancelledOrderStatus(status) || status == 'expired') {
+      return tr(
+        language,
+        'Bosh sahifaga qaytish',
+        'Вернуться на главную',
+        'Return home',
+      );
+    }
+    if (status == 'searching') {
+      return tr(
+        language,
+        'Ustani tanlash',
+        'Выбрать мастера',
+        'Choose a master',
+      );
+    }
+    return tr(
+      language,
+      'Buyurtma statusiga oʻtish',
+      'Перейти к статусу заказа',
+      'Go to order status',
+    );
+  }
 
   String _money(int? v) {
     if (v == null) return '—';
@@ -216,23 +279,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                     width: double.infinity,
                     height: 52,
                     child: FilledButton(
-                      onPressed: () async {
-                        // While still searching, the client needs to pick a
-                        // master from the received offers — route to the
-                        // responses screen, not the (not-yet-started) status
-                        // timeline. Once assigned, go to the status timeline.
-                        final searching = _order?.status == 'searching';
-                        await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => searching
-                                ? MastersResponsesScreen(
-                                    orderId: widget.orderId,
-                                  )
-                                : OrderStatusScreen(orderId: widget.orderId),
-                          ),
-                        );
-                        if (mounted) _load();
-                      },
+                      onPressed: _handlePrimaryAction,
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.blue,
                         foregroundColor: AppColors.background,
@@ -241,19 +288,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         ),
                       ),
                       child: Text(
-                        _order?.status == 'searching'
-                            ? tr(
-                                lang,
-                                'Ustani tanlash',
-                                'Выбрать мастера',
-                                'Choose a master',
-                              )
-                            : tr(
-                                lang,
-                                'Buyurtma statusiga oʻtish',
-                                'Перейти к статусу заказа',
-                                'Go to order status',
-                              ),
+                        _primaryActionLabel(lang),
                         style: TextStyle(
                           fontSize: 16,
                           height: 22 / 16,

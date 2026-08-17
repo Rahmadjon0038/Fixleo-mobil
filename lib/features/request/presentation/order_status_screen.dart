@@ -6,6 +6,7 @@ import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
+import 'package:fixleo/features/request/data/order_status.dart';
 import 'package:fixleo/features/request/presentation/order_done_screen.dart';
 
 /// The state of a single timeline step.
@@ -192,7 +193,17 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
   Widget _actionButton(AppLanguage lang) {
     final caps = _order?.capabilities;
     final canConfirm = caps?.canConfirm == true;
-    final label = canConfirm
+    final status = _order?.status ?? '';
+    final shouldReturnHome =
+        isCancelledOrderStatus(status) || status == 'expired';
+    final label = shouldReturnHome
+        ? tr(
+            lang,
+            'Bosh sahifaga qaytish',
+            'Вернуться на главную',
+            'Return home',
+          )
+        : canConfirm
         ? tr(
             lang,
             'Bajarilganini tasdiqlash',
@@ -209,7 +220,11 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
       width: double.infinity,
       height: 52,
       child: FilledButton(
-        onPressed: (canConfirm && !_busy) ? _reviewCompletion : null,
+        onPressed: shouldReturnHome
+            ? () => Navigator.of(context).popUntil((route) => route.isFirst)
+            : (canConfirm && !_busy)
+            ? _reviewCompletion
+            : null,
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.blue,
           foregroundColor: AppColors.background,
@@ -351,6 +366,9 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
   }
 
   Widget _noticeBanner() {
+    final language = LocaleController.language.value;
+    final status = _order?.status ?? '';
+    final isTerminal = isTerminalOrderStatus(status);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -359,12 +377,14 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
         borderRadius: BorderRadius.circular(30),
       ),
       child: Text(
-        tr(
-          LocaleController.language.value,
-          'Holat oʻzgarganda bildirishnoma yuboramiz',
-          'Мы отправим уведомление при изменении статуса',
-          'We will notify you when the status changes',
-        ),
+        isTerminal
+            ? orderStatusLabel(language, status)
+            : tr(
+                language,
+                'Holat oʻzgarganda bildirishnoma yuboramiz',
+                'Мы отправим уведомление при изменении статуса',
+                'We will notify you when the status changes',
+              ),
         style: TextStyle(
           fontSize: 14,
           height: 20 / 14,

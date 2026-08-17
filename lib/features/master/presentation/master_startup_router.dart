@@ -10,6 +10,7 @@ import 'package:fixleo/features/master/presentation/master_profile_screen.dart';
 import 'package:fixleo/features/master/presentation/master_register_screen.dart';
 import 'package:fixleo/features/master/presentation/master_selfie_screen.dart';
 import 'package:fixleo/features/master/presentation/master_verification_screen.dart';
+import 'package:fixleo/features/master/presentation/master_verification_rejected_screen.dart';
 import 'package:fixleo/features/master/presentation/master_work_zone_screen.dart';
 
 /// Resolves where a master should resume after login / app restart.
@@ -27,6 +28,14 @@ Future<Widget> resolveMasterStartupScreen(
 
   if (master.verificationStatus == VerificationStatus.pending) {
     return const MasterVerificationScreen(submitOnOpen: false);
+  }
+
+  if (master.verificationStatus == VerificationStatus.rejected) {
+    return MasterVerificationRejectedScreen(
+      rejectionReason: master.rejectionReason,
+      rejectionReasons: master.rejectionReasons,
+      masterService: service,
+    );
   }
 
   if (!_hasBasicProfile(master)) {

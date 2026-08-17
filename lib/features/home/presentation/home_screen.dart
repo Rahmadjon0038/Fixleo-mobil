@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
 import 'package:fixleo/core/network/current_user.dart';
+import 'package:fixleo/core/realtime/app_presence_service.dart';
 import 'package:fixleo/core/realtime/call_service.dart';
 import 'package:fixleo/features/categories/data/category_service.dart';
 import 'package:fixleo/features/notifications/data/notification_service.dart';
@@ -15,10 +17,12 @@ import 'package:fixleo/features/notifications/presentation/notifications_screen.
 import 'package:fixleo/features/profile/presentation/profile_screen.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
+import 'package:fixleo/features/request/data/chat_service.dart';
 import 'package:fixleo/features/request/presentation/chats_list_screen.dart';
 import 'package:fixleo/features/request/presentation/address_screen.dart';
 import 'package:fixleo/features/request/presentation/my_orders_screen.dart';
 import 'package:fixleo/features/request/presentation/order_tracking_screen.dart';
+import 'package:fixleo/features/request/presentation/request_category_screen.dart';
 import 'package:fixleo/features/wallet/presentation/wallet_screen.dart';
 import 'package:fixleo/features/request/presentation/new_request_screen.dart';
 
@@ -30,26 +34,31 @@ class HomeScreen extends StatefulWidget {
     this.orderService,
     this.notificationService,
     this.categoryService,
+    this.chatService,
   });
 
   /// Injectable for widget tests; production uses the shared API client.
   final OrderService? orderService;
   final NotificationService? notificationService;
   final CategoryService? categoryService;
+  final ChatService? chatService;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _navIndex = 0;
   final Set<int> _visitedTabs = {0};
   late final OrderService _orders;
   late final NotificationService _notifications;
   late final CategoryService _categories;
+  late final ChatService _chats;
   ClientAddress? _defaultAddress;
   List<OrderSummary> _activeOrders = const [];
   int _unreadNotifications = 0;
+  int _unreadChats = 0;
+  StreamSubscription<int>? _conversationSubscription;
 
   @override
   void initState() {
@@ -58,13 +67,33 @@ class _HomeScreenState extends State<HomeScreen> {
     _notifications =
         widget.notificationService ?? NotificationService(kind: 'client');
     _categories = widget.categoryService ?? CategoryService();
+    _chats = widget.chatService ?? ChatService(kind: 'client');
+    WidgetsBinding.instance.addObserver(this);
     // Load the real signed-in profile so the greeting shows the actual name.
     CurrentUser.instance.refresh();
     _loadDefaultAddress();
     _loadActiveOrders();
     _loadUnreadNotifications();
+    _loadUnreadChats();
+    _conversationSubscription = AppPresenceService.instance.conversationUpdates
+        .listen((_) => unawaited(_loadUnreadChats()));
     // Voice-call signalling app-wide: an incoming call rings on any screen.
     CallService.instance.connect('client', onIncoming: showIncomingCallUi);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    unawaited(_loadActiveOrders());
+    unawaited(_loadUnreadNotifications());
+    unawaited(_loadUnreadChats());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(_conversationSubscription?.cancel());
+    super.dispose();
   }
 
   Future<void> _loadDefaultAddress() async {
@@ -109,6 +138,26 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _loadUnreadChats() async {
+    try {
+      final conversations = await _chats.conversations();
+      if (!mounted) return;
+      setState(
+        () => _unreadChats = conversations.fold(
+          0,
+          (total, item) => total + item.unreadCount,
+        ),
+      );
+    } on Object {
+      // Keep the last known badge count during a temporary network failure.
+    }
+  }
+
+  void _setUnreadChats(int count) {
+    if (!mounted || count == _unreadChats) return;
+    setState(() => _unreadChats = count);
+  }
+
   Future<void> _openNotifications() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -131,6 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
     LiquidGlassNavItem(
       tr(lang, 'Chatlar', 'Чаты', 'Chats'),
       'assets/icon/chat.svg',
+      badgeCount: _unreadChats,
     ),
     LiquidGlassNavItem(
       tr(lang, 'Hamyon', 'Кошелек', 'Wallet'),
@@ -143,15 +193,23 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   void _setTab(int index) {
-    if (index == _navIndex) return;
+    if (index == _navIndex) {
+      if (index == 0) {
+        unawaited(_loadActiveOrders());
+        unawaited(_loadUnreadNotifications());
+      }
+      if (index == 2) unawaited(_loadUnreadChats());
+      return;
+    }
     setState(() {
       _visitedTabs.add(index);
       _navIndex = index;
     });
     if (index == 0) {
-      _loadActiveOrders();
-      _loadUnreadNotifications();
+      unawaited(_loadActiveOrders());
+      unawaited(_loadUnreadNotifications());
     }
+    unawaited(_loadUnreadChats());
   }
 
   Widget _tabWhenVisited(int index, Widget child) {
@@ -234,9 +292,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         _tabWhenVisited(
                           2,
-                          const LiveChatsScreen(
+                          LiveChatsScreen(
                             kind: 'client',
                             showBack: false,
+                            service: _chats,
+                            onUnreadChanged: _setUnreadChats,
                           ),
                         ),
                         _tabWhenVisited(3, const WalletScreen(embedded: true)),
@@ -761,8 +821,9 @@ class _ActiveOrdersBanner extends StatelessWidget {
 }
 
 class _Category {
-  const _Category(this.label);
+  const _Category(this.label, {this.id});
   final String label;
+  final int? id;
 }
 
 class _CategoriesCard extends StatefulWidget {
@@ -802,7 +863,7 @@ class _CategoriesCardState extends State<_CategoriesCard> {
       if (!mounted || categories.isEmpty) return;
       setState(() {
         _items = categories
-            .map((c) => _Category(c.name))
+            .map((c) => _Category(c.name, id: c.id))
             .toList(growable: false);
       });
     } catch (_) {
@@ -834,11 +895,23 @@ class _CategoriesCardState extends State<_CategoriesCard> {
             child: Column(
               children: [
                 Row(
-                  children: [for (final c in row1) _CategoryChip(category: c)],
+                  children: [
+                    for (final c in row1)
+                      _CategoryChip(
+                        category: c,
+                        onTap: () => _openCategory(context, c),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Row(
-                  children: [for (final c in row2) _CategoryChip(category: c)],
+                  children: [
+                    for (final c in row2)
+                      _CategoryChip(
+                        category: c,
+                        onTap: () => _openCategory(context, c),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -850,7 +923,10 @@ class _CategoriesCardState extends State<_CategoriesCard> {
             child: FilledButton.icon(
               onPressed: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const NewRequestScreen()),
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        RequestCategoryScreen(service: widget.service),
+                  ),
                 );
               },
               style: FilledButton.styleFrom(
@@ -873,6 +949,17 @@ class _CategoriesCardState extends State<_CategoriesCard> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _openCategory(BuildContext context, _Category category) {
+    final id = category.id;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => id == null
+            ? RequestCategoryScreen(service: widget.service)
+            : NewRequestScreen(categoryId: id, categoryName: category.label),
       ),
     );
   }
@@ -911,48 +998,55 @@ IconData _categoryIcon(String name) {
 }
 
 class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({required this.category});
+  const _CategoryChip({required this.category, required this.onTap});
 
   final _Category category;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEAF3FE),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              _categoryIcon(category.label),
-              size: 22,
-              color: AppColors.blue,
-            ),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-          const SizedBox(width: 10),
-          Text(
-            category.label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: AppColors.navy,
-              height: 1.15,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF3FE),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  _categoryIcon(category.label),
+                  size: 22,
+                  color: AppColors.blue,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                category.label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navy,
+                  height: 1.15,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

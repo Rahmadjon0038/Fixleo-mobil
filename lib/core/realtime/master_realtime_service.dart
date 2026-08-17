@@ -3,6 +3,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:fixleo/core/network/api_client.dart';
 import 'package:fixleo/core/network/api_config.dart';
 import 'package:fixleo/core/network/auth_session.dart';
+import 'package:fixleo/features/master/data/localized_rejection_reasons.dart';
 
 /// Payload of the `verification:update` event (see `api/Realtime.md`).
 class MasterVerificationUpdate {
@@ -10,6 +11,7 @@ class MasterVerificationUpdate {
     required this.verificationStatus,
     required this.accountStatus,
     this.rejectionReason,
+    this.rejectionReasons = const LocalizedRejectionReasons(),
     this.decidedAt,
   });
 
@@ -19,18 +21,25 @@ class MasterVerificationUpdate {
   /// `unverified` | `active` | `blocked`.
   final String accountStatus;
   final String? rejectionReason;
+  final LocalizedRejectionReasons rejectionReasons;
   final String? decidedAt;
 
   bool get isApproved => verificationStatus == 'approved';
   bool get isRejected => verificationStatus == 'rejected';
 
-  factory MasterVerificationUpdate.fromJson(Map<String, dynamic> json) =>
-      MasterVerificationUpdate(
-        verificationStatus: json['verificationStatus'] as String? ?? '',
-        accountStatus: json['accountStatus'] as String? ?? '',
-        rejectionReason: json['rejectionReason'] as String?,
-        decidedAt: json['decidedAt'] as String?,
-      );
+  factory MasterVerificationUpdate.fromJson(Map<String, dynamic> json) {
+    final rejectionReason = json['rejectionReason'] as String?;
+    return MasterVerificationUpdate(
+      verificationStatus: json['verificationStatus'] as String? ?? '',
+      accountStatus: json['accountStatus'] as String? ?? '',
+      rejectionReason: rejectionReason,
+      rejectionReasons: LocalizedRejectionReasons.fromJson(
+        json['rejectionReasons'],
+        legacy: rejectionReason,
+      ),
+      decidedAt: json['decidedAt'] as String?,
+    );
+  }
 }
 
 /// Live KYC updates for the master, over the `/master` Socket.IO namespace

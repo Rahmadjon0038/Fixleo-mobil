@@ -72,10 +72,11 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
         photoKeys: d.photoKeys,
       );
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => WaitingResponsesScreen(orderId: order.id),
         ),
+        (route) => false,
       );
     } on ApiException catch (e) {
       if (!mounted) return;

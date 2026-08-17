@@ -14,7 +14,10 @@ import 'package:fixleo/features/master/presentation/master_order_completion_scre
 import 'package:fixleo/features/master/presentation/master_offer_screen.dart';
 import 'package:fixleo/features/master/presentation/master_offer_sent_screen.dart';
 import 'package:fixleo/features/master/presentation/master_profile_screen.dart';
+import 'package:fixleo/features/master/presentation/master_startup_router.dart';
+import 'package:fixleo/features/master/presentation/master_verification_rejected_screen.dart';
 import 'package:fixleo/features/notifications/data/notification_service.dart';
+import 'package:fixleo/features/request/data/chat_service.dart' as chat;
 
 class _FakeMasterMarketplaceService extends MasterMarketplaceService {
   @override
@@ -92,12 +95,41 @@ class _PendingMasterProfileService extends MasterService {
   );
 }
 
+class _RejectedMasterProfileService extends MasterService {
+  @override
+  Future<Master> me() async => const Master(
+    id: '#M-3',
+    phone: '+998908888888',
+    name: 'Rejected Master',
+    city: 'Tashkent',
+    experienceYears: 4,
+    status: MasterStatus.unverified,
+    verificationStatus: VerificationStatus.rejected,
+    rejectionReason: 'Passport photo is blurry',
+  );
+}
+
 class _FakeMasterNotificationService extends NotificationService {
   _FakeMasterNotificationService() : super(kind: 'master');
 
   @override
   Future<List<AppNotification>> list({bool unreadOnly = false}) async =>
       const [];
+}
+
+class _FakeMasterChatService extends chat.ChatService {
+  _FakeMasterChatService() : super(kind: 'master');
+
+  @override
+  Future<List<chat.Conversation>> conversations() async => const [
+    chat.Conversation(
+      id: 21,
+      orderId: 42,
+      orderTitle: 'Real service',
+      peerName: 'Client',
+      unreadCount: 4,
+    ),
+  ];
 }
 
 class _FilterHarness extends StatefulWidget {
@@ -308,6 +340,45 @@ void main() {
     expect(find.text('Profile created!'), findsNothing);
   });
 
+  testWidgets(
+    'rejected master sees the rejection screen and can correct data',
+    (tester) async {
+      LocaleController.language.value = AppLanguage.en;
+      addTearDown(() => LocaleController.language.value = AppLanguage.ru);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MasterHomeScreen(
+            masterService: _RejectedMasterProfileService(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Verification was not passed'), findsOneWidget);
+      expect(find.text('Moderator reason'), findsOneWidget);
+      expect(find.textContaining('Passport photo is blurry'), findsOneWidget);
+      expect(find.byType(LiquidGlassNavBar), findsNothing);
+
+      await tester.tap(find.text('Correct details'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Registration'), findsOneWidget);
+      expect(find.text('Rejected Master'), findsOneWidget);
+      expect(find.text('Tashkent'), findsOneWidget);
+    },
+  );
+
+  test('returning rejected master resumes on the rejection screen', () async {
+    final service = _RejectedMasterProfileService();
+    final master = await service.me();
+
+    final screen = await resolveMasterStartupScreen(service, master);
+
+    expect(screen, isA<MasterVerificationRejectedScreen>());
+  });
+
   testWidgets('master bottom tabs preserve the selected orders segment', (
     tester,
   ) async {
@@ -327,10 +398,26 @@ void main() {
           marketplaceService: marketplace,
           masterService: _FakeMasterProfileService(),
           notificationService: _FakeMasterNotificationService(),
+          chatService: _FakeMasterChatService(),
           ordersService: marketplace,
         ),
       ),
     );
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<LiquidGlassNavBar>(find.byType(LiquidGlassNavBar))
+          .items[2]
+          .badgeCount,
+      4,
+    );
+    await tester.tap(find.text('Chats'));
+    await tester.pump();
+    // One top-level title plus the bottom-tab label; no nested duplicate title.
+    expect(find.text('Chats'), findsNWidgets(2));
+    await tester.tap(find.text('Requests'));
     await tester.pump();
 
     await tester.tap(find.text('Orders'));
@@ -389,6 +476,7 @@ void main() {
           marketplaceService: marketplace,
           masterService: _FakeMasterProfileService(),
           notificationService: _FakeMasterNotificationService(),
+          chatService: _FakeMasterChatService(),
           ordersService: marketplace,
         ),
       ),

@@ -15,19 +15,28 @@ import 'package:fixleo/features/request/presentation/widgets/chat_presence_text.
 /// Self-loading chats screen — fetches the real conversations for [kind]
 /// ('client' | 'master') and renders them with the shared [ChatsList].
 class LiveChatsScreen extends StatefulWidget {
-  const LiveChatsScreen({super.key, required this.kind, this.showBack = true});
+  const LiveChatsScreen({
+    super.key,
+    required this.kind,
+    this.showBack = true,
+    this.showTitle = true,
+    this.service,
+    this.onUnreadChanged,
+  });
 
   final String kind;
   final bool showBack;
+  final bool showTitle;
+  final api_chat.ChatService? service;
+  final ValueChanged<int>? onUnreadChanged;
 
   @override
   State<LiveChatsScreen> createState() => _LiveChatsScreenState();
 }
 
 class _LiveChatsScreenState extends State<LiveChatsScreen> {
-  late final api_chat.ChatService _service = api_chat.ChatService(
-    kind: widget.kind,
-  );
+  late final api_chat.ChatService _service =
+      widget.service ?? api_chat.ChatService(kind: widget.kind);
   List<Conversation> _items = const [];
   bool _loading = true;
   String? _error;
@@ -85,6 +94,9 @@ class _LiveChatsScreenState extends State<LiveChatsScreen> {
         _items = convs.map(_toRow).toList();
         _loading = false;
       });
+      widget.onUnreadChanged?.call(
+        convs.fold(0, (total, item) => total + item.unreadCount),
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -134,38 +146,40 @@ class _LiveChatsScreenState extends State<LiveChatsScreen> {
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
-    return BrandedScaffold(
-      title: tr(lang, 'Chatlar', 'Чаты', 'Chats'),
-      showBack: widget.showBack,
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-          ? Center(
-              child: Text(
-                _error!,
-                style: const TextStyle(color: Color(0xFF8D96A4)),
-              ),
-            )
-          : _items.isEmpty
-          ? Center(
-              child: Text(
-                tr(lang, 'Suhbatlar yoʻq', 'Чатов нет', 'No chats yet'),
-                style: const TextStyle(color: Color(0xFF8D96A4)),
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ChatsList(
-                conversations: _items,
-                onConversationClosed: () => _load(showLoading: false),
-                padding: EdgeInsets.fromLTRB(
-                  16,
-                  4,
-                  16,
-                  widget.showBack ? 20 : 100,
-                ),
+    final body = _loading
+        ? const Center(child: CircularProgressIndicator())
+        : _error != null
+        ? Center(
+            child: Text(
+              _error!,
+              style: const TextStyle(color: Color(0xFF8D96A4)),
+            ),
+          )
+        : _items.isEmpty
+        ? Center(
+            child: Text(
+              tr(lang, 'Suhbatlar yoʻq', 'Чатов нет', 'No chats yet'),
+              style: const TextStyle(color: Color(0xFF8D96A4)),
+            ),
+          )
+        : RefreshIndicator(
+            onRefresh: _load,
+            child: ChatsList(
+              conversations: _items,
+              onConversationClosed: () => _load(showLoading: false),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                4,
+                16,
+                widget.showBack ? 20 : 100,
               ),
             ),
+          );
+    if (!widget.showTitle && !widget.showBack) return body;
+    return BrandedScaffold(
+      title: widget.showTitle ? tr(lang, 'Chatlar', 'Чаты', 'Chats') : null,
+      showBack: widget.showBack,
+      body: body,
     );
   }
 }

@@ -7,6 +7,7 @@ import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/core/realtime/master_realtime_service.dart';
 import 'package:fixleo/features/master/data/master_service.dart';
 import 'package:fixleo/features/master/presentation/master_verified_screen.dart';
+import 'package:fixleo/features/master/presentation/master_verification_rejected_screen.dart';
 
 /// Verification status — shown after the selfie step. On entry it submits the
 /// application (`POST /masters/me/verification/submit`) and then waits for the
@@ -63,19 +64,15 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => const MasterVerifiedScreen()),
           );
-        } else {
-          // Rejected — let the master fix documents and resubmit.
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(
-                content: Text(
-                  update.rejectionReason ??
-                      'Hujjatlar rad etildi. Qayta yuklang.',
-                ),
+        } else if (update.isRejected) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => MasterVerificationRejectedScreen(
+                rejectionReason: update.rejectionReason,
+                rejectionReasons: update.rejectionReasons,
               ),
-            );
-          Navigator.of(context).maybePop();
+            ),
+          );
         }
       },
       onForcedLogout: (_) {

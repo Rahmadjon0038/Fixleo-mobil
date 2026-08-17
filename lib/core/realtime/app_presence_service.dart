@@ -29,6 +29,22 @@ class PresenceUpdate {
   }
 }
 
+enum ClientOrderEventKind { reopened, statusChanged }
+
+class ClientOrderRealtimeEvent {
+  const ClientOrderRealtimeEvent({
+    required this.kind,
+    required this.orderId,
+    this.from,
+    this.to,
+  });
+
+  final ClientOrderEventKind kind;
+  final int orderId;
+  final String? from;
+  final String? to;
+}
+
 /// Authoritative app-level presence for client and master accounts.
 ///
 /// Only this socket sends `presence: true`; chat/order/call sockets may use the
@@ -44,6 +60,8 @@ class AppPresenceService {
       StreamController<PresenceUpdate>.broadcast();
   final StreamController<int> _conversationUpdates =
       StreamController<int>.broadcast();
+  final StreamController<ClientOrderRealtimeEvent> _orderUpdates =
+      StreamController<ClientOrderRealtimeEvent>.broadcast();
 
   Stream<PresenceUpdate> get updates => _updates.stream;
 
@@ -51,6 +69,7 @@ class AppPresenceService {
   /// Chat lists use this lightweight signal to refresh unread badges and
   /// previews without maintaining a second app-wide Socket.IO connection.
   Stream<int> get conversationUpdates => _conversationUpdates.stream;
+  Stream<ClientOrderRealtimeEvent> get orderUpdates => _orderUpdates.stream;
 
   io.Socket? _socket;
   AuthRole? _connectedRole;
@@ -129,6 +148,12 @@ class AppPresenceService {
       })
       ..on('chat_message', _notifyConversationChanged)
       ..on('chat_read', _notifyConversationChanged)
+      ..on('order_reopened', (data) {
+        _notifyOrderChanged(ClientOrderEventKind.reopened, data);
+      })
+      ..on('order_status', (data) {
+        _notifyOrderChanged(ClientOrderEventKind.statusChanged, data);
+      })
       ..on('token_expired', refreshAndReconnect)
       ..on('unauthorized', refreshAndReconnect)
       ..connect();
@@ -149,5 +174,20 @@ class AppPresenceService {
     if (conversationId > 0) {
       _conversationUpdates.add(conversationId);
     }
+  }
+
+  void _notifyOrderChanged(ClientOrderEventKind kind, dynamic data) {
+    if (data is! Map) return;
+    final payload = Map<String, dynamic>.from(data);
+    final orderId = (payload['orderId'] as num?)?.toInt() ?? 0;
+    if (orderId <= 0) return;
+    _orderUpdates.add(
+      ClientOrderRealtimeEvent(
+        kind: kind,
+        orderId: orderId,
+        from: payload['from'] as String?,
+        to: payload['to'] as String?,
+      ),
+    );
   }
 }

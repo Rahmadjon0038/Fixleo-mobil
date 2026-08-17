@@ -7,9 +7,10 @@ import 'package:fixleo/app/theme/app_colors.dart';
 
 /// One tab in the [LiquidGlassNavBar].
 class LiquidGlassNavItem {
-  const LiquidGlassNavItem(this.label, this.asset);
+  const LiquidGlassNavItem(this.label, this.asset, {this.badgeCount = 0});
   final String label;
   final String asset;
+  final int badgeCount;
 }
 
 /// Floating iOS "liquid glass" bottom navigation bar — translucent, blurred,
@@ -175,16 +176,48 @@ class _NavButton extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        AnimatedScale(
-          scale: active ? 1.12 : 1.0,
-          duration: duration,
-          curve: Curves.easeOutBack,
-          child: SvgPicture.asset(
-            item.asset,
-            width: 24,
-            height: 24,
-            colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-          ),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedScale(
+              scale: active ? 1.12 : 1.0,
+              duration: duration,
+              curve: Curves.easeOutBack,
+              child: SvgPicture.asset(
+                item.asset,
+                width: 24,
+                height: 24,
+                colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+              ),
+            ),
+            if (item.badgeCount > 0)
+              Positioned(
+                right: -12,
+                top: -9,
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: Text(
+                    item.badgeCount > 99 ? '99+' : '${item.badgeCount}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      height: 1,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 4),
         AnimatedDefaultTextStyle(

@@ -10,9 +10,16 @@ import 'package:fixleo/features/request/presentation/masters_responses_screen.da
 /// client is sent back to the other responses to pick a new master
 /// (Figma node 997:9884).
 class OrderDeclinedScreen extends StatelessWidget {
-  const OrderDeclinedScreen({super.key, this.orderId});
+  const OrderDeclinedScreen({
+    super.key,
+    this.orderId,
+    this.canChooseAnotherMaster = true,
+    this.responsesBuilder,
+  });
 
   final int? orderId;
+  final bool canChooseAnotherMaster;
+  final WidgetBuilder? responsesBuilder;
 
   static const _red100 = Color(0xFFFEE2E2);
   static const _red400 = Color(0xFFF87171);
@@ -23,6 +30,7 @@ class OrderDeclinedScreen extends StatelessWidget {
     final lang = LocaleController.language.value;
     return BrandedScaffold(
       showBack: true,
+      onBack: () => Navigator.of(context).popUntil((route) => route.isFirst),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
         child: Column(
@@ -70,15 +78,25 @@ class OrderDeclinedScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    tr(
-                      lang,
-                      'Usta arizangizni rad etdi — boshqa javoblarga oʻtib, '
-                          'yangi usta topishingiz mumkin.',
-                      'Мастер отклонил вашу заявку, вы можете перейти к '
-                          'другим откликам и найти нового мастера.',
-                      'The master declined your request — you can go to the '
-                          'other responses and find a new master.',
-                    ),
+                    canChooseAnotherMaster
+                        ? tr(
+                            lang,
+                            'Usta arizangizni rad etdi — boshqa javoblarga oʻtib, '
+                                'yangi usta topishingiz mumkin.',
+                            'Мастер отклонил вашу заявку, вы можете перейти к '
+                                'другим откликам и найти нового мастера.',
+                            'The master declined your request — you can go to the '
+                                'other responses and find a new master.',
+                          )
+                        : tr(
+                            lang,
+                            'Usta buyurtmani bekor qildi. Belgilangan vaqt o‘tib ketgani '
+                                'uchun ushbu buyurtma qayta ochilmadi.',
+                            'Мастер отменил заказ. Из-за истёкшего времени заказ '
+                                'не удалось открыть повторно.',
+                            'The master cancelled the order. It could not be reopened '
+                                'because its scheduled time had passed.',
+                          ),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 14,
@@ -92,21 +110,30 @@ class OrderDeclinedScreen extends StatelessWidget {
             ),
             const Spacer(),
             PrimaryButton(
-              label: tr(
-                lang,
-                'Javoblarga oʻtish',
-                'Перейти к откликам',
-                'Go to responses',
-              ),
+              label: canChooseAnotherMaster
+                  ? tr(
+                      lang,
+                      'Javoblarga oʻtish',
+                      'Перейти к откликам',
+                      'Go to responses',
+                    )
+                  : tr(
+                      lang,
+                      'Bosh sahifaga qaytish',
+                      'Вернуться на главную',
+                      'Return home',
+                    ),
               onPressed: () {
-                if (orderId != null) {
-                  Navigator.of(context).push(
+                if (canChooseAnotherMaster && orderId != null) {
+                  Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (_) => MastersResponsesScreen(orderId: orderId!),
+                      builder:
+                          responsesBuilder ??
+                          (_) => MastersResponsesScreen(orderId: orderId!),
                     ),
                   );
                 } else {
-                  Navigator.of(context).maybePop();
+                  Navigator.of(context).popUntil((route) => route.isFirst);
                 }
               },
             ),

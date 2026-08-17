@@ -56,77 +56,86 @@ class _OrderWaitingScreenState extends State<OrderWaitingScreen> {
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
-    return BrandedScaffold(
-      showBack: true,
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-        child: Column(
-          children: [
-            const Spacer(),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
+    void goHome() {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
+      );
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) goHome();
+      },
+      child: BrandedScaffold(
+        showBack: true,
+        onBack: goHome,
+        body: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          child: Column(
+            children: [
+              const Spacer(),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: const BoxDecoration(
+                        color: _blue100,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.history,
+                        size: 30,
+                        color: AppColors.blue,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      tr(lang, 'Kutilmoqda…', 'Ожидание…', 'Waiting…'),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.navy,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      tr(
+                        lang,
+                        'Tasdiqlash ustaga yuborildi. U javob bergach, chat '
+                            'va status kuzatuvi ochiladi.',
+                        'Подтверждение отправлено мастеру. После его ответа '
+                            'откроются чат и отслеживание статуса.',
+                        'The confirmation was sent to the master. Once they '
+                            'respond, chat and status tracking will open.',
+                      ),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        height: 20 / 14,
+                        letterSpacing: -0.16,
+                        color: _gray,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: Column(
-                children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: const BoxDecoration(
-                      color: _blue100,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.history,
-                      size: 30,
-                      color: AppColors.blue,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    tr(lang, 'Kutilmoqda…', 'Ожидание…', 'Waiting…'),
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.navy,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    tr(
-                      lang,
-                      'Tasdiqlash ustaga yuborildi. U javob bergach, chat '
-                          'va status kuzatuvi ochiladi.',
-                      'Подтверждение отправлено мастеру. После его ответа '
-                          'откроются чат и отслеживание статуса.',
-                      'The confirmation was sent to the master. Once they '
-                          'respond, chat and status tracking will open.',
-                    ),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      height: 20 / 14,
-                      letterSpacing: -0.16,
-                      color: _gray,
-                    ),
-                  ),
-                ],
+              const Spacer(),
+              PrimaryButton(
+                label: tr(lang, 'Bosh sahifaga', 'На главную', 'To home'),
+                onPressed: goHome,
               ),
-            ),
-            const Spacer(),
-            PrimaryButton(
-              label: tr(lang, 'Bosh sahifaga', 'На главную', 'To home'),
-              onPressed: () {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const HomeScreen()),
-                  (route) => false,
-                );
-              },
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

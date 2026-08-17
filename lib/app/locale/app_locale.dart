@@ -13,6 +13,9 @@ class LocaleController {
   LocaleController._();
 
   static const _kLanguage = 'app_language';
+  static bool _hasSavedLanguage = false;
+
+  static bool get hasSavedLanguage => _hasSavedLanguage;
 
   static final ValueNotifier<AppLanguage> language = ValueNotifier<AppLanguage>(
     AppLanguage.ru,
@@ -22,9 +25,11 @@ class LocaleController {
     language.value = AppLanguage.ru;
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_kLanguage);
+    _hasSavedLanguage = false;
     for (final lang in AppLanguage.values) {
       if (lang.name == raw) {
         language.value = lang;
+        _hasSavedLanguage = true;
         break;
       }
     }
@@ -32,6 +37,7 @@ class LocaleController {
 
   static void set(AppLanguage lang) {
     language.value = lang;
+    _hasSavedLanguage = true;
     unawaited(_save(lang));
   }
 

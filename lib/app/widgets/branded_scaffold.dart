@@ -73,12 +73,14 @@ bool shouldShowBrandBar() {
 /// Round iOS "liquid glass" style back button shown on the left of the
 /// sub-header — translucent frosted glass with a bright edge highlight.
 class _BackButton extends StatelessWidget {
-  const _BackButton();
+  const _BackButton({this.onTap});
+
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.of(context).maybePop(),
+      onTap: onTap ?? () => Navigator.of(context).maybePop(),
       child: Container(
         width: 44,
         height: 44,
@@ -134,6 +136,7 @@ class BrandedScaffold extends StatelessWidget {
     required this.body,
     this.title,
     this.showBack = false,
+    this.onBack,
     this.showBrand,
     this.backgroundColor = AppColors.background,
   });
@@ -141,6 +144,7 @@ class BrandedScaffold extends StatelessWidget {
   final Widget body;
   final String? title;
   final bool showBack;
+  final VoidCallback? onBack;
 
   /// When null, the brand bar follows screenshot mode.
   final bool? showBrand;
@@ -182,9 +186,9 @@ class BrandedScaffold extends StatelessWidget {
                           ),
                         ),
                       if (showBack)
-                        const Align(
+                        Align(
                           alignment: Alignment.centerLeft,
-                          child: _BackButton(),
+                          child: _BackButton(onTap: onBack),
                         ),
                     ],
                   ),

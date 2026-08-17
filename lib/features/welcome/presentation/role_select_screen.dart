@@ -4,6 +4,7 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/features/auth/presentation/phone_screen.dart';
 import 'package:fixleo/features/language/presentation/language_screen.dart';
 
 /// "Кто вы?" onboarding step — choose between the client and master flows.
@@ -111,7 +112,9 @@ class _RoleSelectScreenState extends State<RoleSelectScreen> {
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => LanguageScreen(isMaster: _isMaster),
+                    builder: (_) => LocaleController.hasSavedLanguage
+                        ? PhoneScreen(isMaster: _isMaster)
+                        : LanguageScreen(isMaster: _isMaster),
                   ),
                 );
               },

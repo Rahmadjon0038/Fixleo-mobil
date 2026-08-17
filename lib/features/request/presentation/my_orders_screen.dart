@@ -6,6 +6,7 @@ import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
+import 'package:fixleo/features/request/data/order_status.dart';
 import 'package:fixleo/features/request/presentation/order_tracking_screen.dart';
 
 /// "My orders" — the user's orders split into Active and Completed tabs.
@@ -33,6 +34,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   static const _amber600 = Color(0xFFD97706);
   static const _emerald50 = Color(0xFFECFDF5);
   static const _teal600 = Color(0xFF0D9488);
+  static const _red50 = Color(0xFFFEF2F2);
+  static const _red600 = Color(0xFFDC2626);
 
   late final OrderService _service = widget.service ?? OrderService();
 
@@ -289,7 +292,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _statusTag(_tab == 1),
+                _statusTag(order),
                 Text(
                   _money(order.price),
                   style: const TextStyle(
@@ -308,36 +311,35 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     );
   }
 
-  Widget _statusTag(bool done) {
-    final active = !done;
+  Widget _statusTag(OrderSummary order) {
+    final active = !isTerminalOrderStatus(order.status);
+    final cancelled = isCancelledOrderStatus(order.status);
+    final backgroundColor = active
+        ? _amber50
+        : cancelled
+        ? _red50
+        : _emerald50;
+    final foregroundColor = active
+        ? _amber600
+        : cancelled
+        ? _red600
+        : _teal600;
     return Container(
       height: 26,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: active ? _amber50 : _emerald50,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Center(
         child: Text(
-          active
-              ? tr(
-                  LocaleController.language.value,
-                  'Ishda',
-                  'В работе',
-                  'In progress',
-                )
-              : tr(
-                  LocaleController.language.value,
-                  'Bajarildi',
-                  'Выполнено',
-                  'Done',
-                ),
+          orderStatusLabel(LocaleController.language.value, order.status),
           style: TextStyle(
             fontSize: 12,
             height: 16 / 12,
             letterSpacing: -0.12,
             fontWeight: FontWeight.w500,
-            color: active ? _amber600 : _teal600,
+            color: foregroundColor,
           ),
         ),
       ),

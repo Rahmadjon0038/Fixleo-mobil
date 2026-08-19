@@ -11,6 +11,7 @@ import 'package:fixleo/core/network/api_client.dart';
 import 'package:fixleo/core/network/api_config.dart';
 import 'package:fixleo/core/network/auth_session.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
+import 'package:fixleo/core/realtime/call_ice_config.dart';
 import 'package:fixleo/core/realtime/call_recording_retry_queue.dart';
 
 /// Lifecycle of a voice call as seen by the UI.
@@ -29,22 +30,8 @@ class CallService {
   CallService._();
   static final CallService instance = CallService._();
 
-  static const _turnUrl = String.fromEnvironment('FIXLEO_TURN_URL');
-  static const _turnUsername = String.fromEnvironment('FIXLEO_TURN_USERNAME');
-  static const _turnCredential = String.fromEnvironment(
-    'FIXLEO_TURN_CREDENTIAL',
-  );
-  static final _iceServers = {
-    'iceServers': [
-      {'urls': 'stun:stun.l.google.com:19302'},
-      if (_turnUrl.isNotEmpty)
-        {
-          'urls': _turnUrl,
-          'username': _turnUsername,
-          'credential': _turnCredential,
-        },
-    ],
-  };
+  static const _disconnectGrace = Duration(seconds: 10);
+  static const _iceConfigTimeout = Duration(seconds: 5);
 
   final AuthSession _session = AuthSession.instance;
   final CallRecordingRetryQueue _recordingQueue =
@@ -72,6 +59,7 @@ class CallService {
   bool _recordingRetryRequested = false;
   Timer? _recordingRetryTimer;
   DateTime? _recordingRetryAt;
+  Timer? _disconnectGraceTimer;
 
   /// Current call state — the UI listens to this.
   final ValueNotifier<CallState> state = ValueNotifier(CallState.idle);
@@ -315,11 +303,12 @@ class CallService {
   }
 
   Future<void> _createPeer() async {
+    final iceConfiguration = await _loadIceConfiguration();
     _localStream = await navigator.mediaDevices.getUserMedia({
       'audio': true,
       'video': false,
     });
-    final pc = await createPeerConnection(_iceServers);
+    final pc = await createPeerConnection(iceConfiguration);
     for (final track in _localStream!.getTracks()) {
       await pc.addTrack(track, _localStream!);
     }
@@ -333,16 +322,47 @@ class CallService {
     };
     pc.onConnectionState = (s) {
       if (s == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
+        _cancelDisconnectGrace();
         _activeSince ??= DateTime.now();
         state.value = CallState.active;
         _startRecordingWhenConnected();
       } else if (s ==
-              RTCPeerConnectionState.RTCPeerConnectionStateDisconnected ||
-          s == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
+          RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
+        _disconnectGraceTimer ??= Timer(_disconnectGrace, () {
+          _disconnectGraceTimer = null;
+          if (identical(_pc, pc)) _failCall();
+        });
+      } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
+        _cancelDisconnectGrace();
         _failCall();
+      } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+        _cancelDisconnectGrace();
       }
     };
     _pc = pc;
+  }
+
+  Future<Map<String, dynamic>> _loadIceConfiguration() async {
+    final kind = _kind;
+    if (kind != 'client' && kind != 'master') {
+      return CallIceConfiguration.fallback.toPeerConnectionConfiguration();
+    }
+    try {
+      final data = await ApiClient.instance
+          .get('/${kind}s/me/calls/ice-config')
+          .timeout(_iceConfigTimeout);
+      return CallIceConfiguration.fromApi(data).toPeerConnectionConfiguration();
+    } on Object catch (error) {
+      // Preserve direct same-network calls during a temporary API/configuration
+      // outage. Production cross-NAT calls still require the backend TURN data.
+      debugPrint('TURN configuration unavailable; using STUN fallback: $error');
+      return CallIceConfiguration.fallback.toPeerConnectionConfiguration();
+    }
+  }
+
+  void _cancelDisconnectGrace() {
+    _disconnectGraceTimer?.cancel();
+    _disconnectGraceTimer = null;
   }
 
   void _emitIce(RTCIceCandidate candidate) {
@@ -405,6 +425,7 @@ class CallService {
   }
 
   Future<void> _performTeardown(CallState finalState) async {
+    _cancelDisconnectGrace();
     state.value = finalState;
     final callId = _callId;
     final kind = _kind;

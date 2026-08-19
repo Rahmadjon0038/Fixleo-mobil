@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -7,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fixleo/app/app.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
 import 'package:fixleo/core/realtime/app_presence_service.dart';
 import 'package:fixleo/core/realtime/call_service.dart';
@@ -198,11 +198,11 @@ class _MasterHomeAccessGateState extends State<MasterHomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    FilledButton(
+                    GlassButton(
+                      label: tr(lang, 'Qayta urinish', 'Повторить', 'Retry'),
                       onPressed: _retry,
-                      child: Text(
-                        tr(lang, 'Qayta urinish', 'Повторить', 'Retry'),
-                      ),
+                      height: 48,
+                      expand: false,
                     ),
                   ],
                 ),
@@ -461,6 +461,34 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
   int _ordersSegmentSignal = 0;
   int _ordersTargetSegment = 0;
 
+  /// Nav-item index of the Wallet tab — hidden entirely for a demo account
+  /// (app-store/Play-Market review), which must never show money UI.
+  static const _walletTabIndex = 3;
+
+  /// Drops the Wallet item from the nav bar for a demo account, without
+  /// touching `_navIndex`/`IndexedStack` (which stay in the real 5-tab index
+  /// space everywhere else in this file).
+  List<LiquidGlassNavItem> _visibleNavItems(List<LiquidGlassNavItem> all) {
+    if (!CurrentUser.instance.isDemo) return all;
+    return [
+      for (var i = 0; i < all.length; i++)
+        if (i != _walletTabIndex) all[i],
+    ];
+  }
+
+  /// Real tab index -> the nav bar's displayed position (one slot short when
+  /// Wallet is hidden).
+  int _visibleNavIndex(int realIndex) {
+    if (!CurrentUser.instance.isDemo) return realIndex;
+    return realIndex > _walletTabIndex ? realIndex - 1 : realIndex;
+  }
+
+  /// The nav bar's displayed position -> real tab index (inverse of above).
+  int _realNavIndex(int visibleIndex) {
+    if (!CurrentUser.instance.isDemo) return visibleIndex;
+    return visibleIndex >= _walletTabIndex ? visibleIndex + 1 : visibleIndex;
+  }
+
   void _setTab(int index) {
     if (index == _navIndex) {
       if (index == 2) unawaited(_loadUnreadChats());
@@ -510,65 +538,67 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
           },
           child: Scaffold(
             backgroundColor: AppColors.background,
-            body: SafeArea(
-              child: Stack(
-                children: [
-                  Column(
-                    children: [
-                      const SizedBox(height: 8),
-                      if (showBrand) const Center(child: BrandBar()),
-                      const SizedBox(height: 8),
-                      _header(lang, navItems),
-                      Expanded(
-                        // Keep every visited top-level tab mounted while
-                        // switching. Stateful tabs must not lose their selected
-                        // segment, scroll position, or already loaded data.
-                        child: IndexedStack(
-                          index: _navIndex,
-                          children: [
-                            _feed(),
-                            _tabWhenVisited(
-                              1,
-                              MasterOrdersScreen(
-                                service: widget.ordersService,
-                                refreshSignal: _ordersRefreshSignal,
-                                segmentSignal: _ordersSegmentSignal,
-                                targetSegment: _ordersTargetSegment,
+            body: GlassBackground(
+              child: SafeArea(
+                child: Stack(
+                  children: [
+                    Column(
+                      children: [
+                        const SizedBox(height: 8),
+                        if (showBrand) const Center(child: BrandBar()),
+                        const SizedBox(height: 8),
+                        _header(lang, navItems),
+                        Expanded(
+                          // Keep every visited top-level tab mounted while
+                          // switching. Stateful tabs must not lose their selected
+                          // segment, scroll position, or already loaded data.
+                          child: IndexedStack(
+                            index: _navIndex,
+                            children: [
+                              _feed(),
+                              _tabWhenVisited(
+                                1,
+                                MasterOrdersScreen(
+                                  service: widget.ordersService,
+                                  refreshSignal: _ordersRefreshSignal,
+                                  segmentSignal: _ordersSegmentSignal,
+                                  targetSegment: _ordersTargetSegment,
+                                ),
                               ),
-                            ),
-                            _tabWhenVisited(
-                              2,
-                              MasterChatsScreen(
-                                service: _chats,
-                                onUnreadChanged: _setUnreadChats,
+                              _tabWhenVisited(
+                                2,
+                                MasterChatsScreen(
+                                  service: _chats,
+                                  onUnreadChanged: _setUnreadChats,
+                                ),
                               ),
-                            ),
-                            _tabWhenVisited(3, const MasterWalletScreen()),
-                            _tabWhenVisited(
-                              4,
-                              MasterProfileTabScreen(
-                                onNotificationsChanged:
-                                    _loadUnreadNotifications,
-                                onOpenWorkHistory: _openOrderHistory,
-                                service: _masterService,
+                              _tabWhenVisited(3, const MasterWalletScreen()),
+                              _tabWhenVisited(
+                                4,
+                                MasterProfileTabScreen(
+                                  onNotificationsChanged:
+                                      _loadUnreadNotifications,
+                                  onOpenWorkHistory: _openOrderHistory,
+                                  service: _masterService,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  Positioned(
-                    left: 12,
-                    right: 12,
-                    bottom: 8,
-                    child: LiquidGlassNavBar(
-                      items: navItems,
-                      currentIndex: _navIndex,
-                      onTap: _setTab,
+                      ],
                     ),
-                  ),
-                ],
+                    Positioned(
+                      left: 12,
+                      right: 12,
+                      bottom: 8,
+                      child: LiquidGlassNavBar(
+                        items: _visibleNavItems(navItems),
+                        currentIndex: _visibleNavIndex(_navIndex),
+                        onTap: (visibleIndex) => _setTab(_realNavIndex(visibleIndex)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -592,7 +622,22 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
           height: 44,
           child: Row(
             children: [
-              _Pill(
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -610,27 +655,17 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
                 ),
               ),
               const Spacer(),
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  _GlassButton(
-                    onTap: _openNotifications,
-                    child: const Icon(
-                      Icons.notifications_none_rounded,
-                      size: 22,
-                      color: AppColors.navy,
-                    ),
-                  ),
-                  if (_unreadNotifications > 0)
-                    Positioned(
-                      right: -4,
-                      top: -4,
-                      child: _NotificationBadge(count: _unreadNotifications),
-                    ),
-                ],
+              GlassIconButton(
+                onTap: _openNotifications,
+                badgeCount: _unreadNotifications,
+                child: const Icon(
+                  Icons.notifications_none_rounded,
+                  size: 22,
+                  color: AppColors.navy,
+                ),
               ),
               const SizedBox(width: 8),
-              _GlassButton(
+              GlassIconButton(
                 onTap: () async {
                   final filters = await Navigator.of(context)
                       .push<MasterFeedFilters>(
@@ -668,7 +703,22 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
         child: Stack(
           alignment: Alignment.center,
           children: [
-            _Pill(
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: Text(
                 switch (_navIndex) {
                   1 => tr(lang, 'Mening ishlarim', 'Моя работа', 'My work'),
@@ -683,7 +733,7 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
             ),
             Align(
               alignment: Alignment.centerLeft,
-              child: _GlassButton(
+              child: GlassIconButton(
                 onTap: _goBackTab,
                 child: const Icon(
                   Icons.arrow_back,
@@ -865,137 +915,100 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
   /// Greeting + location + "change location" pill.
   Widget _greeting() {
     final lang = LocaleController.language.value;
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(296),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(296),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.white.withValues(alpha: 0.92),
-                  Colors.white.withValues(alpha: 0.72),
-                ],
-              ),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.8),
-                width: 1,
-              ),
-              borderRadius: BorderRadius.circular(296),
-            ),
-            child: Row(
+    return GlassContainer(
+      borderRadius: 296,
+      padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
+      tintOpacityTop: 0.92,
+      tintOpacityBottom: 0.72,
+      borderOpacity: 0.8,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ValueListenableBuilder<UserProfile?>(
-                        valueListenable: CurrentUser.instance.profile,
-                        builder: (context, profile, _) {
-                          final name = profile?.firstName;
-                          return Text(
-                            name == null
-                                ? tr(
-                                    lang,
-                                    'Xayrli kun!',
-                                    'Добрый день!',
-                                    'Good day!',
-                                  )
-                                : tr(
-                                    lang,
-                                    'Xayrli kun, $name!',
-                                    'Добрый день, $name!',
-                                    'Good day, $name!',
-                                  ),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.navy,
+                ValueListenableBuilder<UserProfile?>(
+                  valueListenable: CurrentUser.instance.profile,
+                  builder: (context, profile, _) {
+                    final name = profile?.firstName;
+                    return Text(
+                      name == null
+                          ? tr(lang, 'Xayrli kun!', 'Добрый день!', 'Good day!')
+                          : tr(
+                              lang,
+                              'Xayrli kun, $name!',
+                              'Добрый день, $name!',
+                              'Good day, $name!',
                             ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on_outlined,
-                            size: 14,
-                            color: AppColors.navy,
-                          ),
-                          const SizedBox(width: 2),
-                          Expanded(
-                            child: Text(
-                              [
-                                _masterProfile?.city ??
-                                    tr(
-                                      lang,
-                                      'Lokatsiya tanlanmagan',
-                                      'Локация не выбрана',
-                                      'Location not selected',
-                                    ),
-                                if (_masterProfile?.workRadiusKm != null)
-                                  '${_masterProfile!.workRadiusKm} km',
-                              ].join(' · '),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.navy,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                GestureDetector(
-                  onTap: _changeWorkZone,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.blue,
-                      borderRadius: BorderRadius.circular(40),
-                    ),
-                    child: Text(
-                      tr(
-                        lang,
-                        'Lokatsiyani oʻzgartirish',
-                        'Изменить локацию',
-                        'Change location',
-                      ),
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: Colors.white,
+                        color: AppColors.navy,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on_outlined,
+                      size: 14,
+                      color: AppColors.navy,
+                    ),
+                    const SizedBox(width: 2),
+                    Expanded(
+                      child: Text(
+                        [
+                          _masterProfile?.city ??
+                              tr(
+                                lang,
+                                'Lokatsiya tanlanmagan',
+                                'Локация не выбрана',
+                                'Location not selected',
+                              ),
+                          if (_masterProfile?.workRadiusKm != null)
+                            '${_masterProfile!.workRadiusKm} km',
+                        ].join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.navy,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),
           ),
-        ),
+          GestureDetector(
+            onTap: _changeWorkZone,
+            child: GlassContainer.tinted(
+              borderRadius: 40,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+              child: Text(
+                tr(
+                  lang,
+                  'Lokatsiyani oʻzgartirish',
+                  'Изменить локацию',
+                  'Change location',
+                ),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1010,12 +1023,9 @@ class _RequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassContainer.lite(
+      borderRadius: 20,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1104,31 +1114,15 @@ class _RequestCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            height: 46,
-            child: FilledButton(
-              onPressed: onRespond,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.blue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              child: Text(
-                tr(
-                  LocaleController.language.value,
-                  'Javob berish',
-                  'Откликнуться',
-                  'Respond',
-                ),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+          GlassButton(
+            label: tr(
+              LocaleController.language.value,
+              'Javob berish',
+              'Откликнуться',
+              'Respond',
             ),
+            onPressed: onRespond,
+            height: 46,
           ),
         ],
       ),
@@ -1153,13 +1147,10 @@ class _MiniCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
-    return Container(
+    return GlassContainer(
       height: 122,
+      borderRadius: 24,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-      ),
       child: Stack(
         children: [
           SizedBox(
@@ -1185,111 +1176,3 @@ class _MiniCard extends StatelessWidget {
   }
 }
 
-/// Small white pill used for the header title.
-class _Pill extends StatelessWidget {
-  const _Pill({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-}
-
-/// Round iOS "liquid glass" control button (back / filter) — frosted white
-/// with a bright edge highlight, matching the app's other glass buttons.
-class _GlassButton extends StatelessWidget {
-  const _GlassButton({required this.child, required this.onTap});
-
-  final Widget child;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: ClipOval(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.85),
-                    Colors.white.withValues(alpha: 0.55),
-                  ],
-                ),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  width: 1,
-                ),
-              ),
-              child: child,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NotificationBadge extends StatelessWidget {
-  const _NotificationBadge({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 5),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppColors.danger,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white, width: 2),
-      ),
-      child: Text(
-        count > 99 ? '99+' : '$count',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          height: 1,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}

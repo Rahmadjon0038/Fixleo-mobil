@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/core/realtime/master_realtime_service.dart';
 import 'package:fixleo/features/master/data/master_service.dart';
@@ -99,13 +100,9 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
         child: Column(
           children: [
             // Header card — animated-looking clock + status text.
-            Container(
-              width: double.infinity,
+            GlassCard(
+              radius: 30,
               padding: const EdgeInsets.symmetric(vertical: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-              ),
               child: Column(
                 children: [
                   Container(
@@ -156,13 +153,9 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
             ),
             const SizedBox(height: 10),
             // Status checklist.
-            Container(
-              width: double.infinity,
+            GlassCard(
+              radius: 20,
               padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
               child: Column(
                 children: [
                   _StatusRow(

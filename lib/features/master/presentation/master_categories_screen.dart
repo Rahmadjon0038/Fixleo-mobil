@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/categories/data/category_model.dart';
@@ -119,12 +120,9 @@ class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
                 ? _ErrorState(message: _error!, onRetry: _load)
                 : SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    child: Container(
+                    child: GlassContainer(
+                      borderRadius: 30,
                       padding: const EdgeInsets.fromLTRB(10, 14, 20, 14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(30),
-                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

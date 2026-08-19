@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 
 /// Confirmation that the master's offer was sent. An offer is not an assigned
@@ -24,15 +25,11 @@ class MasterOfferSentScreen extends StatelessWidget {
           children: [
             Expanded(
               child: Center(
-                child: Container(
-                  width: double.infinity,
+                child: GlassCard(
+                  radius: 30,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 16,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(30),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

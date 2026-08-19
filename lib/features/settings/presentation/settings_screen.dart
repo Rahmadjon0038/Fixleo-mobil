@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/core/network/current_user.dart';
@@ -22,8 +23,6 @@ class SettingsScreen extends StatefulWidget {
 enum _Gender { male, female }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  static const _fieldGray = Color(0xFFE9EAEC);
-
   final _first = TextEditingController();
   final _last = TextEditingController();
   final _service = ClientAuthService();
@@ -125,12 +124,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _pickGender() async {
     final lang = LocaleController.language.value;
-    final picked = await showModalBottomSheet<_Gender>(
+    final picked = await showGlassModalBottomSheet<_Gender>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      topRadius: 24,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -391,14 +387,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required TextEditingController controller,
     required String hint,
   }) {
-    return Container(
+    // GlassTextField doesn't expose textCapitalization, so a raw TextField is
+    // kept for that behavior while still living inside the glass panel.
+    return GlassContainer(
       height: 48,
+      borderRadius: 16,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: _fieldGray,
-        borderRadius: BorderRadius.circular(16),
-      ),
+      alignment: Alignment.centerLeft,
       child: TextField(
         controller: controller,
         onChanged: (_) => setState(() => _error = null),
@@ -421,17 +416,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// Gray pill used for the read-only phone and the tappable pickers.
+  /// Frosted glass pill used for the read-only phone and the tappable
+  /// pickers.
   Widget _staticField({required Widget child}) {
-    return Container(
+    return GlassContainer(
       height: 48,
       width: double.infinity,
+      borderRadius: 16,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       alignment: Alignment.centerLeft,
-      decoration: BoxDecoration(
-        color: _fieldGray,
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: child,
     );
   }

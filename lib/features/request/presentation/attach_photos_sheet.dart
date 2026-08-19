@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 
 /// Functional Telegram-style attachment chooser. The system picker handles
 /// permissions and the real gallery/camera UI; the chat uploads selected files.
@@ -13,20 +14,10 @@ Future<ImageSource?> showAttachPhotosSheet(BuildContext context) {
     backgroundColor: Colors.transparent,
     barrierColor: const Color(0x55000000),
     builder: (sheetContext) => SafeArea(
-      child: Container(
+      child: GlassContainer(
         margin: const EdgeInsets.all(10),
+        borderRadius: 28,
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x22000000),
-              blurRadius: 24,
-              offset: Offset(0, 10),
-            ),
-          ],
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -103,51 +94,58 @@ class _AttachmentAction extends StatelessWidget {
     return Semantics(
       button: true,
       label: '$title. $subtitle',
-      child: Material(
-        color: const Color(0xFFF5F7FA),
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          onTap: onTap,
+      // Nested inside an already-blurred sheet — .lite avoids stacking
+      // another BackdropFilter.
+      child: GlassContainer.lite(
+        tint: const Color(0xFFF5F7FA),
+        borderRadius: 18,
+        padding: EdgeInsets.zero,
+        child: Material(
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(18),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(18),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: iconColor.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: iconColor),
                   ),
-                  child: Icon(icon, color: iconColor),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: AppColors.navy,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: AppColors.navy,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          color: Color(0xFF8D96A4),
-                          fontSize: 13,
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            color: Color(0xFF8D96A4),
+                            fontSize: 13,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const Icon(Icons.chevron_right, color: Color(0xFFA3ADBA)),
-              ],
+                  const Icon(Icons.chevron_right, color: Color(0xFFA3ADBA)),
+                ],
+              ),
             ),
           ),
         ),

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -7,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fixleo/app/app.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
 import 'package:fixleo/core/network/current_user.dart';
 import 'package:fixleo/core/realtime/app_presence_service.dart';
@@ -192,6 +192,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     ),
   ];
 
+  /// Nav-item index of the Wallet tab — hidden entirely for a demo account
+  /// (app-store/Play-Market review), which must never show money UI.
+  static const _walletTabIndex = 3;
+
+  /// Drops the Wallet item from the nav bar for a demo account, without
+  /// touching `_navIndex`/`IndexedStack` (which stay in the real 5-tab index
+  /// space everywhere else in this file).
+  List<LiquidGlassNavItem> _visibleNavItems(List<LiquidGlassNavItem> all) {
+    if (!CurrentUser.instance.isDemo) return all;
+    return [
+      for (var i = 0; i < all.length; i++)
+        if (i != _walletTabIndex) all[i],
+    ];
+  }
+
+  /// Real tab index -> the nav bar's displayed position (one slot short when
+  /// Wallet is hidden).
+  int _visibleNavIndex(int realIndex) {
+    if (!CurrentUser.instance.isDemo) return realIndex;
+    return realIndex > _walletTabIndex ? realIndex - 1 : realIndex;
+  }
+
+  /// The nav bar's displayed position -> real tab index (inverse of above).
+  int _realNavIndex(int visibleIndex) {
+    if (!CurrentUser.instance.isDemo) return visibleIndex;
+    return visibleIndex >= _walletTabIndex ? visibleIndex + 1 : visibleIndex;
+  }
+
   void _setTab(int index) {
     if (index == _navIndex) {
       if (index == 0) {
@@ -278,184 +306,56 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           },
           child: Scaffold(
             backgroundColor: AppColors.background,
-            body: SafeArea(
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: IndexedStack(
-                      index: _navIndex,
-                      children: [
-                        _homeTab(lang),
-                        _tabWhenVisited(
-                          1,
-                          MyOrdersScreen(embedded: true, service: _orders),
-                        ),
-                        _tabWhenVisited(
-                          2,
-                          LiveChatsScreen(
-                            kind: 'client',
-                            showBack: false,
-                            service: _chats,
-                            onUnreadChanged: _setUnreadChats,
+            body: GlassBackground(
+              child: SafeArea(
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: IndexedStack(
+                        index: _navIndex,
+                        children: [
+                          _homeTab(lang),
+                          _tabWhenVisited(
+                            1,
+                            MyOrdersScreen(embedded: true, service: _orders),
                           ),
-                        ),
-                        _tabWhenVisited(3, const WalletScreen(embedded: true)),
-                        _tabWhenVisited(4, const ProfileScreen(embedded: true)),
-                      ],
+                          _tabWhenVisited(
+                            2,
+                            LiveChatsScreen(
+                              kind: 'client',
+                              showBack: false,
+                              service: _chats,
+                              onUnreadChanged: _setUnreadChats,
+                            ),
+                          ),
+                          _tabWhenVisited(
+                            3,
+                            const WalletScreen(embedded: true),
+                          ),
+                          _tabWhenVisited(
+                            4,
+                            const ProfileScreen(embedded: true),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Positioned(
-                    left: 12,
-                    right: 12,
-                    bottom: 8,
-                    child: LiquidGlassNavBar(
-                      items: navItems,
-                      currentIndex: _navIndex,
-                      onTap: _setTab,
+                    Positioned(
+                      left: 12,
+                      right: 12,
+                      bottom: 8,
+                      child: LiquidGlassNavBar(
+                        items: _visibleNavItems(navItems),
+                        currentIndex: _visibleNavIndex(_navIndex),
+                        onTap: (visibleIndex) => _setTab(_realNavIndex(visibleIndex)),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         );
       },
-    );
-  }
-}
-
-/// Rounded white card used for most home sections.
-class _Card extends StatelessWidget {
-  const _Card({required this.child, this.radius = 26});
-
-  final Widget child;
-  final double radius;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: Colors.white, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.white.withValues(alpha: 0.8),
-            offset: const Offset(-5, -5),
-            blurRadius: 12,
-          ),
-          BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.12),
-            offset: const Offset(5, 9),
-            blurRadius: 20,
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-}
-
-class _CircleIconButton extends StatelessWidget {
-  const _CircleIconButton({
-    required this.asset,
-    this.iconSize = 22,
-    this.onTap,
-    this.badgeCount = 0,
-    this.semanticLabel,
-  });
-
-  final String asset;
-  final double iconSize;
-  final VoidCallback? onTap;
-  final int badgeCount;
-  final String? semanticLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: onTap != null,
-      label: semanticLabel,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: ClipOval(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                  child: Container(
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.white.withValues(alpha: 0.65),
-                          Colors.white.withValues(alpha: 0.30),
-                        ],
-                      ),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        width: 1,
-                      ),
-                    ),
-                    child: SvgPicture.asset(
-                      asset,
-                      width: iconSize,
-                      height: iconSize,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            if (badgeCount > 0)
-              Positioned(
-                right: -4,
-                top: -4,
-                child: Container(
-                  constraints: const BoxConstraints(
-                    minWidth: 20,
-                    minHeight: 20,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.danger,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: Text(
-                    badgeCount > 99 ? '99+' : '$badgeCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      height: 1,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -475,25 +375,9 @@ class _HomeHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
+        GlassContainer(
+          borderRadius: 32,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white, width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.9),
-                offset: const Offset(-5, -5),
-                blurRadius: 12,
-              ),
-              BoxShadow(
-                color: const Color(0xFF0F172A).withValues(alpha: 0.14),
-                offset: const Offset(6, 9),
-                blurRadius: 20,
-              ),
-            ],
-          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -511,9 +395,8 @@ class _HomeHeader extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        _CircleIconButton(
-          asset: 'assets/icon/notificationicon.svg',
-          iconSize: 21,
+        GlassIconButton(
+          size: 48,
           badgeCount: unreadNotifications,
           semanticLabel: tr(
             lang,
@@ -522,11 +405,20 @@ class _HomeHeader extends StatelessWidget {
             'Notifications',
           ),
           onTap: onNotifications,
+          child: SvgPicture.asset(
+            'assets/icon/notificationicon.svg',
+            width: 21,
+            height: 21,
+          ),
         ),
         const SizedBox(width: 12),
-        const _CircleIconButton(
-          asset: 'assets/icon/usericon.svg',
-          iconSize: 21,
+        GlassIconButton(
+          size: 48,
+          child: SvgPicture.asset(
+            'assets/icon/usericon.svg',
+            width: 21,
+            height: 21,
+          ),
         ),
       ],
     );
@@ -546,7 +438,7 @@ class _GreetingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
+    return GlassCard(
       child: Row(
         children: [
           Expanded(
@@ -746,7 +638,7 @@ class _ActiveOrdersBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
+    return GlassCard(
       radius: 24,
       child: Row(
         children: [
@@ -797,22 +689,11 @@ class _ActiveOrdersBanner extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          FilledButton(
+          GlassButton(
+            label: tr(lang, 'Koʻrish', 'Смотреть', 'View'),
             onPressed: onView,
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(72, 40),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              backgroundColor: AppColors.blue,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(999),
-              ),
-              elevation: 0,
-            ),
-            child: Text(
-              tr(lang, 'Koʻrish', 'Смотреть', 'View'),
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
+            height: 40,
+            expand: false,
           ),
         ],
       ),
@@ -877,7 +758,7 @@ class _CategoriesCardState extends State<_CategoriesCard> {
     final row1 = _items.take(half).toList();
     final row2 = _items.skip(half).toList();
 
-    return _Card(
+    return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -917,36 +798,23 @@ class _CategoriesCardState extends State<_CategoriesCard> {
             ),
           ),
           const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: FilledButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        RequestCategoryScreen(service: widget.service),
-                  ),
-                );
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.blue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(26),
-                ),
-              ),
-              icon: const Icon(Icons.add, size: 20),
-              label: Text(
-                tr(
-                  widget.lang,
-                  'Vazifa soʻrash',
-                  'Запросить задание',
-                  'Request a task',
-                ),
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-              ),
+          GlassButton(
+            label: tr(
+              widget.lang,
+              'Vazifa soʻrash',
+              'Запросить задание',
+              'Request a task',
             ),
+            icon: Icons.add,
+            height: 52,
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      RequestCategoryScreen(service: widget.service),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -1007,16 +875,16 @@ class _CategoryChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: Container(
+        child: GlassContainer.lite(
+          borderRadius: 24,
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
+          // No drop shadow — these sit edge-to-edge in a scrolling row, and
+          // the default soft shadow smears into a glow across the whole
+          // row instead of reading as separate chips.
+          shadow: false,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1066,7 +934,7 @@ class _PhotosCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
+    return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1203,13 +1071,10 @@ class _FeedbackCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassContainer(
       height: 122,
+      borderRadius: 24,
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-      ),
       child: Stack(
         children: [
           SizedBox(
@@ -1242,7 +1107,7 @@ class _SpecialistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
+    return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1324,7 +1189,7 @@ class _ActiveOrderCard extends StatelessWidget {
         );
         await onChanged();
       },
-      child: _Card(
+      child: GlassCard(
         radius: 40,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

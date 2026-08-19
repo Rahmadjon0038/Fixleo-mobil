@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
@@ -139,14 +140,11 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
                       const Spacer(),
                       GestureDetector(
                         onTap: _toggleSort,
-                        child: Container(
+                        child: GlassContainer(
+                          borderRadius: 999,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
                             vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(999),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -264,12 +262,10 @@ class _MasterCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    // Repeated card in a scrolling list — .lite skips BackdropFilter.
+    return GlassCard.lite(
+      radius: 30,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Column(
         children: [
           Row(
@@ -393,14 +389,13 @@ class _MasterCard extends StatelessWidget {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: double.infinity,
+      // Repeated per-row action inside an already-.lite card — .lite again
+      // keeps this cheap across a long list of offers.
+      child: GlassContainer.lite(
+        tint: background,
+        borderRadius: 20,
         padding: const EdgeInsets.symmetric(vertical: 12),
         alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(20),
-        ),
         child: Text(
           label,
           style: TextStyle(

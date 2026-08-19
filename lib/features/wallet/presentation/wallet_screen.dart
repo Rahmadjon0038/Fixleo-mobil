@@ -1,9 +1,12 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/wallet/data/payment_service.dart';
 import 'package:fixleo/features/wallet/presentation/add_card_screen.dart';
@@ -50,7 +53,6 @@ String _fmtOpDate(AppLanguage lang, DateTime? dt) {
 }
 
 class _WalletScreenState extends State<WalletScreen> {
-  static const _slate50 = Color(0xFFF8FAFC);
   static const _gray = Color(0xFF8D96A4);
 
   final PaymentService _payments = PaymentService(kind: 'client');
@@ -180,6 +182,7 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   /// Dark card — «Баланс карты» + amount + [Пополнить][История] (FINAL).
+  /// Flat, not glass — matches the FINAL Figma wallet page exactly.
   Widget _balanceCard(AppLanguage lang) {
     return Container(
       width: double.infinity,
@@ -278,35 +281,31 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  /// "Add card" white pill (real AddCardScreen).
+  /// "Add card" glass pill (real AddCardScreen).
   Widget _addCard(AppLanguage lang) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(40),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: _openAddCard,
-        child: SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.add, size: 20, color: _gray),
-              const SizedBox(width: 8),
-              Text(
-                tr(lang, 'Karta qoʻshish', 'Добавить карту', 'Add card'),
-                style: const TextStyle(
-                  fontSize: 16,
-                  height: 22 / 16,
-                  letterSpacing: -0.18,
-                  fontWeight: FontWeight.w500,
-                  color: _gray,
-                ),
+    return GestureDetector(
+      onTap: _openAddCard,
+      child: GlassContainer(
+        borderRadius: 40,
+        height: 52,
+        alignment: Alignment.center,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.add, size: 20, color: _gray),
+            const SizedBox(width: 8),
+            Text(
+              tr(lang, 'Karta qoʻshish', 'Добавить карту', 'Add card'),
+              style: const TextStyle(
+                fontSize: 16,
+                height: 22 / 16,
+                letterSpacing: -0.18,
+                fontWeight: FontWeight.w500,
+                color: _gray,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -314,14 +313,10 @@ class _WalletScreenState extends State<WalletScreen> {
 
   /// «Операции» — merged money history (FINAL).
   Widget _operationsSection(AppLanguage lang) {
-    return Container(
+    return GlassContainer(
       key: _operationsKey,
-      width: double.infinity,
+      borderRadius: 22,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -381,12 +376,9 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Widget _operationTile(WalletOperation op, AppLanguage lang) {
-    return Container(
+    return GlassContainer.lite(
+      borderRadius: 16,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: _slate50,
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Row(
         children: [
           Expanded(
@@ -432,13 +424,9 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Widget _cardsSection(AppLanguage lang) {
-    return Container(
-      width: double.infinity,
+    return GlassContainer(
+      borderRadius: 22,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -492,12 +480,9 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Widget _cardTile(SavedCard card, AppLanguage lang) {
-    return Container(
+    return GlassContainer.lite(
+      borderRadius: 16,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _slate50,
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Row(
         children: [
           const Icon(Icons.credit_card, size: 22, color: AppColors.navy),
@@ -597,141 +582,190 @@ class _TopupSheetState extends State<_TopupSheet> {
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
     final bottom = MediaQuery.of(context).viewInsets.bottom;
+    // Same top-rounded frosted-glass panel construction as
+    // showGlassModalBottomSheet (glass_sheet.dart) — reproduced locally
+    // because that helper always rounds all four corners via GlassContainer,
+    // while a bottom sheet needs only the top corners rounded, and the
+    // caller here (WalletScreen._openTopupSheet) already passes
+    // backgroundColor: Colors.transparent into a plain showModalBottomSheet.
     return Container(
       margin: EdgeInsets.only(bottom: bottom),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 44,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE2E8F0),
-                borderRadius: BorderRadius.circular(2),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.white.withValues(alpha: 0.88),
+                  Colors.white.withValues(alpha: 0.78),
+                ],
+              ),
+              border: Border(
+                top: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  width: 1,
+                ),
+              ),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
               ),
             ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            tr(
-              lang,
-              'Hamyonni toʻldirish',
-              'Пополнить кошелёк',
-              'Top up wallet',
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  tr(
+                    lang,
+                    'Hamyonni toʻldirish',
+                    'Пополнить кошелёк',
+                    'Top up wallet',
+                  ),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navy,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                GlassTextField(
+                  controller: _amountController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  textStyle: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.navy,
+                  ),
+                  hintText: tr(
+                    lang,
+                    'Summa (soʻm)',
+                    'Сумма (сум)',
+                    'Amount (sum)',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                for (final card in widget.cards) ...[
+                  GestureDetector(
+                    onTap: () => setState(() => _cardId = card.id),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _cardId == card.id
+                          ? GlassContainer.tinted(
+                              borderRadius: 14,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              child: _topupCardRow(card),
+                            )
+                          : GlassContainer.lite(
+                              borderRadius: 14,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              child: _topupCardRow(card),
+                            ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                _submitButton(lang),
+              ],
             ),
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: AppColors.navy,
-            ),
           ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _amountController,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        ),
+      ),
+    );
+  }
+
+  /// Built directly on [GlassContainer] (rather than [GlassButton]) so the
+  /// busy state can swap in a spinner, same as before — the tint/opacity
+  /// values mirror GlassButtonVariant.primary.
+  Widget _submitButton(AppLanguage lang) {
+    final glass = GlassContainer(
+      tint: AppColors.blue,
+      tintOpacityTop: 0.90,
+      tintOpacityBottom: 0.74,
+      borderOpacity: 0.5,
+      borderRadius: 14,
+      height: 52,
+      shadow: !_busy,
+      shadowColor: AppColors.blue,
+      alignment: Alignment.center,
+      child: _busy
+          ? const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.4,
+                color: Colors.white,
+              ),
+            )
+          : Text(
+              tr(lang, 'Toʻldirish', 'Пополнить', 'Top up'),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+    );
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: Semantics(
+        button: true,
+        enabled: !_busy,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _busy ? null : _submit,
+          child: ExcludeSemantics(child: glass),
+        ),
+      ),
+    );
+  }
+
+  Widget _topupCardRow(SavedCard card) {
+    return Row(
+      children: [
+        const Icon(Icons.credit_card, size: 20, color: AppColors.navy),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            '${card.brand.toUpperCase()} •••• ${card.last4}',
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 15,
               fontWeight: FontWeight.w600,
               color: AppColors.navy,
             ),
-            decoration: InputDecoration(
-              hintText: tr(lang, 'Summa (soʻm)', 'Сумма (сум)', 'Amount (sum)'),
-              hintStyle: const TextStyle(color: Color(0xFF8D96A4)),
-              filled: true,
-              fillColor: const Color(0xFFF8FAFC),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
-              ),
-            ),
           ),
-          const SizedBox(height: 12),
-          for (final card in widget.cards) ...[
-            GestureDetector(
-              onTap: () => setState(() => _cardId = card.id),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: _cardId == card.id
-                      ? const Color(0xFFEAF3FE)
-                      : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.credit_card,
-                      size: 20,
-                      color: AppColors.navy,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        '${card.brand.toUpperCase()} •••• ${card.last4}',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.navy,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      _cardId == card.id
-                          ? Icons.radio_button_checked
-                          : Icons.radio_button_off,
-                      size: 20,
-                      color: _cardId == card.id ? AppColors.blue : Colors.grey,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: FilledButton(
-              onPressed: _busy ? null : _submit,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.blue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: _busy
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text(
-                      tr(lang, 'Toʻldirish', 'Пополнить', 'Top up'),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-            ),
-          ),
-        ],
-      ),
+        ),
+        Icon(
+          _cardId == card.id
+              ? Icons.radio_button_checked
+              : Icons.radio_button_off,
+          size: 20,
+          color: _cardId == card.id ? AppColors.blue : Colors.grey,
+        ),
+      ],
     );
   }
 }

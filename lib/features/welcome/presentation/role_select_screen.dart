@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/features/auth/presentation/phone_screen.dart';
 import 'package:fixleo/features/language/presentation/language_screen.dart';
@@ -30,12 +31,9 @@ class _RoleSelectScreenState extends State<RoleSelectScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
         child: Column(
           children: [
-            Container(
+            GlassContainer(
+              borderRadius: 20,
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
               child: Column(
                 children: [
                   _RoleOption(
@@ -72,13 +70,10 @@ class _RoleSelectScreenState extends State<RoleSelectScreen> {
               ),
             ),
             const SizedBox(height: 10),
-            Container(
+            GlassContainer(
               width: double.infinity,
+              borderRadius: 30,
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-              ),
               child: Row(
                 children: [
                   const Icon(

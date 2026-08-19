@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
@@ -165,13 +166,9 @@ class _OrderDoneScreenState extends State<OrderDoneScreen> {
   /// Centered badge + headline confirming the master's report.
   Widget _statusCard() {
     final lang = LocaleController.language.value;
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 30,
       padding: const EdgeInsets.symmetric(vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Column(
         children: [
           Container(
@@ -215,13 +212,9 @@ class _OrderDoneScreenState extends State<OrderDoneScreen> {
     final afterPhotos = order.photos
         .where((photo) => photo.kind == 'after' && photo.url.isNotEmpty)
         .toList(growable: false);
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 30,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Column(
         children: [
           _DetailRow(
@@ -302,38 +295,56 @@ class _OrderDoneScreenState extends State<OrderDoneScreen> {
         SizedBox(
           width: double.infinity,
           height: 52,
-          child: FilledButton(
-            onPressed: _busy ? null : _confirm,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.blue,
-              foregroundColor: AppColors.background,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(40),
+          // Custom GlassContainer button (mirrors GlassButton's primary
+          // variant) instead of GlassButton itself, since this action needs
+          // a busy-spinner swap that GlassButton's fixed label slot doesn't
+          // support.
+          child: Semantics(
+            button: true,
+            enabled: !_busy,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _busy ? null : _confirm,
+              child: ExcludeSemantics(
+                child: GlassContainer(
+                  tint: _busy
+                      ? AppColors.blue.withValues(alpha: 0.5)
+                      : AppColors.blue,
+                  tintOpacityTop: 0.90,
+                  tintOpacityBottom: 0.74,
+                  borderOpacity: 0.5,
+                  borderRadius: 26,
+                  height: 52,
+                  shadow: !_busy,
+                  shadowColor: AppColors.blue,
+                  alignment: Alignment.center,
+                  child: _busy
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          tr(
+                            lang,
+                            'Bajarilganini tasdiqlash',
+                            'Подтвердить выполнение',
+                            'Confirm completion',
+                          ),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            height: 22 / 16,
+                            letterSpacing: -0.18,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                ),
               ),
             ),
-            child: _busy
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : Text(
-                    tr(
-                      lang,
-                      'Bajarilganini tasdiqlash',
-                      'Подтвердить выполнение',
-                      'Confirm completion',
-                    ),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      height: 22 / 16,
-                      letterSpacing: -0.18,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
           ),
         ),
         const SizedBox(height: 14),

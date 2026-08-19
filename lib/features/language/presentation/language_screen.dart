@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/features/auth/presentation/phone_screen.dart';
 
@@ -43,11 +44,9 @@ class _LanguageScreenState extends State<LanguageScreen> {
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
         child: Column(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
+            GlassContainer(
+              borderRadius: 16,
+              padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   for (var i = 0; i < _languages.length; i++) ...[

@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/master/data/master_document_model.dart';
@@ -109,13 +110,12 @@ class _MasterDocumentsScreenState extends State<MasterDocumentsScreen> {
               _DocRow(doc: _docs[i], onTap: () => _upload(_docs[i])),
             ],
             const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
+            GlassContainer(
+              tint: const Color(0xFFDBEAFE),
+              tintOpacityTop: 0.85,
+              tintOpacityBottom: 0.7,
+              borderRadius: 30,
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFDBEAFE),
-                borderRadius: BorderRadius.circular(30),
-              ),
               child: Text(
                 tr(
                   lang,
@@ -162,13 +162,10 @@ class _DocRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
-    final row = Container(
+    final row = GlassContainer(
       height: 74,
+      borderRadius: 16,
       padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Row(
         children: [
           Container(

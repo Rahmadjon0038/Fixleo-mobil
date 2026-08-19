@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/features/request/presentation/order_waiting_screen.dart';
 
 /// Order confirmation — the final step after picking a master.
@@ -38,39 +39,19 @@ class ConfirmationScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             // "Tanlovni tasdiqlash" — Figma pill: 52px tall, fully rounded.
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: FilledButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const OrderWaitingScreen(),
-                    ),
-                  );
-                },
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.blue,
-                  foregroundColor: AppColors.background,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                ),
-                child: Text(
-                  tr(
-                    lang,
-                    'Tanlovni tasdiqlash',
-                    'Подтвердить выбор',
-                    'Confirm selection',
-                  ),
-                  style: TextStyle(
-                    fontSize: 16,
-                    height: 22 / 16,
-                    letterSpacing: -0.18,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+            GlassButton(
+              label: tr(
+                lang,
+                'Tanlovni tasdiqlash',
+                'Подтвердить выбор',
+                'Confirm selection',
               ),
+              height: 52,
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const OrderWaitingScreen()),
+                );
+              },
             ),
           ],
         ),
@@ -80,13 +61,9 @@ class ConfirmationScreen extends StatelessWidget {
 
   /// Chosen master: avatar, name + rating, price and a "Tanlash" button.
   Widget _masterCard() {
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 30,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Column(
         children: [
           Row(
@@ -174,32 +151,12 @@ class ConfirmationScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           // "Tanlash" — secondary action inside the card.
-          SizedBox(
-            width: double.infinity,
+          GlassButton(
+            label: 'Tanlash',
             height: 48,
-            child: FilledButton(
-              onPressed: () {
-                // TODO: open this master's profile / re-select.
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.blue,
-                foregroundColor: Colors.white,
-                minimumSize: Size.zero,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              child: const Text(
-                'Tanlash',
-                style: TextStyle(
-                  fontSize: 16,
-                  height: 22 / 16,
-                  letterSpacing: -0.18,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
+            onPressed: () {
+              // TODO: open this master's profile / re-select.
+            },
           ),
         ],
       ),
@@ -209,13 +166,9 @@ class ConfirmationScreen extends StatelessWidget {
   /// Request summary: label/value rows separated by flexible spacing.
   Widget _summaryCard() {
     final lang = LocaleController.language.value;
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 30,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Column(
         children: [
           _SummaryRow(
@@ -254,13 +207,10 @@ class ConfirmationScreen extends StatelessWidget {
 
   /// Light-blue hint shown below the summary.
   Widget _noticeBanner() {
-    return Container(
-      width: double.infinity,
+    return GlassContainer(
+      tint: _blue100,
+      borderRadius: 30,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _blue100,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Text(
         tr(
           LocaleController.language.value,

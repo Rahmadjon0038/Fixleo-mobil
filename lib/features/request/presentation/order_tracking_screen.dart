@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' as gmap;
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/core/realtime/app_presence_service.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
@@ -275,28 +276,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
+                  GlassButton(
+                    label: _primaryActionLabel(lang),
                     height: 52,
-                    child: FilledButton(
-                      onPressed: _handlePrimaryAction,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.blue,
-                        foregroundColor: AppColors.background,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(40),
-                        ),
-                      ),
-                      child: Text(
-                        _primaryActionLabel(lang),
-                        style: TextStyle(
-                          fontSize: 16,
-                          height: 22 / 16,
-                          letterSpacing: -0.18,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
+                    onPressed: _handlePrimaryAction,
                   ),
                 ],
               ),
@@ -307,13 +290,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   /// Map preview + status line + 4-step progress.
   Widget _trackingCard() {
     final lang = LocaleController.language.value;
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 20,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         children: [
           _mapPreview(),
@@ -347,15 +326,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              Container(
+              GlassContainer.lite(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 6,
                 ),
-                decoration: BoxDecoration(
-                  color: _sky50,
-                  borderRadius: BorderRadius.circular(999),
-                ),
+                borderRadius: 999,
+                tint: AppColors.blue,
+                tintOpacityTop: 0.14,
+                tintOpacityBottom: 0.08,
+                borderOpacity: 0.3,
                 child: Text(
                   '$_doneSteps/4',
                   style: const TextStyle(
@@ -504,82 +484,79 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         m.categoryName!,
       if (rating != null) rating.toStringAsFixed(1),
     ].join(' · ');
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: conversationId == null
-            ? null
-            : () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ChatScreen(
-                      conversationId: conversationId,
-                      peerName: m?.name,
-                      peerAvatarUrl: m?.avatarUrl,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: conversationId == null
+          ? null
+          : () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ChatScreen(
+                    conversationId: conversationId,
+                    peerName: m?.name,
+                    peerAvatarUrl: m?.avatarUrl,
+                  ),
+                ),
+              );
+            },
+      child: GlassCard(
+        radius: 20,
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(Icons.person_outline, size: 26, color: _gray),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    m?.name ?? tr(lang, 'Usta', 'Мастер', 'Master'),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      height: 22 / 16,
+                      letterSpacing: -0.18,
+                      fontWeight: FontWeight.w700,
+                      color: _text,
                     ),
                   ),
-                );
-              },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(Icons.person_outline, size: 26, color: _gray),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  if (subtitle.isNotEmpty)
                     Text(
-                      m?.name ?? tr(lang, 'Usta', 'Мастер', 'Master'),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        height: 22 / 16,
-                        letterSpacing: -0.18,
-                        fontWeight: FontWeight.w700,
-                        color: _text,
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 20 / 14,
+                        letterSpacing: -0.16,
+                        color: _muted,
                       ),
                     ),
-                    if (subtitle.isNotEmpty)
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 14,
-                          height: 20 / 14,
-                          letterSpacing: -0.16,
-                          color: _muted,
-                        ),
-                      ),
-                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (conversationId != null)
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: _sky50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.chat_bubble_outline,
+                  size: 20,
+                  color: AppColors.blue,
                 ),
               ),
-              const SizedBox(width: 8),
-              if (conversationId != null)
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: _sky50,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.chat_bubble_outline,
-                    size: 20,
-                    color: AppColors.blue,
-                  ),
-                ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -589,13 +566,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   Widget _detailsCard(AppLanguage lang) {
     final o = _order;
     final price = o?.finalAmount ?? o?.agreedPrice;
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 20,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         children: [
           _DetailRow(

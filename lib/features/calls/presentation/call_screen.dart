@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/realtime/call_service.dart';
 
 /// Full-screen client↔master voice-call UI.
@@ -409,13 +410,10 @@ class _PeerIdentity extends StatelessWidget {
         const SizedBox(height: 12),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 300),
-          child: Container(
+          child: GlassContainer.dark(
             padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-            ),
+            borderRadius: 24,
+            shadow: false,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -525,13 +523,10 @@ class _ActiveActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassContainer.dark(
       padding: const EdgeInsets.fromLTRB(12, 16, 12, 14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
+      borderRadius: 32,
+      shadow: false,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [

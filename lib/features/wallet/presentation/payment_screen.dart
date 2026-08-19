@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
@@ -56,9 +57,6 @@ class PaymentScreen extends StatefulWidget {
 }
 
 class _PaymentScreenState extends State<PaymentScreen> {
-  static const _blue100 = Color(0xFFDBEAFE);
-  static const _slate50 = Color(0xFFF8FAFC);
-  static const _slate100 = Color(0xFFF1F5F9);
   static const _slate300 = Color(0xFFCBD5E1);
   static const _gray = Color(0xFF8D96A4);
 
@@ -203,37 +201,51 @@ class _PaymentScreenState extends State<PaymentScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            // Built directly on GlassContainer (rather than GlassButton) so
+            // the busy state can swap in a spinner, same as before — the
+            // tint/opacity values mirror GlassButtonVariant.primary.
             SizedBox(
               width: double.infinity,
               height: 52,
-              child: FilledButton(
-                onPressed: _busy ? null : _pay,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.blue,
-                  foregroundColor: AppColors.background,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(40),
+              child: Semantics(
+                button: true,
+                enabled: !_busy,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _busy ? null : _pay,
+                  child: ExcludeSemantics(
+                    child: GlassContainer(
+                      tint: AppColors.blue,
+                      tintOpacityTop: 0.90,
+                      tintOpacityBottom: 0.74,
+                      borderOpacity: 0.5,
+                      borderRadius: 40,
+                      shadow: !_busy,
+                      shadowColor: AppColors.blue,
+                      alignment: Alignment.center,
+                      child: _busy
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              widget.primaryLabel ??
+                                  tr(lang, 'Toʻlash', 'Оплатить', 'Pay'),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                height: 22 / 16,
+                                letterSpacing: -0.18,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                              ),
+                            ),
+                    ),
                   ),
                 ),
-                child: _busy
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(
-                        widget.primaryLabel ??
-                            tr(lang, 'Toʻlash', 'Оплатить', 'Pay'),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          height: 22 / 16,
-                          letterSpacing: -0.18,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
               ),
             ),
           ],
@@ -252,13 +264,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final subtitle = widget.orderId != null && realTitle?.isNotEmpty == true
         ? '$realTitle · #${widget.orderId}'
         : widget.subtitle;
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 30,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Column(
         children: [
           Text(
@@ -298,13 +306,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Widget _methodsCard(AppLanguage lang) {
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 30,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -337,15 +341,31 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Widget _cardTile(int index) {
     final selected = _selected == index;
     final card = _realCards[index];
+    final tile = selected
+        ? GlassContainer.tinted(
+            borderRadius: 32,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 16,
+            ),
+            child: _cardTileContent(card, selected),
+          )
+        : GlassContainer.lite(
+            borderRadius: 32,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 16,
+            ),
+            child: _cardTileContent(card, selected),
+          );
     return GestureDetector(
       onTap: () => setState(() => _selected = index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          color: selected ? _slate100 : _slate50,
-          borderRadius: BorderRadius.circular(32),
-        ),
-        child: Row(
+      child: tile,
+    );
+  }
+
+  Widget _cardTileContent(SavedCard card, bool selected) {
+    return Row(
           children: [
             Expanded(
               child: Column(
@@ -373,10 +393,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 ],
               ),
             ),
-            _radio(selected),
-          ],
-        ),
-      ),
+        _radio(selected),
+      ],
     );
   }
 
@@ -398,13 +416,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Widget _infoBanner(AppLanguage lang) {
-    return Container(
-      width: double.infinity,
+    return GlassContainer.tinted(
+      borderRadius: 20,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: _blue100,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Text(
         tr(
           lang,
@@ -416,7 +430,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           fontSize: 14,
           height: 20 / 14,
           letterSpacing: -0.16,
-          color: AppColors.blue,
+          color: Colors.white,
         ),
       ),
     );

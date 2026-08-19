@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/master/data/master_marketplace_service.dart';
@@ -28,8 +29,6 @@ class MasterWithdrawScreen extends StatefulWidget {
 }
 
 class _MasterWithdrawScreenState extends State<MasterWithdrawScreen> {
-  static const _slate50 = Color(0xFFF8FAFC);
-  static const _slate100 = Color(0xFFF1F5F9);
   static const _gray = Color(0xFF8D96A4);
 
   static const _cards = <_Card>[
@@ -164,13 +163,10 @@ class _MasterWithdrawScreenState extends State<MasterWithdrawScreen> {
 
   /// Amount input card.
   Widget _amountCard() {
-    return Container(
+    return GlassContainer(
       width: double.infinity,
+      borderRadius: 20,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -185,46 +181,28 @@ class _MasterWithdrawScreenState extends State<MasterWithdrawScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-            decoration: BoxDecoration(
-              color: _slate100,
-              borderRadius: BorderRadius.circular(32),
+          GlassTextField(
+            height: 44,
+            controller: _amount,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9 ]')),
+            ],
+            textStyle: const TextStyle(
+              fontSize: 16,
+              height: 22 / 16,
+              letterSpacing: -0.18,
+              fontWeight: FontWeight.w500,
+              color: AppColors.navy,
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _amount,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9 ]')),
-                    ],
-                    style: const TextStyle(
-                      fontSize: 16,
-                      height: 22 / 16,
-                      letterSpacing: -0.18,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.navy,
-                    ),
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 8),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'soʻm',
-                  style: TextStyle(
-                    fontSize: 14,
-                    height: 20 / 14,
-                    letterSpacing: -0.16,
-                    color: _gray,
-                  ),
-                ),
-              ],
+            trailing: const Text(
+              'soʻm',
+              style: TextStyle(
+                fontSize: 14,
+                height: 20 / 14,
+                letterSpacing: -0.16,
+                color: _gray,
+              ),
             ),
           ),
         ],
@@ -234,13 +212,10 @@ class _MasterWithdrawScreenState extends State<MasterWithdrawScreen> {
 
   /// "Where to withdraw" card with selectable cards.
   Widget _cardsCard() {
-    return Container(
+    return GlassContainer(
       width: double.infinity,
+      borderRadius: 30,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -267,58 +242,60 @@ class _MasterWithdrawScreenState extends State<MasterWithdrawScreen> {
   Widget _cardOption(int index) {
     final card = _cards[index];
     final selected = _selectedCard == index;
+    final content = Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                card.number,
+                style: const TextStyle(
+                  fontSize: 16,
+                  height: 22 / 16,
+                  letterSpacing: -0.18,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.navy,
+                ),
+              ),
+              Text(
+                card.system,
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 20 / 14,
+                  letterSpacing: -0.16,
+                  color: _gray,
+                ),
+              ),
+            ],
+          ),
+        ),
+        _Radio(selected: selected),
+      ],
+    );
     return GestureDetector(
       onTap: () => setState(() => _selectedCard = index),
-      child: Container(
+      child: GlassContainer.lite(
+        borderRadius: 32,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          color: selected ? _slate100 : _slate50,
-          borderRadius: BorderRadius.circular(32),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    card.number,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      height: 22 / 16,
-                      letterSpacing: -0.18,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.navy,
-                    ),
-                  ),
-                  Text(
-                    card.system,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      height: 20 / 14,
-                      letterSpacing: -0.16,
-                      color: _gray,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            _Radio(selected: selected),
-          ],
-        ),
+        tintOpacityTop: selected ? 0.95 : 0.85,
+        tintOpacityBottom: selected ? 0.85 : 0.70,
+        borderOpacity: selected ? 0.9 : 0.75,
+        child: content,
       ),
     );
   }
 
   /// Orange fee-notice banner.
   Widget _feeNotice() {
-    return Container(
+    return GlassContainer(
       width: double.infinity,
+      borderRadius: 30,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF7ED),
-        borderRadius: BorderRadius.circular(30),
-      ),
+      tint: const Color(0xFFFFF7ED),
+      tintOpacityTop: 0.9,
+      tintOpacityBottom: 0.75,
+      borderOpacity: 0.6,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [

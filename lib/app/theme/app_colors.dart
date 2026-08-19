@@ -16,4 +16,14 @@ class AppColors {
 
   /// Dark hero-card background (FINAL design `neutral/900`).
   static const heroDark = Color(0xFF121722);
+
+  /// Bright edge highlight on every "Liquid Glass" panel — see
+  /// `lib/app/widgets/glass/glass_container.dart`.
+  static const glassBorder = Colors.white;
+
+  /// Base surface tint for light glass panels (cards, sheets, fields).
+  static const glassTint = Colors.white;
+
+  /// Shadow cast by floating glass panels (nav bar, cards, buttons).
+  static const glassShadow = Color(0xFF0F172A);
 }

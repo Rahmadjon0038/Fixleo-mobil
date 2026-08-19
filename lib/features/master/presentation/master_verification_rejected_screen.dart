@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/master/data/localized_rejection_reasons.dart';
@@ -95,13 +96,9 @@ class _MasterVerificationRejectedScreenState
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
         child: Column(
           children: [
-            Container(
-              width: double.infinity,
+            GlassCard(
+              radius: 30,
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-              ),
               child: Column(
                 children: [
                   Container(
@@ -162,13 +159,9 @@ class _MasterVerificationRejectedScreenState
               ),
             ),
             const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
+            GlassCard(
+              radius: 20,
               padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

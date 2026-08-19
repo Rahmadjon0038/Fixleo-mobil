@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:fixleo/app/theme/app_colors.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 
 /// Small white pill used both for the brand badge and screen titles.
+/// Deliberately flat (not glass) — matches the FINAL Figma header, which
+/// keeps this element plain white against the glass content below it.
 class _Pill extends StatelessWidget {
   const _Pill({required this.child});
 
@@ -72,6 +75,9 @@ bool shouldShowBrandBar() {
 
 /// Round iOS "liquid glass" style back button shown on the left of the
 /// sub-header — translucent frosted glass with a bright edge highlight.
+/// Tuned lighter (blur 12, not the shared [GlassContainer] default of 20)
+/// to match the subtle FINAL Figma header — the stronger default reads as
+/// too "glassy" at this small size.
 class _BackButton extends StatelessWidget {
   const _BackButton({this.onTap});
 
@@ -130,6 +136,9 @@ class _BackButton extends StatelessWidget {
 /// Base scaffold that pins the [BrandBar] to the top center, with an
 /// optional sub-header ([title] pill + back button), and renders [body]
 /// below. Use this for every screen to keep the header consistent.
+///
+/// The whole screen sits on a [GlassBackground] wash so every glass panel
+/// inside [body] has visible depth to blur.
 class BrandedScaffold extends StatelessWidget {
   const BrandedScaffold({
     super.key,
@@ -157,45 +166,48 @@ class BrandedScaffold extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            if (!showBrandBar) const SizedBox(height: 32),
-            if (showBrandBar)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: BrandBar(),
-              ),
-            if (hasSubHeader)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: SizedBox(
-                  height: 44,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      if (title != null)
-                        _Pill(
-                          child: Text(
-                            title!,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.navy,
+      body: GlassBackground(
+        baseColor: backgroundColor,
+        child: SafeArea(
+          child: Column(
+            children: [
+              if (!showBrandBar) const SizedBox(height: 32),
+              if (showBrandBar)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: BrandBar(),
+                ),
+              if (hasSubHeader)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: SizedBox(
+                    height: 44,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        if (title != null)
+                          _Pill(
+                            child: Text(
+                              title!,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.navy,
+                              ),
                             ),
                           ),
-                        ),
-                      if (showBack)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: _BackButton(onTap: onBack),
-                        ),
-                    ],
+                        if (showBack)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: _BackButton(onTap: onBack),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            Expanded(child: body),
-          ],
+              Expanded(child: body),
+            ],
+          ),
         ),
       ),
     );

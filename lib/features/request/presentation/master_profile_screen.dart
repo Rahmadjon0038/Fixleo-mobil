@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/feedback_service.dart';
 
@@ -94,33 +95,15 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: FilledButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.blue,
-                        foregroundColor: AppColors.background,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(40),
-                        ),
-                      ),
-                      child: Text(
-                        tr(
-                          lang,
-                          'Javoblarga qaytish',
-                          'Назад к откликам',
-                          'Back to responses',
-                        ),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          height: 22 / 16,
-                          letterSpacing: -0.18,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                  GlassButton(
+                    label: tr(
+                      lang,
+                      'Javoblarga qaytish',
+                      'Назад к откликам',
+                      'Back to responses',
                     ),
+                    height: 52,
+                    onPressed: () => Navigator.of(context).maybePop(),
                   ),
                 ],
               ),
@@ -129,13 +112,9 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
   }
 
   Widget _profileCard(AppLanguage lang) {
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 20,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         children: [
           Row(
@@ -238,14 +217,12 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
 
   /// Light slate pill badge ("Топ-мастер" / "★ 4.9").
   Widget _badge(String text, {bool leadingStar = false}) {
-    return Container(
+    return GlassContainer.lite(
+      tint: _slate100,
+      borderRadius: 999,
       padding: EdgeInsets.symmetric(
         horizontal: leadingStar ? 8 : 10,
         vertical: leadingStar ? 4 : 3,
-      ),
-      decoration: BoxDecoration(
-        color: _slate100,
-        borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -427,6 +404,7 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
 
   Widget _reviewCard(AppLanguage lang, PublicReview review) {
     return _card(
+      lite: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -535,17 +513,20 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
     );
   }
 
-  /// Shared white rounded card wrapper.
-  Widget _card({required Widget child}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: child,
-    );
+  /// Shared frosted glass card wrapper. [lite] skips the blur for cards
+  /// repeated in a list (e.g. the recent-reviews cards).
+  Widget _card({required Widget child, bool lite = false}) {
+    return lite
+        ? GlassCard.lite(
+            radius: 20,
+            padding: const EdgeInsets.all(16),
+            child: child,
+          )
+        : GlassCard(
+            radius: 20,
+            padding: const EdgeInsets.all(16),
+            child: child,
+          );
   }
 }
 

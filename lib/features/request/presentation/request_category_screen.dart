@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/categories/data/category_model.dart';
@@ -177,68 +178,66 @@ class _RequestCategoryScreenState extends State<RequestCategoryScreen> {
               onTap: () => setState(() => _selectedId = category.id),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: selected ? const Color(0xFFE8F2FD) : Colors.white,
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(
                     color: selected ? AppColors.blue : const Color(0xFFE2E8F0),
                     width: selected ? 2 : 1,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 14,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          width: 42,
-                          height: 42,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? Colors.white
-                                : const Color(0xFFEAF3FE),
-                            borderRadius: BorderRadius.circular(13),
+                // Repeated grid item — .lite skips BackdropFilter to avoid
+                // stacking blur passes across the grid.
+                child: GlassContainer.lite(
+                  tint: selected ? const Color(0xFFE8F2FD) : Colors.white,
+                  borderRadius: 22,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? Colors.white
+                                  : const Color(0xFFEAF3FE),
+                              borderRadius: BorderRadius.circular(13),
+                            ),
+                            child: Icon(
+                              requestCategoryIcon(category.name),
+                              color: AppColors.blue,
+                              size: 23,
+                            ),
                           ),
-                          child: Icon(
-                            requestCategoryIcon(category.name),
-                            color: AppColors.blue,
-                            size: 23,
+                          AnimatedOpacity(
+                            opacity: selected ? 1 : 0,
+                            duration: const Duration(milliseconds: 180),
+                            child: const Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.blue,
+                              size: 22,
+                            ),
                           ),
-                        ),
-                        AnimatedOpacity(
-                          opacity: selected ? 1 : 0,
-                          duration: const Duration(milliseconds: 180),
-                          child: const Icon(
-                            Icons.check_circle_rounded,
-                            color: AppColors.blue,
-                            size: 22,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      category.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.navy,
-                        fontSize: 14,
-                        height: 1.2,
-                        fontWeight: FontWeight.w700,
+                        ],
                       ),
-                    ),
-                  ],
+                      Text(
+                        category.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.navy,
+                          fontSize: 14,
+                          height: 1.2,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

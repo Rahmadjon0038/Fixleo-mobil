@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/master/data/master_service.dart';
@@ -272,35 +273,14 @@ class _LabeledField extends StatelessWidget {
       children: [
         Text(label, style: TextStyle(fontSize: 14, color: AppColors.muted)),
         const SizedBox(height: 4),
-        Container(
+        GlassTextField(
           height: 52,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          alignment: Alignment.center,
-          child: TextField(
-            controller: controller,
-            onChanged: onChanged,
-            keyboardType: keyboardType,
-            inputFormatters: inputFormatters,
-            textCapitalization: textCapitalization,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.navy,
-            ),
-            decoration: InputDecoration(
-              isCollapsed: true,
-              border: InputBorder.none,
-              hintText: hint,
-              hintStyle: TextStyle(
-                color: AppColors.muted,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
+          controller: controller,
+          onChanged: onChanged,
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          hintText: hint,
+          hasError: errorText != null,
         ),
         if (errorText != null) ...[
           const SizedBox(height: 6),

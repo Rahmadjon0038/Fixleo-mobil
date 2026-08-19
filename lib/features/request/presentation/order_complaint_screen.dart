@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/feedback_service.dart';
 
@@ -18,9 +19,6 @@ class OrderComplaintScreen extends StatefulWidget {
 }
 
 class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
-  static const _blue50 = Color(0xFFEFF6FF);
-  static const _slate50 = Color(0xFFF8FAFC);
-  static const _slate100 = Color(0xFFF1F5F9);
   static const _slate300 = Color(0xFFCBD5E1);
   static const _gray = Color(0xFF8D96A4);
   static const _reasonCodes = [
@@ -127,33 +125,15 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: FilledButton(
-                onPressed: _busy ? null : _submit,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.blue,
-                  foregroundColor: AppColors.background,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                ),
-                child: Text(
-                  tr(
-                    lang,
-                    'Shikoyat yuborish',
-                    'Отправить жалобу',
-                    'Send complaint',
-                  ),
-                  style: TextStyle(
-                    fontSize: 16,
-                    height: 22 / 16,
-                    letterSpacing: -0.18,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+            GlassButton(
+              label: tr(
+                lang,
+                'Shikoyat yuborish',
+                'Отправить жалобу',
+                'Send complaint',
               ),
+              height: 52,
+              onPressed: _busy ? null : _submit,
             ),
             const SizedBox(height: 12),
             _infoBanner(),
@@ -165,13 +145,9 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
 
   /// "What went wrong?" — single-select list of reasons.
   Widget _reasonsCard(List<String> reasons) {
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 20,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -207,12 +183,13 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
     final selected = _selected == index;
     return GestureDetector(
       onTap: () => setState(() => _selected = index),
-      child: Container(
+      child: GlassContainer(
+        borderRadius: 32,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
-        decoration: BoxDecoration(
-          color: selected ? _slate100 : _slate50,
-          borderRadius: BorderRadius.circular(32),
-        ),
+        tintOpacityTop: selected ? 0.85 : 0.35,
+        tintOpacityBottom: selected ? 0.65 : 0.20,
+        borderOpacity: selected ? 0.9 : 0.4,
+        shadow: selected,
         child: Row(
           children: [
             Expanded(
@@ -252,13 +229,9 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
 
   /// Free-text problem description.
   Widget _describeCard() {
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 20,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -278,13 +251,10 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          Container(
+          GlassContainer(
             height: 140,
+            borderRadius: 20,
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(20),
-            ),
             child: TextField(
               controller: _controller,
               maxLines: null,
@@ -315,13 +285,13 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
 
   /// Light-blue moderation notice under the submit button.
   Widget _infoBanner() {
-    return Container(
-      width: double.infinity,
+    return GlassContainer(
+      borderRadius: 20,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _blue50,
-        borderRadius: BorderRadius.circular(20),
-      ),
+      tint: AppColors.blue,
+      tintOpacityTop: 0.14,
+      tintOpacityBottom: 0.08,
+      borderOpacity: 0.3,
       child: Text(
         'Shikoyatni moderator 24 soat ichida koʻrib chiqadi',
         style: TextStyle(

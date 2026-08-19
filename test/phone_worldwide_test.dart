@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
+import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/features/auth/presentation/phone_screen.dart';
 
 void main() {
@@ -27,11 +28,11 @@ void main() {
     await tester.tap(find.text('Other country'));
     await tester.pumpAndSettle();
 
-    final getCode = find.widgetWithText(FilledButton, 'Get code');
+    final getCode = find.widgetWithText(PrimaryButton, 'Get code');
     await tester.enterText(find.byType(TextField), '12025550123');
     await tester.pump();
 
     expect(find.text('+'), findsOneWidget);
-    expect(tester.widget<FilledButton>(getCode).onPressed, isNotNull);
+    expect(tester.widget<PrimaryButton>(getCode).onPressed, isNotNull);
   });
 }

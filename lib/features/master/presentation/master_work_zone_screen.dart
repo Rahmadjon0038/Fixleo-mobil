@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmap;
@@ -8,6 +7,7 @@ import 'package:latlong2/latlong.dart' as ll;
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/location/device_location_feedback.dart';
 import 'package:fixleo/core/location/device_location_service.dart';
 import 'package:fixleo/core/location/reverse_geocoder.dart';
@@ -256,132 +256,134 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
     final lang = LocaleController.language.value;
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // The real, movable map fills the whole screen.
-          if (widget.loadMapTiles)
-            gmap.GoogleMap(
-              initialCameraPosition: gmap.CameraPosition(
-                target: _toGoogle(_initialCenter),
-                zoom: _initialZoom,
-              ),
-              circles: {
-                gmap.Circle(
-                  circleId: const gmap.CircleId('work-zone'),
-                  center: _toGoogle(_center),
-                  radius: _radiusKm * 1000,
-                  fillColor: AppColors.blue.withValues(alpha: 0.10),
-                  strokeColor: AppColors.blue,
-                  strokeWidth: 2,
+      body: GlassBackground(
+        child: Stack(
+          children: [
+            // The real, movable map fills the whole screen.
+            if (widget.loadMapTiles)
+              gmap.GoogleMap(
+                initialCameraPosition: gmap.CameraPosition(
+                  target: _toGoogle(_initialCenter),
+                  zoom: _initialZoom,
                 ),
-              },
-              minMaxZoomPreference: const gmap.MinMaxZoomPreference(2, 20),
-              rotateGesturesEnabled: false,
-              tiltGesturesEnabled: false,
-              compassEnabled: false,
-              mapToolbarEnabled: false,
-              myLocationButtonEnabled: false,
-              myLocationEnabled: false,
-              zoomControlsEnabled: false,
-              onMapCreated: _onMapCreated,
-              onCameraMoveStarted: _onCameraMoveStarted,
-              onCameraMove: _onCameraMove,
-              onCameraIdle: _onCameraIdle,
-            )
-          else
-            const ColoredBox(color: Color(0xFFE8EFF6)),
+                circles: {
+                  gmap.Circle(
+                    circleId: const gmap.CircleId('work-zone'),
+                    center: _toGoogle(_center),
+                    radius: _radiusKm * 1000,
+                    fillColor: AppColors.blue.withValues(alpha: 0.10),
+                    strokeColor: AppColors.blue,
+                    strokeWidth: 2,
+                  ),
+                },
+                minMaxZoomPreference: const gmap.MinMaxZoomPreference(2, 20),
+                rotateGesturesEnabled: false,
+                tiltGesturesEnabled: false,
+                compassEnabled: false,
+                mapToolbarEnabled: false,
+                myLocationButtonEnabled: false,
+                myLocationEnabled: false,
+                zoomControlsEnabled: false,
+                onMapCreated: _onMapCreated,
+                onCameraMoveStarted: _onCameraMoveStarted,
+                onCameraMove: _onCameraMove,
+                onCameraIdle: _onCameraIdle,
+              )
+            else
+              const ColoredBox(color: Color(0xFFE8EFF6)),
 
-          // Fixed center pin — the map slides beneath it.
-          IgnorePointer(
-            child: Center(
-              child: Transform.translate(
-                offset: const Offset(0, -29),
-                child: _CenterMarker(lifted: _dragging),
+            // Fixed center pin — the map slides beneath it.
+            IgnorePointer(
+              child: Center(
+                child: Transform.translate(
+                  offset: const Offset(0, -29),
+                  child: _CenterMarker(lifted: _dragging),
+                ),
               ),
             ),
-          ),
 
-          // Top: brand badge, "Ish hududi" title + back, drag hint.
-          SafeArea(
-            bottom: false,
-            child: Column(
-              children: [
-                const SizedBox(height: 8),
-                if (shouldShowBrandBar()) const Center(child: BrandBar()),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: SizedBox(
-                    height: 44,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        _TitlePill(
-                          tr(lang, 'Ish hududi', 'Рабочая зона', 'Work zone'),
-                        ),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: _MapButton(
-                            icon: Icons.arrow_back,
-                            onTap: () => Navigator.of(context).maybePop(),
+            // Top: brand badge, "Ish hududi" title + back, drag hint.
+            SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  if (shouldShowBrandBar()) const Center(child: BrandBar()),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: SizedBox(
+                      height: 44,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          _TitlePill(
+                            tr(lang, 'Ish hududi', 'Рабочая зона', 'Work zone'),
                           ),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: _MapButton(
+                              icon: Icons.arrow_back,
+                              onTap: () => Navigator.of(context).maybePop(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    tr(
+                      lang,
+                      'Xaritani siljitish mumkin',
+                      'Карту можно двигать',
+                      'You can move the map',
+                    ),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 20,
+                      height: 24 / 20,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.navy,
+                      shadows: [
+                        Shadow(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          blurRadius: 12,
                         ),
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  tr(
-                    lang,
-                    'Xaritani siljitish mumkin',
-                    'Карту можно двигать',
-                    'You can move the map',
-                  ),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 20,
-                    height: 24 / 20,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.navy,
-                    shadows: [
-                      Shadow(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        blurRadius: 12,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // Bottom: map controls + work-zone sheet.
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: _WorkZoneSheet(
-              lang: lang,
-              currentCenter: _center,
-              placeLabel: _placeLabel,
-              placeSubtitle: _placeSubtitle,
-              resolvingPlace: _resolvingPlace,
-              radii: _radii,
-              selectedRadius: _radiusKm,
-              onRadiusChanged: (km) => setState(() => _radiusKm = km),
-              onBack: () => Navigator.of(context).maybePop(),
-              onRecenter: () => _locateCurrent(showErrors: true),
-              locating: _locating,
-              onSave: _save,
-              isSaving: _saving,
+            // Bottom: map controls + work-zone sheet.
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: _WorkZoneSheet(
+                lang: lang,
+                currentCenter: _center,
+                placeLabel: _placeLabel,
+                placeSubtitle: _placeSubtitle,
+                resolvingPlace: _resolvingPlace,
+                radii: _radii,
+                selectedRadius: _radiusKm,
+                onRadiusChanged: (km) => setState(() => _radiusKm = km),
+                onBack: () => Navigator.of(context).maybePop(),
+                onRecenter: () => _locateCurrent(showErrors: true),
+                locating: _locating,
+                onSave: _save,
+                isSaving: _saving,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Small white pill used for the screen title.
+/// Small frosted-glass pill used for the screen title.
 class _TitlePill extends StatelessWidget {
   const _TitlePill(this.text);
 
@@ -389,19 +391,10 @@ class _TitlePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassContainer(
+      borderRadius: 22,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      alignment: Alignment.center,
       child: Text(
         text,
         style: const TextStyle(
@@ -477,60 +470,19 @@ class _MapButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return GlassIconButton(
+      size: 44,
       onTap: isLoading ? null : onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.10),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: ClipOval(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-            child: Container(
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.95),
-                    Colors.white.withValues(alpha: 0.80),
-                  ],
-                ),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  width: 1,
-                ),
+      child: isLoading
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.blue,
               ),
-              child: isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.blue,
-                      ),
-                    )
-                  : Icon(icon, size: 22, color: AppColors.navy),
-            ),
-          ),
-        ),
-      ),
+            )
+          : Icon(icon, size: 22, color: AppColors.navy),
     );
   }
 }
@@ -589,195 +541,177 @@ class _WorkZoneSheet extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tr(
-                    lang,
-                    'Sizning joylashuvingiz',
-                    'Ваше местоположение',
-                    'Your location',
+        // Outer ClipRRect gives the glass panel its top-only rounding (a
+        // GlassContainer alone only supports uniform corner radii) while the
+        // frosted blur/tint/border still comes entirely from GlassContainer.
+        ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+          child: GlassContainer(
+            borderRadius: 0,
+            shadow: false,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tr(
+                      lang,
+                      'Sizning joylashuvingiz',
+                      'Ваше местоположение',
+                      'Your location',
+                    ),
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 20 / 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.navy,
+                    ),
                   ),
-                  style: TextStyle(
-                    fontSize: 14,
-                    height: 20 / 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.navy,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                // Picked address card.
-                Container(
-                  height: 50,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
+                  const SizedBox(height: 10),
+                  // Picked address card.
+                  GlassContainer.lite(
+                    tint: AppColors.background,
+                    height: 50,
+                    borderRadius: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.location_on_outlined,
+                            size: 18,
+                            color: AppColors.blue,
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.location_on_outlined,
-                          size: 18,
-                          color: AppColors.blue,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              placeLabel ??
-                                  tr(
-                                    lang,
-                                    'Tanlangan joy',
-                                    'Выбранное место',
-                                    'Selected place',
-                                  ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 16,
-                                height: 22 / 16,
-                                letterSpacing: -0.18,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.navy,
-                              ),
-                            ),
-                            Text(
-                              resolvingPlace
-                                  ? tr(
-                                      lang,
-                                      'Aniqlanmoqda...',
-                                      'Определяем...',
-                                      'Resolving...',
-                                    )
-                                  : placeSubtitle ??
-                                        tr(
-                                          lang,
-                                          'Koordinata bo‘yicha tanlandi',
-                                          'Выбрано по координатам',
-                                          'Selected by coordinates',
-                                        ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 14,
-                                height: 20 / 14,
-                                letterSpacing: -0.16,
-                                color: Color(0xFF8D96A4),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${currentCenter.latitude.toStringAsFixed(6)}, ${currentCenter.longitude.toStringAsFixed(6)}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    height: 16 / 12,
-                    letterSpacing: -0.08,
-                    color: Color(0xFF8D96A4),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                // Admins may add more radius options than fit on one row.
-                // Keep the common 3-option layout evenly distributed, and
-                // make longer dynamic lists horizontally scrollable.
-                if (radii.length <= 3)
-                  Row(
-                    children: [
-                      for (var i = 0; i < radii.length; i++) ...[
-                        if (i != 0) const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                placeLabel ??
+                                    tr(
+                                      lang,
+                                      'Tanlangan joy',
+                                      'Выбранное место',
+                                      'Selected place',
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  height: 22 / 16,
+                                  letterSpacing: -0.18,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.navy,
+                                ),
+                              ),
+                              Text(
+                                resolvingPlace
+                                    ? tr(
+                                        lang,
+                                        'Aniqlanmoqda...',
+                                        'Определяем...',
+                                        'Resolving...',
+                                      )
+                                    : placeSubtitle ??
+                                          tr(
+                                            lang,
+                                            'Koordinata bo‘yicha tanlandi',
+                                            'Выбрано по координатам',
+                                            'Selected by coordinates',
+                                          ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  height: 20 / 14,
+                                  letterSpacing: -0.16,
+                                  color: Color(0xFF8D96A4),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${currentCenter.latitude.toStringAsFixed(6)}, ${currentCenter.longitude.toStringAsFixed(6)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 16 / 12,
+                      letterSpacing: -0.08,
+                      color: Color(0xFF8D96A4),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Admins may add more radius options than fit on one row.
+                  // Keep the common 3-option layout evenly distributed, and
+                  // make longer dynamic lists horizontally scrollable.
+                  if (radii.length <= 3)
+                    Row(
+                      children: [
+                        for (var i = 0; i < radii.length; i++) ...[
+                          if (i != 0) const SizedBox(width: 8),
+                          Expanded(
+                            child: _RadiusPill(
+                              km: radii[i],
+                              selected: radii[i] == selectedRadius,
+                              onTap: () => onRadiusChanged(radii[i]),
+                            ),
+                          ),
+                        ],
+                      ],
+                    )
+                  else
+                    SizedBox(
+                      height: 36,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: radii.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 8),
+                        itemBuilder: (_, i) => SizedBox(
+                          width: 68,
                           child: _RadiusPill(
                             km: radii[i],
                             selected: radii[i] == selectedRadius,
                             onTap: () => onRadiusChanged(radii[i]),
                           ),
                         ),
-                      ],
-                    ],
-                  )
-                else
-                  SizedBox(
-                    height: 36,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: radii.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 8),
-                      itemBuilder: (_, i) => SizedBox(
-                        width: 68,
-                        child: _RadiusPill(
-                          km: radii[i],
-                          selected: radii[i] == selectedRadius,
-                          onTap: () => onRadiusChanged(radii[i]),
-                        ),
                       ),
                     ),
-                  ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: FilledButton(
-                    onPressed: isSaving ? null : onSave,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.blue,
-                      foregroundColor: AppColors.background,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(40),
-                      ),
-                    ),
-                    child: isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
+                  const SizedBox(height: 12),
+                  GlassButton(
+                    label: isSaving
+                        ? tr(
+                            lang,
+                            'Saqlanmoqda...',
+                            'Сохранение...',
+                            'Saving...',
                           )
-                        : Text(
-                            tr(
-                              lang,
-                              'Hududni saqlash',
-                              'Сохранить зону',
-                              'Save zone',
-                            ),
-                            style: TextStyle(
-                              fontSize: 16,
-                              height: 22 / 16,
-                              letterSpacing: -0.18,
-                              fontWeight: FontWeight.w500,
-                            ),
+                        : tr(
+                            lang,
+                            'Hududni saqlash',
+                            'Сохранить зону',
+                            'Save zone',
                           ),
+                    onPressed: isSaving ? null : onSave,
+                    height: 52,
                   ),
-                ),
-                const SizedBox(height: 16),
-              ],
+                  const SizedBox(height: 16),
+                ],
+              ),
             ),
           ),
         ),
@@ -801,28 +735,36 @@ class _RadiusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final text = Text(
+      '$km km',
+      maxLines: 1,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+        color: selected ? Colors.white : const Color(0xFF8D96A4),
+      ),
+    );
+    // .lite (no BackdropFilter) since this pill is reused inside a
+    // horizontally scrolling ListView when there are more than 3 radii.
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        height: 36,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? AppColors.blue : Colors.white,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected ? AppColors.blue : const Color(0xFFF1F5F9),
-          ),
-        ),
-        child: Text(
-          '$km km',
-          maxLines: 1,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-            color: selected ? Colors.white : const Color(0xFF8D96A4),
-          ),
-        ),
-      ),
+      child: selected
+          ? GlassContainer.lite(
+              tint: AppColors.blue,
+              tintOpacityTop: 0.9,
+              tintOpacityBottom: 0.74,
+              borderOpacity: 0.5,
+              height: 36,
+              borderRadius: 999,
+              alignment: Alignment.center,
+              child: text,
+            )
+          : GlassContainer.lite(
+              height: 36,
+              borderRadius: 999,
+              alignment: Alignment.center,
+              child: text,
+            ),
     );
   }
 }

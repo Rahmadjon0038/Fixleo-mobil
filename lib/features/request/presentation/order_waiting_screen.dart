@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/features/home/presentation/home_screen.dart';
 import 'package:fixleo/features/request/presentation/order_tracking_screen.dart';
@@ -76,13 +77,9 @@ class _OrderWaitingScreenState extends State<OrderWaitingScreen> {
           child: Column(
             children: [
               const Spacer(),
-              Container(
-                width: double.infinity,
+              GlassCard(
+                radius: 24,
                 padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                ),
                 child: Column(
                   children: [
                     Container(

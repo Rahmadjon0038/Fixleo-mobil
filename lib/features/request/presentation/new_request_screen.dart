@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/categories/data/category_model.dart';
@@ -236,22 +237,12 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     );
   }
 
-  /// White card with the "add up to 6 photos" hint and the 2×3 photo grid.
+  /// Frosted glass card with the "add up to 6 photos" hint and the 2×3 photo
+  /// grid.
   Widget _photosCard() {
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 20,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -301,12 +292,10 @@ class _CategoryPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassContainer(
+      tint: const Color(0xFFE8F2FD),
+      borderRadius: 20,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8F2FD),
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -334,20 +323,9 @@ class _DescribeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 20,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -365,31 +343,16 @@ class _DescribeCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F4F8),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: TextField(
-              controller: controller,
-              maxLines: 4,
-              style: const TextStyle(fontSize: 14, color: AppColors.navy),
-              decoration: InputDecoration(
-                isCollapsed: true,
-                border: InputBorder.none,
-                hintText: tr(
-                  lang,
-                  'Masalan: oshxonadagi smesitel oqyapti, kartrijni almashtirish kerak...',
-                  'Например: на кухне течёт смеситель, нужно заменить картридж...',
-                  'For example: the kitchen faucet is leaking; the cartridge needs to be replaced...',
-                ),
-                hintStyle: const TextStyle(
-                  color: AppColors.muted,
-                  fontSize: 14,
-                  height: 1.4,
-                ),
-              ),
+          GlassTextField(
+            controller: controller,
+            maxLines: 4,
+            height: null,
+            textStyle: const TextStyle(fontSize: 14, color: AppColors.navy),
+            hintText: tr(
+              lang,
+              'Masalan: oshxonadagi smesitel oqyapti, kartrijni almashtirish kerak...',
+              'Например: на кухне течёт смеситель, нужно заменить картридж...',
+              'For example: the kitchen faucet is leaking; the cartridge needs to be replaced...',
             ),
           ),
         ],
@@ -459,11 +422,10 @@ class _PhotoSlot extends StatelessWidget {
       onTap: onTap,
       child: CustomPaint(
         painter: _DashedBorderPainter(color: borderColor, radius: 16),
-        child: Container(
-          decoration: BoxDecoration(
-            color: active ? const Color(0xFFEAF4FE) : const Color(0xFFF1F4F8),
-            borderRadius: BorderRadius.circular(16),
-          ),
+        child: GlassContainer.lite(
+          tint: active ? const Color(0xFFEAF4FE) : const Color(0xFFF1F4F8),
+          borderRadius: 16,
+          alignment: Alignment.center,
           child: Icon(Icons.photo_camera_outlined, color: iconColor, size: 26),
         ),
       ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
@@ -38,7 +39,6 @@ class OrderStatusScreen extends StatefulWidget {
   final int orderId;
   final OrderService? orderService;
 
-  static const _blue100 = Color(0xFFDBEAFE);
   static const _slate200 = Color(0xFFE2E8F0);
   static const _text = Color(0xFF23232E);
   static const _muted = Color(0xFF9494A3);
@@ -48,7 +48,6 @@ class OrderStatusScreen extends StatefulWidget {
 }
 
 class _OrderStatusScreenState extends State<OrderStatusScreen> {
-  static const _blue100 = OrderStatusScreen._blue100;
   static const _slate200 = OrderStatusScreen._slate200;
   static const _text = OrderStatusScreen._text;
   static const _muted = OrderStatusScreen._muted;
@@ -216,53 +215,70 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
             'Статус отслеживается',
             'Tracking status',
           );
+    final onPressed = shouldReturnHome
+        ? () => Navigator.of(context).popUntil((route) => route.isFirst)
+        : (canConfirm && !_busy)
+        ? _reviewCompletion
+        : null;
+    final disabled = onPressed == null;
+    // Custom GlassContainer button (mirrors GlassButton's primary variant)
+    // instead of GlassButton itself, since this action needs a busy-spinner
+    // swap that GlassButton's fixed label/icon slot doesn't support.
     return SizedBox(
       width: double.infinity,
       height: 52,
-      child: FilledButton(
-        onPressed: shouldReturnHome
-            ? () => Navigator.of(context).popUntil((route) => route.isFirst)
-            : (canConfirm && !_busy)
-            ? _reviewCompletion
-            : null,
-        style: FilledButton.styleFrom(
-          backgroundColor: AppColors.blue,
-          foregroundColor: AppColors.background,
-          disabledBackgroundColor: _slate200,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(40),
+      child: Semantics(
+        button: true,
+        enabled: !disabled,
+        label: label,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onPressed,
+          child: ExcludeSemantics(
+            child: GlassContainer(
+              tint: disabled
+                  ? AppColors.blue.withValues(alpha: 0.5)
+                  : AppColors.blue,
+              tintOpacityTop: 0.90,
+              tintOpacityBottom: 0.74,
+              borderOpacity: 0.5,
+              borderRadius: 26,
+              height: 52,
+              shadow: !disabled,
+              shadowColor: AppColors.blue,
+              alignment: Alignment.center,
+              child: _busy
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 22 / 16,
+                        letterSpacing: -0.18,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withValues(
+                          alpha: disabled ? 0.7 : 1,
+                        ),
+                      ),
+                    ),
+            ),
           ),
         ),
-        child: _busy
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 16,
-                  height: 22 / 16,
-                  letterSpacing: -0.18,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
       ),
     );
   }
 
   Widget _timelineCard(List<_Step> steps) {
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 20,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         children: [
           for (int i = 0; i < steps.length; i++)
@@ -369,13 +385,13 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
     final language = LocaleController.language.value;
     final status = _order?.status ?? '';
     final isTerminal = isTerminalOrderStatus(status);
-    return Container(
-      width: double.infinity,
+    return GlassContainer(
+      borderRadius: 30,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _blue100,
-        borderRadius: BorderRadius.circular(30),
-      ),
+      tint: AppColors.blue,
+      tintOpacityTop: 0.20,
+      tintOpacityBottom: 0.12,
+      borderOpacity: 0.35,
       child: Text(
         isTerminal
             ? orderStatusLabel(language, status)

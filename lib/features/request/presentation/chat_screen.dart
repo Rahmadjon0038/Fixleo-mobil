@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -10,6 +9,7 @@ import 'package:record/record.dart';
 import 'package:fixleo/app/app.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/core/realtime/app_presence_service.dart';
 import 'package:fixleo/core/realtime/call_service.dart';
@@ -575,38 +575,42 @@ class _ChatScreenState extends State<ChatScreen> {
     final lang = LocaleController.language.value;
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _header(context, lang),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _messages.isEmpty
-                  ? Center(
-                      child: Text(
-                        tr(
-                          lang,
-                          'Xabarlar yoʻq',
-                          'Сообщений нет',
-                          'No messages',
+      // Not wrapped in BrandedScaffold — this custom Scaffold needs the
+      // ambient glass wash added directly so bubbles have depth to blur.
+      body: GlassBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              _header(context, lang),
+              Expanded(
+                child: _loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _messages.isEmpty
+                    ? Center(
+                        child: Text(
+                          tr(
+                            lang,
+                            'Xabarlar yoʻq',
+                            'Сообщений нет',
+                            'No messages',
+                          ),
+                          style: const TextStyle(color: _slate500),
                         ),
-                        style: const TextStyle(color: _slate500),
+                      )
+                    : ListView.separated(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                        itemCount: _messages.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (context, index) =>
+                            _bubble(_messages[index]),
                       ),
-                    )
-                  : ListView.separated(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                      itemCount: _messages.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 10),
-                      itemBuilder: (context, index) =>
-                          _bubble(_messages[index]),
-                    ),
-            ),
-            if (_imageUploads.isNotEmpty) _imageUploadStrip(lang),
-            _inputBar(lang),
-          ],
+              ),
+              if (_imageUploads.isNotEmpty) _imageUploadStrip(lang),
+              _inputBar(lang),
+            ],
+          ),
         ),
       ),
     );
@@ -618,21 +622,23 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          _GlassCircleButton(
-            icon: Icons.arrow_back,
+          GlassIconButton(
             onTap: () => Navigator.of(context).maybePop(),
+            semanticLabel: tr(lang, 'Orqaga', 'Назад', 'Back'),
+            child: const Icon(
+              Icons.arrow_back,
+              size: 20,
+              color: AppColors.navy,
+            ),
           ),
           Expanded(
             child: Center(
-              child: Container(
+              child: GlassContainer(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 6,
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                ),
+                borderRadius: 30,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -693,7 +699,15 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
           ),
-          _GlassCircleButton(icon: Icons.phone_outlined, onTap: _startCall),
+          GlassIconButton(
+            onTap: _startCall,
+            semanticLabel: tr(lang, 'Qoʻngʻiroq', 'Позвонить', 'Call'),
+            child: const Icon(
+              Icons.phone_outlined,
+              size: 20,
+              color: AppColors.navy,
+            ),
+          ),
         ],
       ),
     );
@@ -703,14 +717,17 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _bubble(ChatMessage m) {
     final bubble = ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 260),
-      child: Container(
+      // Bubbles repeat dozens of times per scrolling thread — use the
+      // blur-less glass variant so long conversations don't jank.
+      child: GlassContainer.lite(
         padding: m.type == 'image'
             ? const EdgeInsets.fromLTRB(3, 3, 3, 6)
             : const EdgeInsets.fromLTRB(14, 10, 14, 8),
-        decoration: BoxDecoration(
-          color: m.isMine ? AppColors.blue : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
+        borderRadius: 16,
+        tint: m.isMine ? AppColors.blue : Colors.white,
+        tintOpacityTop: m.isMine ? 0.90 : 0.85,
+        tintOpacityBottom: m.isMine ? 0.76 : 0.70,
+        borderOpacity: m.isMine ? 0.45 : 0.75,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -827,103 +844,68 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       child: Row(
         children: [
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: IconButton(
-              tooltip: tr(
-                lang,
-                'Rasm yuborish',
-                'Отправить фото',
-                'Send photo',
-              ),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: _slate500,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              onPressed: _sending || _startingRecording
-                  ? null
-                  : _pickAndSendImages,
-              icon: const Icon(Icons.photo_camera_outlined, size: 22),
+          GlassIconButton(
+            size: 44,
+            semanticLabel: tr(
+              lang,
+              'Rasm yuborish',
+              'Отправить фото',
+              'Send photo',
+            ),
+            onTap: _sending || _startingRecording ? null : _pickAndSendImages,
+            child: Icon(
+              Icons.photo_camera_outlined,
+              size: 22,
+              color: _slate500,
             ),
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: TextField(
-                controller: _controller,
-                onSubmitted: (_) => _send(),
-                textInputAction: TextInputAction.send,
-                minLines: 1,
-                maxLines: 4,
-                style: const TextStyle(
-                  fontSize: 14,
-                  height: 20 / 14,
-                  letterSpacing: -0.16,
-                  color: _bubbleText,
-                ),
-                decoration: InputDecoration(
-                  isDense: true,
-                  border: InputBorder.none,
-                  hintText: tr(lang, 'Xabar…', 'Сообщение…', 'Message…'),
-                  hintStyle: TextStyle(
-                    fontSize: 14,
-                    height: 20 / 14,
-                    letterSpacing: -0.16,
-                    color: _slate500,
-                  ),
-                  contentPadding: EdgeInsets.symmetric(vertical: 11),
-                ),
+            child: GlassTextField(
+              controller: _controller,
+              onSubmitted: (_) => _send(),
+              textInputAction: TextInputAction.send,
+              minLines: 1,
+              maxLines: 4,
+              height: null,
+              hintText: tr(lang, 'Xabar…', 'Сообщение…', 'Message…'),
+              textStyle: const TextStyle(
+                fontSize: 14,
+                height: 20 / 14,
+                letterSpacing: -0.16,
+                color: _bubbleText,
               ),
             ),
           ),
           const SizedBox(width: 10),
-          SizedBox(
-            width: 40,
-            height: 40,
-            child: IconButton.filled(
-              tooltip: _hasText
-                  ? tr(lang, 'Yuborish', 'Отправить', 'Send')
-                  : tr(
-                      lang,
-                      'Ovozli xabar',
-                      'Голосовое сообщение',
-                      'Voice message',
+          _SendButton(
+            tooltip: _hasText
+                ? tr(lang, 'Yuborish', 'Отправить', 'Send')
+                : tr(
+                    lang,
+                    'Ovozli xabar',
+                    'Голосовое сообщение',
+                    'Voice message',
+                  ),
+            onTap: _sending || _startingRecording
+                ? null
+                : _hasText
+                ? _send
+                : _startRecording,
+            child: (_sending && _imageUploads.isEmpty) || _startingRecording
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
                     ),
-              style: IconButton.styleFrom(
-                backgroundColor: AppColors.blue,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.blue,
-                disabledForegroundColor: Colors.white,
-                padding: EdgeInsets.zero,
-              ),
-              onPressed: _sending || _startingRecording
-                  ? null
-                  : _hasText
-                  ? _send
-                  : _startRecording,
-              icon: (_sending && _imageUploads.isEmpty) || _startingRecording
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Icon(
-                      _hasText ? Icons.arrow_upward : Icons.mic_rounded,
-                      size: 20,
-                    ),
-            ),
+                  )
+                : Icon(
+                    _hasText ? Icons.arrow_upward : Icons.mic_rounded,
+                    size: 20,
+                    color: Colors.white,
+                  ),
           ),
         ],
       ),
@@ -1048,20 +1030,10 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _recordingBar(AppLanguage lang) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-      child: Container(
+      child: GlassContainer(
         height: 54,
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x12000000),
-              blurRadius: 14,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
+        borderRadius: 22,
         child: Row(
           children: [
             IconButton(
@@ -1098,16 +1070,12 @@ class _ChatScreenState extends State<ChatScreen> {
                 style: const TextStyle(color: _slate500, fontSize: 13),
               ),
             ),
-            IconButton.filled(
+            _SendButton(
               tooltip: tr(lang, 'Yuborish', 'Отправить', 'Send'),
-              style: IconButton.styleFrom(
-                backgroundColor: AppColors.blue,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: _finishingRecording
+              onTap: _finishingRecording
                   ? null
                   : () => _finishRecording(send: true),
-              icon: _finishingRecording
+              child: _finishingRecording
                   ? const SizedBox(
                       width: 18,
                       height: 18,
@@ -1116,7 +1084,11 @@ class _ChatScreenState extends State<ChatScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Icon(Icons.arrow_upward, size: 20),
+                  : const Icon(
+                      Icons.arrow_upward,
+                      size: 20,
+                      color: Colors.white,
+                    ),
             ),
           ],
         ),
@@ -1125,55 +1097,42 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-/// Round iOS "liquid glass" style button used in the chat header.
-class _GlassCircleButton extends StatelessWidget {
-  const _GlassCircleButton({required this.icon, this.onTap});
+/// Round brand-blue glass send/record button used in the composer and the
+/// recording bar — [GlassIconButton] only offers the neutral white tint, so
+/// this mirrors its structure with [GlassContainer.tinted] instead.
+class _SendButton extends StatelessWidget {
+  const _SendButton({required this.child, this.onTap, this.tooltip});
 
-  final IconData icon;
+  final Widget child;
   final VoidCallback? onTap;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: ClipOval(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.65),
-                    Colors.white.withValues(alpha: 0.30),
-                  ],
-                ),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  width: 1,
-                ),
-              ),
-              child: Icon(icon, size: 20, color: AppColors.navy),
-            ),
-          ),
-        ),
+    final glass = GlassContainer.tinted(
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      shadow: onTap != null,
+      alignment: Alignment.center,
+      child: child,
+    );
+    final button = Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: tooltip,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: ExcludeSemantics(child: glass),
       ),
+    );
+    return SizedBox(
+      width: 40,
+      height: 40,
+      child: tooltip == null
+          ? button
+          : Tooltip(message: tooltip!, child: button),
     );
   }
 }

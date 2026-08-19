@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/features/master/data/master_marketplace_models.dart';
 import 'package:fixleo/features/master/data/master_marketplace_service.dart';
@@ -57,11 +58,10 @@ class _MasterRequestDetailScreenState extends State<MasterRequestDetailScreen> {
 
   /// Bottom sheet asking for a decline reason; declines on the backend + pops.
   Future<void> _showDeclineSheet(BuildContext context) async {
-    final declined = await showModalBottomSheet<bool>(
+    final declined = await showGlassModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: const Color(0x33797A7E),
+      topRadius: 30,
       builder: (_) => const _DeclineSheet(),
     );
     if (declined == true && context.mounted) {
@@ -101,25 +101,21 @@ class _MasterRequestDetailScreenState extends State<MasterRequestDetailScreen> {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: double.infinity,
+                  GlassCard(
+                    radius: 30,
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(30),
-                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Category chip (real category name).
-                        Container(
+                        GlassContainer(
+                          tint: const Color(0xFFF0F9FF),
+                          tintOpacityTop: 0.85,
+                          tintOpacityBottom: 0.7,
+                          borderRadius: 999,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
                             vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0F9FF),
-                            borderRadius: BorderRadius.circular(999),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -289,100 +285,95 @@ class _DeclineSheetState extends State<_DeclineSheet> {
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 70,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: AppColors.navy,
-                  borderRadius: BorderRadius.circular(3),
-                ),
+    // Background/blur is already supplied by showGlassModalBottomSheet's
+    // wrapper — this sheet body stays transparent so the frosted glass
+    // shows through.
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 70,
+              height: 5,
+              decoration: BoxDecoration(
+                color: AppColors.navy,
+                borderRadius: BorderRadius.circular(3),
               ),
-              const SizedBox(height: 12),
-              Text(
-                tr(
-                  lang,
-                  'Buyurtmani rad etish?',
-                  'Отклонить заявку?',
-                  'Decline the request?',
-                ),
-                style: const TextStyle(
-                  fontSize: 20,
-                  height: 24 / 20,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF23232E),
-                ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              tr(
+                lang,
+                'Buyurtmani rad etish?',
+                'Отклонить заявку?',
+                'Decline the request?',
               ),
-              const SizedBox(height: 2),
-              Text(
-                tr(
-                  lang,
-                  'Sababini koʻrsating — bu tanlovga yordam beradi',
-                  'Укажите причину — это поможет выбору',
-                  'Specify the reason - it helps with selection',
-                ),
-                style: TextStyle(fontSize: 14, color: AppColors.muted),
+              style: const TextStyle(
+                fontSize: 20,
+                height: 24 / 20,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF23232E),
               ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  children: [
-                    for (var i = 0; i < _reasons.length; i++) ...[
-                      if (i != 0) const SizedBox(height: 8),
-                      _ReasonRow(
-                        label: _reasons[i].text(lang),
-                        selected: _selected == i,
-                        onTap: () => setState(() => _selected = i),
-                      ),
-                    ],
-                  ],
-                ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              tr(
+                lang,
+                'Sababini koʻrsating — bu tanlovga yordam beradi',
+                'Укажите причину — это поможет выбору',
+                'Specify the reason - it helps with selection',
               ),
-              const SizedBox(height: 12),
-              Row(
+              style: TextStyle(fontSize: 14, color: AppColors.muted),
+            ),
+            const SizedBox(height: 12),
+            GlassContainer.lite(
+              tint: const Color(0xFFF1F5F9),
+              borderRadius: 20,
+              padding: const EdgeInsets.all(12),
+              child: Column(
                 children: [
-                  Expanded(
-                    child: _SheetButton(
-                      label: tr(lang, 'Orqaga', 'Назад', 'Back'),
-                      filled: false,
-                      onTap: () => Navigator.of(context).pop(),
+                  for (var i = 0; i < _reasons.length; i++) ...[
+                    if (i != 0) const SizedBox(height: 8),
+                    _ReasonRow(
+                      label: _reasons[i].text(lang),
+                      selected: _selected == i,
+                      onTap: () => setState(() => _selected = i),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _SheetButton(
-                      label: tr(lang, 'Rad etish', 'Отклонить', 'Decline'),
-                      filled: true,
-                      onTap: () => Navigator.of(context).pop(true),
-                    ),
-                  ),
+                  ],
                 ],
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _SheetButton(
+                    label: tr(lang, 'Orqaga', 'Назад', 'Back'),
+                    filled: false,
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _SheetButton(
+                    label: tr(lang, 'Rad etish', 'Отклонить', 'Decline'),
+                    filled: true,
+                    onTap: () => Navigator.of(context).pop(true),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// One decline-reason row — white pill with a radio dot.
+/// One decline-reason row — frosted glass pill with a radio dot.
 class _ReasonRow extends StatelessWidget {
   const _ReasonRow({
     required this.label,
@@ -398,12 +389,9 @@ class _ReasonRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: GlassContainer.lite(
+        borderRadius: 32,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(32),
-        ),
         child: Row(
           children: [
             Expanded(
@@ -457,24 +445,13 @@ class _SheetButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 50,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: filled ? AppColors.blue : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(40),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: filled ? Colors.white : AppColors.navy,
-          ),
-        ),
-      ),
+    return GlassButton(
+      label: label,
+      onPressed: onTap,
+      variant: filled
+          ? GlassButtonVariant.primary
+          : GlassButtonVariant.secondary,
+      height: 50,
     );
   }
 }

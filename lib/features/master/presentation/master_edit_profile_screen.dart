@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/core/network/current_user.dart';
@@ -68,12 +69,9 @@ class _MasterEditProfileScreenState extends State<MasterEditProfileScreen> {
   Future<void> _pickPhoto() async {
     if (_saving) return;
     final lang = LocaleController.language.value;
-    final source = await showModalBottomSheet<ImageSource>(
+    final source = await showGlassModalBottomSheet<ImageSource>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      topRadius: 24,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -291,20 +289,13 @@ class _MasterEditProfileScreenState extends State<MasterEditProfileScreen> {
     List<TextInputFormatter>? inputFormatters,
     int maxLines = 1,
   }) {
-    return TextField(
+    return GlassTextField(
       controller: controller,
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
       maxLines: maxLines,
+      height: maxLines > 1 ? null : 56,
       onChanged: (_) => setState(() => _error = null),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide.none,
-        ),
-      ),
     );
   }
 }

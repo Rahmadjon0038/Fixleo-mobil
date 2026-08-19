@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/feedback_service.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
@@ -144,33 +145,10 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
+            GlassButton(
+              label: tr(lang, 'Sharh yuborish', 'Отправить отзыв', 'Submit review'),
               height: 52,
-              child: FilledButton(
-                onPressed: _busy ? null : _submit,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.blue,
-                  foregroundColor: AppColors.background,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                ),
-                child: Text(
-                  tr(
-                    lang,
-                    'Sharh yuborish',
-                    'Отправить отзыв',
-                    'Submit review',
-                  ),
-                  style: TextStyle(
-                    fontSize: 16,
-                    height: 22 / 16,
-                    letterSpacing: -0.18,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
+              onPressed: _busy ? null : _submit,
             ),
           ],
         ),
@@ -202,13 +180,9 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
             slotLabel: _order!.slotLabel,
           );
     final avatarUrl = master?.avatarUrl;
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 30,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Column(
         children: [
           ClipRRect(
@@ -312,37 +286,46 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
           _selectedTags.add(tag);
         }
       }),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.blue : Colors.white,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected ? AppColors.blue : AppColors.background,
-          ),
-        ),
-        child: Text(
-          tag,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: selected ? Colors.white : _gray,
-          ),
-        ),
-      ),
+      child: selected
+          ? GlassContainer.tinted(
+              borderRadius: 999,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 8,
+              ),
+              child: Text(
+                tag,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+            )
+          : GlassContainer(
+              borderRadius: 999,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 8,
+              ),
+              child: Text(
+                tag,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: _gray,
+                ),
+              ),
+            ),
     );
   }
 
   /// Free-text review card.
   Widget _reviewCard() {
     final lang = LocaleController.language.value;
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 20,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -362,13 +345,10 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          Container(
+          GlassContainer(
             height: 140,
+            borderRadius: 20,
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(20),
-            ),
             child: TextField(
               controller: _controller,
               maxLines: null,

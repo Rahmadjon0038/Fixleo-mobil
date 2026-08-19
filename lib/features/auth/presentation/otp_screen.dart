@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/auth/data/client_auth_service.dart';
@@ -411,38 +412,46 @@ class _OtpBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasError = state._error != null || state._blockSeconds > 0;
-    return SizedBox(
+    return GlassContainer(
       width: 64,
       height: 64,
-      child: TextField(
-        controller: state._controllers[index],
-        focusNode: state._focusNodes[index],
-        onChanged: (v) => state._onChanged(index, v),
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        maxLength: 1,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        style: const TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w700,
-          color: AppColors.navy,
-        ),
-        decoration: InputDecoration(
-          counterText: '',
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: EdgeInsets.zero,
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: hasError
-                ? const BorderSide(color: AppColors.danger, width: 1.5)
-                : BorderSide.none,
+      borderRadius: 16,
+      padding: EdgeInsets.zero,
+      borderOpacity: hasError ? 0 : 0.75,
+      // No drop shadow — 4 boxes sit only 14px apart, and the default soft
+      // shadow smears across the gap into one glowing blob behind the row
+      // instead of 4 distinct boxes.
+      shadow: false,
+      child: SizedBox.expand(
+        child: TextField(
+          controller: state._controllers[index],
+          focusNode: state._focusNodes[index],
+          onChanged: (v) => state._onChanged(index, v),
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          maxLength: 1,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: AppColors.navy,
           ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: hasError
-                ? const BorderSide(color: AppColors.danger, width: 2)
-                : const BorderSide(color: AppColors.blue, width: 2),
+          decoration: InputDecoration(
+            counterText: '',
+            filled: false,
+            contentPadding: EdgeInsets.zero,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: hasError
+                  ? const BorderSide(color: AppColors.danger, width: 1.5)
+                  : BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: hasError
+                  ? const BorderSide(color: AppColors.danger, width: 2)
+                  : const BorderSide(color: AppColors.blue, width: 2),
+            ),
           ),
         ),
       ),

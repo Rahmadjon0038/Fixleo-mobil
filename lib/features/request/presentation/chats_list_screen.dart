@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/core/realtime/app_presence_service.dart';
 import 'package:fixleo/features/request/data/chat_service.dart' as api_chat;
@@ -255,11 +256,12 @@ class ChatsList extends StatelessWidget {
     return ListView(
       padding: padding,
       children: [
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-          ),
+        // Rows are divider-separated inside one card that scrolls with the
+        // list — use the blur-less variant so long conversation lists don't
+        // jank (see GlassContainer.lite dartdoc).
+        GlassContainer.lite(
+          padding: EdgeInsets.zero,
+          borderRadius: 24,
           child: Column(
             children: [
               for (var i = 0; i < conversations.length; i++) ...[

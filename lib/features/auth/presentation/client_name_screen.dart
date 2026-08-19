@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/auth/data/client_auth_service.dart';
@@ -175,35 +176,55 @@ class _LabeledField extends StatelessWidget {
       children: [
         Text(label, style: TextStyle(fontSize: 14, color: AppColors.muted)),
         const SizedBox(height: 4),
-        Container(
-          height: 56,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: TextField(
-            controller: controller,
-            onChanged: onChanged,
-            textCapitalization: TextCapitalization.words,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.navy,
-            ),
-            decoration: InputDecoration(
-              isCollapsed: true,
-              border: InputBorder.none,
-              hintText: hint,
-              hintStyle: TextStyle(
-                color: AppColors.muted,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
+        _GlassNameField(
+          controller: controller,
+          hint: hint,
+          onChanged: onChanged,
         ),
       ],
+    );
+  }
+}
+
+class _GlassNameField extends StatelessWidget {
+  const _GlassNameField({
+    required this.controller,
+    required this.hint,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final String hint;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    // GlassTextField doesn't expose textCapitalization, so the raw TextField
+    // is kept for that behavior while still living inside the glass panel.
+    return GlassContainer(
+      height: 56,
+      borderRadius: 16,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      alignment: Alignment.centerLeft,
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        textCapitalization: TextCapitalization.words,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: AppColors.navy,
+        ),
+        decoration: InputDecoration(
+          isCollapsed: true,
+          border: InputBorder.none,
+          hintText: hint,
+          hintStyle: TextStyle(
+            color: AppColors.muted,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
     );
   }
 }

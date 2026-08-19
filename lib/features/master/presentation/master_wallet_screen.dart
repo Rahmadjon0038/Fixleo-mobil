@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/features/master/data/master_marketplace_models.dart';
 import 'package:fixleo/features/master/data/master_marketplace_service.dart';
 import 'package:fixleo/features/master/presentation/master_withdraw_screen.dart';
@@ -12,18 +13,16 @@ import 'package:fixleo/features/master/presentation/master_withdraw_screen.dart'
 class MasterWalletScreen extends StatefulWidget {
   const MasterWalletScreen({super.key});
 
-  static const _navy900 = Color(0xFF0F172A);
-  static const _slate50 = Color(0xFFF8FAFC);
   static const _gray = Color(0xFF8D96A4);
+  static const _navy900 = Color(0xFF0F172A);
 
   @override
   State<MasterWalletScreen> createState() => _MasterWalletScreenState();
 }
 
 class _MasterWalletScreenState extends State<MasterWalletScreen> {
-  static const _navy900 = MasterWalletScreen._navy900;
-  static const _slate50 = MasterWalletScreen._slate50;
   static const _gray = MasterWalletScreen._gray;
+  static const _navy900 = MasterWalletScreen._navy900;
 
   final MasterMarketplaceService _market = MasterMarketplaceService();
   MasterWallet? _wallet;
@@ -277,13 +276,10 @@ class _MasterWalletScreenState extends State<MasterWalletScreen> {
   /// Operations list card.
   Widget _operationsCard() {
     final lang = LocaleController.language.value;
-    return Container(
+    return GlassContainer(
       width: double.infinity,
+      borderRadius: 30,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -321,12 +317,9 @@ class _MasterWalletScreenState extends State<MasterWalletScreen> {
         ? ''
         : '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
     final positive = txn.amount >= 0;
-    return Container(
+    return GlassContainer.lite(
+      borderRadius: 30,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _slate50,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Row(
         children: [
           Expanded(
@@ -380,12 +373,9 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassContainer(
+      borderRadius: 20,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         children: [
           Text(

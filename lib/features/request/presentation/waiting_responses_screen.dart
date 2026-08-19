@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/features/home/presentation/home_screen.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/presentation/masters_responses_screen.dart';
@@ -117,35 +118,17 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              // "Arizani bekor qilish" — white pill with blue text.
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: FilledButton(
-                  onPressed: _cancel,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppColors.blue,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(40),
-                    ),
-                  ),
-                  child: Text(
-                    tr(
-                      lang,
-                      'Arizani bekor qilish',
-                      'Отменить заявку',
-                      'Cancel request',
-                    ),
-                    style: TextStyle(
-                      fontSize: 16,
-                      height: 22 / 16,
-                      letterSpacing: -0.18,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+              // "Arizani bekor qilish" — white glass pill with blue text.
+              GlassButton(
+                label: tr(
+                  lang,
+                  'Arizani bekor qilish',
+                  'Отменить заявку',
+                  'Cancel request',
                 ),
+                height: 52,
+                variant: GlassButtonVariant.secondary,
+                onPressed: _cancel,
               ),
             ],
           ),
@@ -155,13 +138,9 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
   }
 
   Widget _statusCard() {
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 30,
       padding: const EdgeInsets.symmetric(vertical: 28),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Column(
         children: [
           Container(
@@ -216,13 +195,9 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
   }
 
   Widget _skeletonCard() {
-    return Container(
-      width: double.infinity,
+    return GlassCard.lite(
+      radius: 30,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Row(
         children: [
           // Avatar placeholder.

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/auth/data/client_auth_service.dart';
@@ -179,12 +180,9 @@ class _PhoneScreenState extends State<PhoneScreen> {
   /// Bottom sheet listing the selectable countries.
   Future<void> _pickCountry() async {
     final lang = LocaleController.language.value;
-    final picked = await showModalBottomSheet<_Country>(
+    final picked = await showGlassModalBottomSheet<_Country>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      topRadius: 24,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -437,13 +435,11 @@ class _CountrySelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: GlassContainer(
         height: 56,
+        borderRadius: 16,
         padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
+        alignment: Alignment.centerLeft,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -479,17 +475,15 @@ class _PhoneField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: hasError
-            ? Border.all(color: AppColors.danger, width: 1.5)
-            : null,
-      ),
-      child: Row(
+    return GlassTextField(
+      controller: controller,
+      onChanged: onChanged,
+      keyboardType: TextInputType.phone,
+      inputFormatters: [_PhoneNumberFormatter(country.groups)],
+      hintText: country.hint,
+      hasError: hasError,
+      leading: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             country.dial,
@@ -501,29 +495,6 @@ class _PhoneField extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Container(width: 1, height: 24, color: Colors.black12),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              keyboardType: TextInputType.phone,
-              inputFormatters: [_PhoneNumberFormatter(country.groups)],
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.navy,
-              ),
-              decoration: InputDecoration(
-                isCollapsed: true,
-                border: InputBorder.none,
-                hintText: country.hint,
-                hintStyle: TextStyle(
-                  color: AppColors.muted,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
@@ -182,20 +183,10 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
   /// Segmented Active / Completed switch.
   Widget _tabBar(AppLanguage lang) {
-    return Container(
+    return GlassContainer(
       height: 41,
       padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(296),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+      borderRadius: 296,
       child: Row(
         children: [
           _tabItem(tr(lang, 'Faol', 'Активные', 'Active'), 0),
@@ -212,24 +203,37 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         // Use _switchTab so the list actually refetches for the chosen tab
         // (active vs completed) — a bare setState left the data stale.
         onTap: () => _switchTab(index),
-        child: Container(
-          height: 35,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected ? const Color(0xFFEDEDED) : Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              height: 20 / 14,
-              letterSpacing: -0.16,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-              color: AppColors.navy,
-            ),
-          ),
-        ),
+        child: selected
+            ? GlassContainer.lite(
+                height: 35,
+                borderRadius: 20,
+                alignment: Alignment.center,
+                shadow: false,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 20 / 14,
+                    letterSpacing: -0.16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.navy,
+                  ),
+                ),
+              )
+            : Container(
+                height: 35,
+                alignment: Alignment.center,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 20 / 14,
+                    letterSpacing: -0.16,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    color: AppColors.navy,
+                  ),
+                ),
+              ),
       ),
     );
   }
@@ -246,13 +250,10 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         );
         if (mounted) _load();
       },
-      child: Container(
+      child: GlassContainer.lite(
         height: 87,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-        ),
+        borderRadius: 22,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
+import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/features/categories/data/category_model.dart';
 import 'package:fixleo/features/categories/data/category_service.dart';
 import 'package:fixleo/features/request/presentation/new_request_screen.dart';
@@ -37,14 +38,14 @@ void main() {
     expect(find.text('Plumbing'), findsOneWidget);
     expect(find.text('Electrical'), findsOneWidget);
     expect(
-      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      tester.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed,
       isNull,
     );
 
     await tester.tap(find.byKey(const ValueKey('request-category-8')));
     await tester.pump();
     expect(
-      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      tester.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed,
       isNotNull,
     );
 

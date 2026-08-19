@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 
 /// First step of the "add card" flow — card number, expiry and CVV.
@@ -154,33 +155,17 @@ class _AddCardScreenState extends State<AddCardScreen> {
     required TextInputType keyboardType,
     required List<TextInputFormatter> inputFormatters,
   }) {
-    return Container(
+    return GlassTextField(
+      controller: controller,
       height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      alignment: Alignment.centerLeft,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        inputFormatters: inputFormatters,
-        onChanged: (_) => setState(() {}),
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          color: AppColors.navy,
-        ),
-        decoration: InputDecoration(
-          isCollapsed: true,
-          border: InputBorder.none,
-          hintText: hint,
-          hintStyle: TextStyle(
-            color: AppColors.muted.withValues(alpha: 0.7),
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+      hintText: hint,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
+      onChanged: (_) => setState(() {}),
+      textStyle: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: AppColors.navy,
       ),
     );
   }
@@ -448,17 +433,10 @@ class _CodeBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
+      child: GlassContainer.tinted(
         height: 64,
+        borderRadius: 18,
         alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: AppColors.blue.withValues(alpha: 0.6),
-            width: 1,
-          ),
-        ),
         child: TextField(
           controller: controller,
           focusNode: focusNode,
@@ -499,12 +477,11 @@ class AddCardSuccessScreen extends StatelessWidget {
         child: Column(
           children: [
             const Spacer(),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
+            GlassCard(
+              radius: 30,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 20,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -587,12 +564,11 @@ class AddCardFailureScreen extends StatelessWidget {
         child: Column(
           children: [
             const Spacer(),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
+            GlassCard(
+              radius: 30,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 20,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,

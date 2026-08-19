@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/master/data/master_document_model.dart';
@@ -37,13 +38,39 @@ class _MasterSelfieScreenState extends State<MasterSelfieScreen> {
   /// TEMP (dev only): on desktop there is no camera flow, so the screen
   /// auto-advances after 3 seconds to let onboarding be clicked through
   /// (e.g. when running on macOS). Phones keep the real selfie flow.
+  ///
+  /// The iOS/Android *simulator* has no real camera either, but there is no
+  /// reliable way to detect "simulator vs real device" in plain Dart once
+  /// launched via `flutter run` (Xcode's `SIMULATOR_*` env vars don't carry
+  /// over), so that case is opt-in only: run with
+  /// `--dart-define=FIXLEO_DEV_SKIP_CAMERA=true` to get the same 3-second
+  /// auto-advance while testing in a simulator/emulator. Never set in
+  /// production builds.
+  static const bool _devSkipCamera = bool.fromEnvironment(
+    'FIXLEO_DEV_SKIP_CAMERA',
+    defaultValue: false,
+  );
+
   Timer? _autoSkip;
 
   @override
   void initState() {
     super.initState();
     if (!Platform.isAndroid && !Platform.isIOS) {
+      // No camera flow on desktop at all — just skip the step.
       _autoSkip = Timer(const Duration(seconds: 3), _goNext);
+    } else if (_devSkipCamera) {
+      // Simulator/emulator: there's no real camera, but the backend still
+      // requires an actual selfie document before verification can be
+      // submitted — a timer that only navigates away (without uploading
+      // anything) leaves the KYC record permanently incomplete and the
+      // "under review" screen waits forever. So instead of faking it, pick
+      // straight from the gallery (every simulator ships with sample
+      // photos) and upload that for real.
+      _autoSkip = Timer(
+        const Duration(seconds: 1),
+        () => _takeSelfie(preferGallery: true),
+      );
     }
   }
 
@@ -55,21 +82,25 @@ class _MasterSelfieScreenState extends State<MasterSelfieScreen> {
 
   /// Captures a selfie, uploads it as `selfie_with_passport`
   /// (`POST /masters/me/documents`), then advances to the verification screen.
-  Future<void> _takeSelfie() async {
+  Future<void> _takeSelfie({bool preferGallery = false}) async {
     if (_uploading) return;
     XFile? file;
-    try {
-      file = await _picker.pickImage(
-        source: ImageSource.camera,
-        preferredCameraDevice: CameraDevice.front,
-        imageQuality: 80,
-      );
-    } on Exception {
-      // Camera unavailable (e.g. desktop) — fall back to the gallery.
-      file = await _picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 80,
-      );
+    if (preferGallery) {
+      file = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    } else {
+      try {
+        file = await _picker.pickImage(
+          source: ImageSource.camera,
+          preferredCameraDevice: CameraDevice.front,
+          imageQuality: 80,
+        );
+      } on Exception {
+        // Camera unavailable (e.g. desktop) — fall back to the gallery.
+        file = await _picker.pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 80,
+        );
+      }
     }
     if (file == null) return; // user canceled
     setState(() {
@@ -151,12 +182,9 @@ class _MasterSelfieScreenState extends State<MasterSelfieScreen> {
               ),
             ),
             const SizedBox(height: 40),
-            Container(
+            GlassCard(
+              radius: 20,
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

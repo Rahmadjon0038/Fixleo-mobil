@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
@@ -76,23 +77,11 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
           children: [
             Expanded(child: _content(lang)),
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
+            GlassButton(
+              label: tr(lang, 'Yangi manzil', 'Новый адрес', 'New address'),
+              icon: Icons.add_location_alt_outlined,
+              onPressed: () => _openEditor(),
               height: 52,
-              child: FilledButton.icon(
-                onPressed: () => _openEditor(),
-                icon: const Icon(Icons.add_location_alt_outlined),
-                label: Text(
-                  tr(lang, 'Yangi manzil', 'Новый адрес', 'New address'),
-                ),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.blue,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                ),
-              ),
             ),
           ],
         ),
@@ -140,15 +129,11 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
           return Semantics(
             button: true,
             label: address.addressText,
-            child: InkWell(
+            child: GestureDetector(
               onTap: () => _openEditor(address),
-              borderRadius: BorderRadius.circular(24),
-              child: Container(
+              child: GlassContainer.lite(
+                borderRadius: 24,
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                ),
                 child: Row(
                   children: [
                     Container(

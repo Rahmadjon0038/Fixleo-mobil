@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/features/master/data/master_model.dart';
 import 'package:fixleo/features/master/data/master_service.dart';
 import 'package:fixleo/features/master/presentation/master_edit_profile_screen.dart';
@@ -155,14 +156,11 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
 
   /// Avatar + name + phone header card.
   Widget _userCard() {
-    return Container(
+    return GlassContainer(
       width: double.infinity,
       height: 155,
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
+      borderRadius: 30,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -213,13 +211,10 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
 
   /// Language switcher card (English / O‘zbekcha / Русский).
   Widget _languageCard(AppLanguage lang) {
-    return Container(
+    return GlassContainer(
       width: double.infinity,
+      borderRadius: 30,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -258,13 +253,10 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
 
   /// A white rounded card grouping menu rows separated by dividers.
   Widget _group(List<_MenuItem> items) {
-    return Container(
+    return GlassContainer(
       width: double.infinity,
+      borderRadius: 30,
       padding: const EdgeInsets.fromLTRB(10, 4, 20, 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Column(
         children: [
           for (var i = 0; i < items.length; i++) ...[
@@ -282,7 +274,7 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
   Future<void> _confirmLogout(AppLanguage lang) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => GlassAlertDialog(
         title: Text(tr(lang, 'Chiqish', 'Выход', 'Sign out')),
         content: Text(
           tr(
@@ -317,13 +309,10 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
   Widget _logout(BuildContext context, AppLanguage lang) {
     return GestureDetector(
       onTap: () => _confirmLogout(lang),
-      child: Container(
+      child: GlassContainer(
         width: double.infinity,
+        borderRadius: 999,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(999),
-        ),
         child: Row(
           children: [
             Container(

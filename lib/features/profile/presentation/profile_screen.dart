@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/features/auth/data/client_auth_service.dart';
 import 'package:fixleo/features/auth/data/client_model.dart';
 import 'package:fixleo/features/welcome/presentation/intro_screen.dart';
@@ -58,12 +59,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _chooseAvatarSource() async {
     if (_avatarBusy) return;
     final lang = LocaleController.language.value;
-    final action = await showModalBottomSheet<String>(
+    final action = await showGlassModalBottomSheet<String>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      topRadius: 24,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -173,25 +171,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final lang = LocaleController.language.value;
     final picked = await showDialog<AppLanguage>(
       context: context,
-      builder: (ctx) => SimpleDialog(
+      builder: (ctx) => GlassAlertDialog(
         title: Text(tr(lang, 'Til', 'Язык', 'Language')),
-        children: [
-          for (final entry in const [
-            (AppLanguage.uz, 'Oʻzbekcha'),
-            (AppLanguage.ru, 'Русский'),
-            (AppLanguage.en, 'English'),
-          ])
-            SimpleDialogOption(
-              onPressed: () => Navigator.of(ctx).pop(entry.$1),
-              child: Row(
-                children: [
-                  Expanded(child: Text(entry.$2)),
-                  if (lang == entry.$1)
-                    const Icon(Icons.check, size: 18, color: AppColors.blue),
-                ],
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final entry in const [
+              (AppLanguage.uz, 'Oʻzbekcha'),
+              (AppLanguage.ru, 'Русский'),
+              (AppLanguage.en, 'English'),
+            ])
+              InkWell(
+                onTap: () => Navigator.of(ctx).pop(entry.$1),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    children: [
+                      Expanded(child: Text(entry.$2)),
+                      if (lang == entry.$1)
+                        const Icon(
+                          Icons.check,
+                          size: 18,
+                          color: AppColors.blue,
+                        ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
     if (picked != null) {
@@ -203,7 +213,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _confirmLogout(AppLanguage lang) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => GlassAlertDialog(
         title: Text(tr(lang, 'Chiqish', 'Выход', 'Sign out')),
         content: Text(
           tr(
@@ -343,14 +353,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   /// Avatar + name + phone header card.
   Widget _userCard() {
-    return Container(
-      width: double.infinity,
+    return GlassContainer(
       height: 155,
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
+      borderRadius: 30,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -363,7 +369,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   width: 66,
                   height: 66,
                   decoration: BoxDecoration(
-                    color: AppColors.background,
+                    // Was AppColors.background (the page's own base fill) —
+                    // painted opaque on top of the translucent glass card,
+                    // it read as a mismatched gray patch instead of blending
+                    // in. Plain white sits naturally on the glass tint.
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   clipBehavior: Clip.antiAlias,
@@ -432,15 +442,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return '+998 ${m[1]} ${m[2]} ${m[3]} ${m[4]}';
   }
 
-  /// A white rounded card grouping menu rows separated by dividers.
+  /// A frosted glass card grouping menu rows separated by dividers.
   Widget _group(List<_MenuItem> items) {
-    return Container(
-      width: double.infinity,
+    return GlassContainer(
+      borderRadius: 30,
       padding: const EdgeInsets.fromLTRB(10, 4, 20, 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Column(
         children: [
           for (var i = 0; i < items.length; i++) ...[
@@ -457,13 +463,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _logout(BuildContext context, AppLanguage lang) {
     return GestureDetector(
       onTap: () => _confirmLogout(lang),
-      child: Container(
-        width: double.infinity,
+      child: GlassContainer(
+        borderRadius: 999,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(999),
-        ),
         child: Row(
           children: [
             Container(

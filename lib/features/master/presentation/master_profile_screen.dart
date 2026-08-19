@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/master/data/master_service.dart';
@@ -153,13 +154,10 @@ class _PhotoCard extends StatelessWidget {
     final lang = LocaleController.language.value;
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: GlassContainer(
         width: double.infinity,
+        borderRadius: 16,
         padding: const EdgeInsets.symmetric(vertical: 24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -209,13 +207,10 @@ class _AboutCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
-    return Container(
+    return GlassContainer(
       width: double.infinity,
+      borderRadius: 20,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -228,13 +223,10 @@ class _AboutCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Container(
+          GlassContainer.lite(
             height: 140,
+            borderRadius: 20,
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(20),
-            ),
             child: TextField(
               controller: controller,
               scrollPadding: const EdgeInsets.only(bottom: 120),

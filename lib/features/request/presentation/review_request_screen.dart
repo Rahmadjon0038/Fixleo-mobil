@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/new_order_draft.dart';
 import 'package:fixleo/features/request/data/order_timing_label.dart';
@@ -115,42 +116,15 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: FilledButton(
-                onPressed: _sending ? null : _send,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.blue,
-                  foregroundColor: AppColors.background,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                ),
-                child: _sending
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(
-                        tr(
-                          lang,
-                          'Arizani yuborish',
-                          'Отправить заявку',
-                          'Send request',
-                        ),
-                        style: TextStyle(
-                          fontSize: 16,
-                          height: 22 / 16,
-                          letterSpacing: -0.18,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+            GlassButton(
+              label: tr(
+                lang,
+                'Arizani yuborish',
+                'Отправить заявку',
+                'Send request',
               ),
+              height: 52,
+              onPressed: _sending ? null : _send,
             ),
           ],
         ),
@@ -167,23 +141,18 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
       scheduledDate: d.scheduledDate,
       slotLabel: d.slot == null ? null : _slotLabels[d.slot],
     );
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 30,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Category chip.
-          Container(
+          // Category chip — nested inside an already-blurred card, so use
+          // .lite to avoid stacking another BackdropFilter.
+          GlassContainer.lite(
+            tint: _blue100,
+            borderRadius: 999,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: _blue100,
-              borderRadius: BorderRadius.circular(999),
-            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -291,13 +260,10 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
 
   Widget _hintCard() {
     final lang = LocaleController.language.value;
-    return Container(
-      width: double.infinity,
+    return GlassContainer(
+      tint: _blue100,
+      borderRadius: 30,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _blue100,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Text(
         tr(
           lang,

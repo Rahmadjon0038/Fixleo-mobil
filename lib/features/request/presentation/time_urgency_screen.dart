@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/features/request/data/new_order_draft.dart';
 import 'package:fixleo/features/request/presentation/review_request_screen.dart';
 
@@ -215,28 +216,10 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
             ),
             const SizedBox(height: 16),
             // "Davom etish" — Figma pill: 52px tall, fully rounded.
-            SizedBox(
-              width: double.infinity,
+            GlassButton(
+              label: tr(lang, 'Davom etish', 'Продолжить', 'Continue'),
               height: 52,
-              child: FilledButton(
-                onPressed: _continue,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.blue,
-                  foregroundColor: AppColors.background,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                ),
-                child: Text(
-                  tr(lang, 'Davom etish', 'Продолжить', 'Continue'),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    height: 22 / 16,
-                    letterSpacing: -0.18,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
+              onPressed: _continue,
             ),
           ],
         ),
@@ -246,13 +229,9 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
 
   Widget _optionsCard(AppLanguage lang) {
     final options = _options(lang);
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 20,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         children: [
           for (var i = 0; i < options.length; i++) ...[
@@ -273,30 +252,37 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
     final value = _scheduledDate == null
         ? tr(lang, 'Sanani tanlang', 'Выберите дату', 'Choose a date')
         : _ymd(_scheduledDate!);
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        onTap: _pickDate,
+    return GlassContainer(
+      borderRadius: 20,
+      padding: EdgeInsets.zero,
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Row(
-            children: [
-              const Icon(Icons.calendar_month_outlined, color: AppColors.blue),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.navy,
+        child: InkWell(
+          onTap: _pickDate,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.calendar_month_outlined,
+                  color: AppColors.blue,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.navy,
+                    ),
                   ),
                 ),
-              ),
-              const Icon(Icons.chevron_right, color: Color(0xFF8D96A4)),
-            ],
+                const Icon(Icons.chevron_right, color: Color(0xFF8D96A4)),
+              ],
+            ),
           ),
         ),
       ),
@@ -304,13 +290,9 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
   }
 
   Widget _slotsCard(AppLanguage lang, {required String title}) {
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 20,
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -355,14 +337,13 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
     final selected = _slot == i;
     return GestureDetector(
       onTap: () => setState(() => _slot = i),
-      child: Container(
+      // Repeated chip inside an already-blurred card — .lite avoids stacking
+      // another BackdropFilter.
+      child: GlassContainer.lite(
         height: 36,
         alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? AppColors.blue : Colors.white,
-          borderRadius: BorderRadius.circular(999),
-          border: selected ? null : Border.all(color: AppColors.background),
-        ),
+        tint: selected ? AppColors.blue : Colors.white,
+        borderRadius: 999,
         child: Text(
           _slots[i],
           style: TextStyle(
@@ -394,47 +375,54 @@ class _OptionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      // Selection ring drawn as a plain border wrapper around the glass fill
+      // — GlassContainer's own border is a fixed white/light edge, so the
+      // blue selected-state outline is layered on top of it.
       child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
-          color: selected ? Colors.white : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(32),
           border: selected
               ? Border.all(color: const Color(0xFF60A5FA), width: 1.5)
               : null,
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      height: 22 / 16,
-                      letterSpacing: -0.18,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.navy,
+        // Repeated row inside an already-blurred card — .lite avoids
+        // stacking another BackdropFilter.
+        child: GlassContainer.lite(
+          tint: selected ? Colors.white : const Color(0xFFF8FAFC),
+          borderRadius: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        height: 22 / 16,
+                        letterSpacing: -0.18,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.navy,
+                      ),
                     ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      height: 20 / 14,
-                      letterSpacing: -0.16,
-                      color: Color(0xFF8D96A4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        height: 20 / 14,
+                        letterSpacing: -0.16,
+                        color: Color(0xFF8D96A4),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            _Radio(selected: selected),
-          ],
+              const SizedBox(width: 10),
+              _Radio(selected: selected),
+            ],
+          ),
         ),
       ),
     );

@@ -8,6 +8,7 @@ class AppNotification {
     required this.type,
     required this.title,
     required this.body,
+    this.data = const {},
     this.readAt,
     this.createdAt,
   });
@@ -15,15 +16,24 @@ class AppNotification {
   final String type;
   final String title;
   final String body;
+
+  /// Free-form event payload the backend attaches per type — e.g.
+  /// `{orderId: 12}` or `{conversationId: 3, orderId: 12}` — used to route a
+  /// tap on the notification to the relevant screen.
+  final Map<String, dynamic> data;
   final DateTime? readAt;
   final DateTime? createdAt;
   bool get isRead => readAt != null;
+
+  int? get orderId => (data['orderId'] as num?)?.toInt();
+  int? get conversationId => (data['conversationId'] as num?)?.toInt();
 
   factory AppNotification.fromJson(Map<String, dynamic> j) => AppNotification(
     id: _int(j['id']),
     type: j['type'] as String? ?? '',
     title: j['title'] as String? ?? '',
     body: j['body'] as String? ?? '',
+    data: (j['data'] as Map<String, dynamic>?) ?? const {},
     readAt: DateTime.tryParse(j['readAt']?.toString() ?? ''),
     createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
   );

@@ -6,8 +6,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/core/network/current_user.dart';
 import 'package:fixleo/features/master/data/master_marketplace_models.dart';
 import 'package:fixleo/features/master/data/master_marketplace_service.dart';
 import 'package:fixleo/features/master/presentation/master_home_screen.dart';
@@ -92,19 +94,26 @@ class _MasterOrderCompletionScreenState
     final order = _order;
     if (order == null) return;
     final lang = LocaleController.language.value;
+    final isDemo = CurrentUser.instance.isDemo;
     int? finalAmount;
     if (order.priceType != 'fixed') {
-      finalAmount = int.tryParse(_amount.text.replaceAll(RegExp(r'\s+'), ''));
-      if (finalAmount == null || finalAmount < 1000) {
-        _snack(
-          tr(
-            lang,
-            'Yakuniy summani kiriting (kamida 1 000 soʻm)',
-            'Введите итоговую сумму (минимум 1 000 сум)',
-            'Enter the final amount (at least 1,000 sum)',
-          ),
-        );
-        return;
+      if (isDemo) {
+        // No amount field is shown to a demo account — the backend masks
+        // this value regardless, so any placeholder satisfies the API.
+        finalAmount = 1000;
+      } else {
+        finalAmount = int.tryParse(_amount.text.replaceAll(RegExp(r'\s+'), ''));
+        if (finalAmount == null || finalAmount < 1000) {
+          _snack(
+            tr(
+              lang,
+              'Yakuniy summani kiriting (kamida 1 000 soʻm)',
+              'Введите итоговую сумму (минимум 1 000 сум)',
+              'Enter the final amount (at least 1,000 sum)',
+            ),
+          );
+          return;
+        }
       }
     }
     setState(() => _busy = true);
@@ -119,6 +128,25 @@ class _MasterOrderCompletionScreenState
         photoKeys: photoKeys,
       );
       if (!mounted) return;
+      if (isDemo) {
+        // A SnackBar would be cut off by pushAndRemoveUntil below (it tears
+        // down this screen's Scaffold), so hold briefly before navigating.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            duration: const Duration(milliseconds: 1400),
+            content: Text(
+              tr(
+                lang,
+                'Rahmat! Ish muvaffaqiyatli yakunlandi.',
+                'Спасибо! Работа успешно завершена.',
+                'Thank you! The job was completed successfully.',
+              ),
+            ),
+          ),
+        );
+        await Future.delayed(const Duration(milliseconds: 1400));
+        if (!mounted) return;
+      }
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MasterHomeScreen()),
         (route) => false,
@@ -173,7 +201,8 @@ class _MasterOrderCompletionScreenState
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                     children: [
                       _SummaryCard(lang: lang, order: _order!),
-                      if (_order!.priceType != 'fixed') ...[
+                      if (_order!.priceType != 'fixed' &&
+                          !CurrentUser.instance.isDemo) ...[
                         const SizedBox(height: 10),
                         _AmountCard(lang: lang, controller: _amount),
                       ],
@@ -236,13 +265,9 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 20,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         children: [
           _SummaryRow(
@@ -283,24 +308,16 @@ class _AmountCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassCard(
+      radius: 20,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: TextField(
+      child: GlassTextField(
         controller: controller,
         keyboardType: TextInputType.number,
-        decoration: InputDecoration(
-          labelText: tr(
-            lang,
-            'Yakuniy summa',
-            'Итоговая сумма',
-            'Final amount',
-          ),
-          suffixText: tr(lang, 'soʻm', 'сум', 'sum'),
-          border: const OutlineInputBorder(),
+        hintText: tr(lang, 'Yakuniy summa', 'Итоговая сумма', 'Final amount'),
+        trailing: Text(
+          tr(lang, 'soʻm', 'сум', 'sum'),
+          style: const TextStyle(color: AppColors.muted),
         ),
       ),
     );
@@ -366,13 +383,9 @@ class _PhotosCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 30,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -431,17 +444,14 @@ class _AddPhotoTile extends StatelessWidget {
           gap: 4,
           strokeWidth: 1.5,
         ),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Center(
-            child: Icon(
-              Icons.add_photo_alternate_outlined,
-              size: 24,
-              color: AppColors.blue,
-            ),
+        child: GlassContainer.lite(
+          tint: AppColors.background,
+          borderRadius: 16,
+          alignment: Alignment.center,
+          child: const Icon(
+            Icons.add_photo_alternate_outlined,
+            size: 24,
+            color: AppColors.blue,
           ),
         ),
       ),
@@ -497,13 +507,12 @@ class _InfoBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return GlassContainer(
+      tint: const Color(0xFFDBEAFE),
+      tintOpacityTop: 0.85,
+      tintOpacityBottom: 0.7,
+      borderRadius: 30,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFDBEAFE),
-        borderRadius: BorderRadius.circular(30),
-      ),
       child: Text(
         text,
         style: const TextStyle(

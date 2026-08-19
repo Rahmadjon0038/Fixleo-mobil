@@ -17,6 +17,9 @@ class CurrentUser {
 
   String? get name => profile.value?.name;
 
+  /// App-store/Play-Market review account — the app must hide all money UI.
+  bool get isDemo => profile.value?.isDemo ?? false;
+
   /// Fetches the current user's profile for the active role. Safe to call from
   /// several screens — failures are swallowed (the greeting just falls back).
   Future<void> refresh({ApiClient? client}) async {
@@ -39,6 +42,7 @@ class CurrentUser {
           phone: data['phone'] as String?,
           city: data['city'] as String?,
           avatarUrl: ApiConfig.resolveMediaUrl(data['avatarUrl']),
+          isDemo: data['isDemo'] as bool? ?? false,
         );
       }
     } catch (_) {
@@ -50,11 +54,20 @@ class CurrentUser {
 }
 
 class UserProfile {
-  const UserProfile({this.name, this.phone, this.city, this.avatarUrl});
+  const UserProfile({
+    this.name,
+    this.phone,
+    this.city,
+    this.avatarUrl,
+    this.isDemo = false,
+  });
   final String? name;
   final String? phone;
   final String? city;
   final String? avatarUrl;
+
+  /// App-store/Play-Market review account — the app must hide all money UI.
+  final bool isDemo;
 
   /// First name only, for the greeting ("Добрый день, Арслан!").
   String? get firstName {

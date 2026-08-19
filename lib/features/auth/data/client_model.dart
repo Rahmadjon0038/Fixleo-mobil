@@ -13,6 +13,7 @@ class Client {
     this.blockReason,
     this.createdAt,
     this.updatedAt,
+    this.isDemo = false,
   });
 
   /// Public id, e.g. `#U-00000000001`.
@@ -29,6 +30,9 @@ class Client {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  /// App-store/Play-Market review account — the app must hide all money UI.
+  final bool isDemo;
+
   bool get isActive => status == 'active';
   bool get isBlocked => status == 'blocked';
 
@@ -43,5 +47,6 @@ class Client {
     blockReason: json['blockReason'] as String?,
     createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
     updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
+    isDemo: json['isDemo'] as bool? ?? false,
   );
 }

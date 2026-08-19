@@ -3,8 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/features/master/presentation/master_orders_screen.dart';
+import 'package:fixleo/features/master/presentation/master_request_detail_screen.dart';
 import 'package:fixleo/features/notifications/data/notification_service.dart';
+import 'package:fixleo/features/request/presentation/chats_list_screen.dart';
+import 'package:fixleo/features/request/presentation/masters_responses_screen.dart';
+import 'package:fixleo/features/request/presentation/order_tracking_screen.dart';
 
 /// Real in-app notification inbox shared by clients and masters.
 ///
@@ -128,10 +134,52 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         padding: const EdgeInsets.only(bottom: 12),
         itemCount: _items.length,
         separatorBuilder: (context, index) => const SizedBox(height: 10),
-        itemBuilder: (_, index) =>
-            _NotificationCard(notification: _items[index], lang: lang),
+        itemBuilder: (_, index) => _NotificationCard(
+          notification: _items[index],
+          lang: lang,
+          onTap: () => _open(_items[index]),
+        ),
       ),
     );
+  }
+
+  /// Routes a tapped notification to the screen it's actually about, using
+  /// the `orderId`/`conversationId` the backend already attaches to every
+  /// event (see `AppNotification.data`) — previously these cards were purely
+  /// decorative, with no way to act on them.
+  void _open(AppNotification notification) {
+    final isMaster = widget.kind == 'master';
+    if (notification.type == 'chat_message') {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => LiveChatsScreen(kind: widget.kind)),
+      );
+      return;
+    }
+    final orderId = notification.orderId;
+    if (orderId == null) return;
+    if (!isMaster && notification.type == 'offer_received') {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => MastersResponsesScreen(orderId: orderId),
+        ),
+      );
+    } else if (isMaster && notification.type == 'new_order_nearby') {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => MasterRequestDetailScreen(orderId: orderId),
+        ),
+      );
+    } else if (isMaster) {
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const MasterOrdersScreen()));
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => OrderTrackingScreen(orderId: orderId),
+        ),
+      );
+    }
   }
 
   Widget _placeholder(AppLanguage lang, String message, {bool retry = false}) {
@@ -168,10 +216,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 }
 
 class _NotificationCard extends StatelessWidget {
-  const _NotificationCard({required this.notification, required this.lang});
+  const _NotificationCard({
+    required this.notification,
+    required this.lang,
+    required this.onTap,
+  });
 
   final AppNotification notification;
   final AppLanguage lang;
+  final VoidCallback onTap;
 
   IconData get _icon {
     final type = notification.type;
@@ -190,6 +243,7 @@ class _NotificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
+      button: true,
       label: notification.isRead
           ? notification.title
           : tr(
@@ -198,92 +252,81 @@ class _NotificationCard extends StatelessWidget {
               'Непрочитано: ${notification.title}',
               'Unread: ${notification.title}',
             ),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: notification.isRead
-                ? Colors.white
-                : AppColors.blue.withValues(alpha: 0.22),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF0F172A).withValues(alpha: 0.08),
-              blurRadius: 18,
-              offset: const Offset(0, 7),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.blue.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Icon(_icon, size: 22, color: AppColors.blue),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: ExcludeSemantics(
+          child: GlassCard.lite(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.blue.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Icon(_icon, size: 22, color: AppColors.blue),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          notification.title,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            height: 20 / 15,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.navy,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              notification.title,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                height: 20 / 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.navy,
+                              ),
+                            ),
                           ),
-                        ),
+                          if (!notification.isRead) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              width: 8,
+                              height: 8,
+                              margin: const EdgeInsets.only(top: 6),
+                              decoration: const BoxDecoration(
+                                color: AppColors.blue,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                      if (!notification.isRead) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          width: 8,
-                          height: 8,
-                          margin: const EdgeInsets.only(top: 6),
-                          decoration: const BoxDecoration(
-                            color: AppColors.blue,
-                            shape: BoxShape.circle,
+                      if (notification.body.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          notification.body,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            height: 20 / 14,
+                            color: Color(0xFF64748B),
                           ),
                         ),
                       ],
+                      const SizedBox(height: 8),
+                      Text(
+                        _timeLabel(notification.createdAt, lang),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF9AA4B2),
+                        ),
+                      ),
                     ],
                   ),
-                  if (notification.body.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      notification.body,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        height: 20 / 14,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  Text(
-                    _timeLabel(notification.createdAt, lang),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF9AA4B2),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

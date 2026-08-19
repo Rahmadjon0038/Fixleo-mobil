@@ -50,6 +50,7 @@ class Master {
     this.categories = const [],
     this.createdAt,
     this.updatedAt,
+    this.isDemo = false,
   });
 
   /// Public id, e.g. `#M-00000000001`.
@@ -70,6 +71,9 @@ class Master {
   final List<Category> categories;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+
+  /// App-store/Play-Market review account — the app must hide all money UI.
+  final bool isDemo;
 
   factory Master.fromJson(Map<String, dynamic> json) {
     final rejectionReason = json['rejectionReason'] as String?;
@@ -98,6 +102,7 @@ class Master {
           .toList(growable: false),
       createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
       updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
+      isDemo: json['isDemo'] as bool? ?? false,
     );
   }
 }

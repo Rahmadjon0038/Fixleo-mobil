@@ -4,8 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/core/network/current_user.dart';
 import 'package:fixleo/features/master/data/master_marketplace_service.dart';
 import 'package:fixleo/features/master/presentation/master_offer_sent_screen.dart';
 
@@ -82,6 +84,10 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
       tr(lang, 'Diapazon', 'Диапазон', 'Range'),
       tr(lang, 'Koʻrgandan keyin', 'После осмотра', 'After inspection'),
     ];
+    // Demo (app-store/Play-Market review) master — never show a price field.
+    // `_type` stays at its default (0 = fixed) and `_price` keeps its default
+    // placeholder text, so `_submit()` still sends a valid offer underneath.
+    final isDemo = CurrentUser.instance.isDemo;
     return BrandedScaffold(
       title: tr(lang, 'Sizning taklifingiz', 'Ваше предложение', 'Your offer'),
       showBack: true,
@@ -90,75 +96,57 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Price type.
-            _Card(
-              title: tr(lang, 'Narx turi', 'Тип цены', 'Price type'),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _TypeChip(
-                      label: types[0],
-                      selected: _type == 0,
-                      onTap: () => setState(() => _type = 0),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _TypeChip(
-                      label: types[1],
-                      selected: _type == 1,
-                      onTap: () => setState(() => _type = 1),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _TypeChip(
-                    label: types[2],
-                    selected: _type == 2,
-                    onTap: () => setState(() => _type = 2),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            // Price amount.
-            _Card(
-              title: tr(lang, 'Sizning narxingiz', 'Ваша цена', 'Your price'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 13,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(32),
-                ),
+            if (!isDemo) ...[
+              // Price type.
+              _Card(
+                title: tr(lang, 'Narx turi', 'Тип цены', 'Price type'),
                 child: Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        controller: _price,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [_ThousandsSeparatorInputFormatter()],
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.navy,
-                        ),
-                        decoration: const InputDecoration(
-                          isCollapsed: true,
-                          border: InputBorder.none,
-                        ),
+                      child: _TypeChip(
+                        label: types[0],
+                        selected: _type == 0,
+                        onTap: () => setState(() => _type = 0),
                       ),
                     ),
-                    Text(
-                      tr(lang, 'soʻm', 'сум', 'sum'),
-                      style: TextStyle(fontSize: 14, color: AppColors.muted),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _TypeChip(
+                        label: types[1],
+                        selected: _type == 1,
+                        onTap: () => setState(() => _type = 1),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _TypeChip(
+                      label: types[2],
+                      selected: _type == 2,
+                      onTap: () => setState(() => _type = 2),
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
+              // Price amount.
+              _Card(
+                title: tr(lang, 'Sizning narxingiz', 'Ваша цена', 'Your price'),
+                child: GlassTextField(
+                  controller: _price,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [_ThousandsSeparatorInputFormatter()],
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.navy,
+                  ),
+                  trailing: Text(
+                    tr(lang, 'soʻm', 'сум', 'sum'),
+                    style: TextStyle(fontSize: 14, color: AppColors.muted),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
             // Comment.
             _Card(
               title: tr(
@@ -167,35 +155,21 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
                 'Комментарий клиенту',
                 'Note to the client',
               ),
-              child: Container(
+              child: GlassTextField(
+                controller: _comment,
                 height: 110,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(20),
+                maxLines: 5,
+                keyboardType: TextInputType.multiline,
+                textStyle: const TextStyle(
+                  fontSize: 14,
+                  height: 20 / 14,
+                  color: AppColors.navy,
                 ),
-                child: TextField(
-                  controller: _comment,
-                  maxLines: null,
-                  expands: true,
-                  textAlignVertical: TextAlignVertical.top,
-                  keyboardType: TextInputType.multiline,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    height: 20 / 14,
-                    color: AppColors.navy,
-                  ),
-                  decoration: InputDecoration(
-                    isCollapsed: true,
-                    border: InputBorder.none,
-                    hintText: tr(
-                      lang,
-                      'Masalan: Bir soat ichida yetib bora olaman.',
-                      'Например: могу подъехать в течение часа.',
-                      'For example: I can arrive within an hour.',
-                    ),
-                    hintStyle: TextStyle(fontSize: 14, color: AppColors.muted),
-                  ),
+                hintText: tr(
+                  lang,
+                  'Masalan: Bir soat ichida yetib bora olaman.',
+                  'Например: могу подъехать в течение часа.',
+                  'For example: I can arrive within an hour.',
                 ),
               ),
             ),
@@ -287,7 +261,7 @@ class _ThousandsSeparatorInputFormatter extends TextInputFormatter {
   }
 }
 
-/// White section card with a semibold title and content below.
+/// Frosted glass section card with a semibold title and content below.
 class _Card extends StatelessWidget {
   const _Card({required this.title, required this.child});
 
@@ -296,13 +270,9 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      radius: 20,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -336,24 +306,30 @@ class _TypeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final text = Text(
+      label,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: 14,
+        color: selected ? Colors.white : AppColors.navy,
+      ),
+    );
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.blue : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 14,
-            color: selected ? Colors.white : AppColors.navy,
-          ),
-        ),
-      ),
+      child: selected
+          ? GlassContainer.tinted(
+              borderRadius: 999,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: text,
+            )
+          : GlassContainer.lite(
+              tint: const Color(0xFFF1F5F9),
+              borderRadius: 999,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: text,
+            ),
     );
   }
 }

@@ -250,13 +250,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // BrandedScaffold previously supplied this top spacing. Keep the
-          // home layout unchanged while the top-level tabs share one shell.
-          const SizedBox(height: 44),
+          const SizedBox(height: 8),
           _HomeHeader(
             lang: lang,
             unreadNotifications: _unreadNotifications,
             onNotifications: _openNotifications,
+            onProfile: () => _setTab(4),
           ),
           const SizedBox(height: 14),
           _GreetingCard(
@@ -346,7 +345,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       child: LiquidGlassNavBar(
                         items: _visibleNavItems(navItems),
                         currentIndex: _visibleNavIndex(_navIndex),
-                        onTap: (visibleIndex) => _setTab(_realNavIndex(visibleIndex)),
+                        onTap: (visibleIndex) =>
+                            _setTab(_realNavIndex(visibleIndex)),
                       ),
                     ),
                   ],
@@ -365,11 +365,13 @@ class _HomeHeader extends StatelessWidget {
     required this.lang,
     required this.unreadNotifications,
     required this.onNotifications,
+    required this.onProfile,
   });
 
   final AppLanguage lang;
   final int unreadNotifications;
   final VoidCallback onNotifications;
+  final VoidCallback onProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -414,6 +416,8 @@ class _HomeHeader extends StatelessWidget {
         const SizedBox(width: 12),
         GlassIconButton(
           size: 48,
+          semanticLabel: tr(lang, 'Profil', 'Профиль', 'Profile'),
+          onTap: onProfile,
           child: SvgPicture.asset(
             'assets/icon/usericon.svg',
             width: 21,
@@ -1074,21 +1078,29 @@ class _FeedbackCard extends StatelessWidget {
     return GlassContainer(
       height: 122,
       borderRadius: 24,
-      padding: const EdgeInsets.all(14),
+      padding: EdgeInsets.zero,
       child: Stack(
         children: [
-          SizedBox(
-            width: 118,
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.navy,
-                height: 1.25,
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: SizedBox(
+              width: 118,
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navy,
+                  height: 1.25,
+                ),
               ),
             ),
           ),
+          // Bleeds to the true card corner (not inset by the text padding),
+          // matching the Figma reference. Kept at the original 64px — a
+          // bigger illustration reached up far enough to sit under the
+          // three-line Uzbek support-card title ("Qo'llab-quvvatlashga
+          // yozish"), so the text rendered as if cut off by the icon.
           Positioned(
             right: 0,
             bottom: 0,
@@ -1150,7 +1162,7 @@ String _activeStatusLabel(AppLanguage lang, OrderSummary o) {
     case 'searching':
       return tr(lang, 'Usta qidirilmoqda', 'Ищем мастера', 'Finding a master');
     case 'assigned':
-      return tr(lang, 'Usta tayinlandi', 'Мастер назначен', 'Master assigned');
+      return tr(lang, 'Jarayonda', 'В процессе', 'In progress');
     case 'on_the_way':
       return tr(lang, 'Usta yoʻlda', 'Мастер в пути', 'Master on the way');
     case 'arrived':

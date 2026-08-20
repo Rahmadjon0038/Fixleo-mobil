@@ -9,6 +9,7 @@ import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/core/media/avatar_picker.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/core/network/current_user.dart';
 import 'package:fixleo/features/master/data/master_model.dart';
@@ -33,7 +34,7 @@ class _MasterEditProfileScreenState extends State<MasterEditProfileScreen> {
   late final TextEditingController _city;
   late final TextEditingController _experience;
   late final TextEditingController _bio;
-  XFile? _newPhoto;
+  String? _newPhotoPath;
   bool _saving = false;
   String? _error;
 
@@ -100,12 +101,8 @@ class _MasterEditProfileScreenState extends State<MasterEditProfileScreen> {
       ),
     );
     if (source == null) return;
-    final file = await _picker.pickImage(
-      source: source,
-      imageQuality: 85,
-      maxWidth: 1600,
-    );
-    if (file != null && mounted) setState(() => _newPhoto = file);
+    final path = await pickAndCropAvatar(picker: _picker, source: source);
+    if (path != null && mounted) setState(() => _newPhotoPath = path);
   }
 
   Future<void> _save() async {
@@ -115,8 +112,8 @@ class _MasterEditProfileScreenState extends State<MasterEditProfileScreen> {
       _error = null;
     });
     try {
-      if (_newPhoto != null) {
-        await _service.uploadAvatar(_newPhoto!.path);
+      if (_newPhotoPath != null) {
+        await _service.uploadAvatar(_newPhotoPath!);
       }
       var updated = await _service.updateProfile(
         name: _name.text.trim(),
@@ -236,8 +233,8 @@ class _MasterEditProfileScreenState extends State<MasterEditProfileScreen> {
               color: const Color(0xFFF1F5F9),
               borderRadius: BorderRadius.circular(28),
             ),
-            child: _newPhoto != null
-                ? Image.file(File(_newPhoto!.path), fit: BoxFit.cover)
+            child: _newPhotoPath != null
+                ? Image.file(File(_newPhotoPath!), fit: BoxFit.cover)
                 : widget.master.avatarUrl != null
                 ? Image.network(
                     widget.master.avatarUrl!,

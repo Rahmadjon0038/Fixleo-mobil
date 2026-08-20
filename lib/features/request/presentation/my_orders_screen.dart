@@ -169,7 +169,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         (o.offersCount > 0
             ? tr(
                 lang,
-                'Otkliklar: ${o.offersCount}',
+                'Takliflar: ${o.offersCount}',
                 'Откликов: ${o.offersCount}',
                 'Offers: ${o.offersCount}',
               )

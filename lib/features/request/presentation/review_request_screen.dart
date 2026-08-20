@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/full_screen_photo_gallery.dart';
 import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/request/data/new_order_draft.dart';
@@ -209,21 +210,29 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
                 scrollDirection: Axis.horizontal,
                 itemCount: d.photoPaths.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (context, index) => ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.file(
-                    File(d.photoPaths[index]),
-                    width: 72,
-                    height: 72,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Container(
+                itemBuilder: (context, index) => GestureDetector(
+                  onTap: () => showFullScreenPhotoGallery(
+                    context,
+                    photos: d.photoPaths,
+                    initialIndex: index,
+                    isLocalFile: true,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(
+                      File(d.photoPaths[index]),
                       width: 72,
                       height: 72,
-                      alignment: Alignment.center,
-                      color: const Color(0xFFE2E8F0),
-                      child: const Icon(
-                        Icons.broken_image_outlined,
-                        color: _gray,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Container(
+                        width: 72,
+                        height: 72,
+                        alignment: Alignment.center,
+                        color: const Color(0xFFE2E8F0),
+                        child: const Icon(
+                          Icons.broken_image_outlined,
+                          color: _gray,
+                        ),
                       ),
                     ),
                   ),

@@ -597,7 +597,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             label: tr(lang, 'Narx', 'Цена', 'Price'),
             value: price != null
                 ? _money(price)
-                : tr(lang, 'Otkliklar boʻyicha', 'по откликам', 'by offers'),
+                : tr(lang, 'Takliflar boʻyicha', 'по откликам', 'by offers'),
           ),
         ],
       ),

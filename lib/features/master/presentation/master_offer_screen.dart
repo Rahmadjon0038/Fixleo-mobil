@@ -25,7 +25,7 @@ class MasterOfferScreen extends StatefulWidget {
 class _MasterOfferScreenState extends State<MasterOfferScreen> {
   static const _typeCodes = ['fixed', 'range', 'after_inspection'];
 
-  final _price = TextEditingController(text: '50 000');
+  final _price = TextEditingController();
   final _comment = TextEditingController();
   final MasterMarketplaceService _market = MasterMarketplaceService();
   int _type = 0;
@@ -45,14 +45,21 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
     if (priceType != 'after_inspection') {
       price = int.tryParse(_price.text.replaceAll(RegExp(r'[^0-9]'), ''));
       if (price == null || price <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              tr(lang, 'Narxni kiriting', 'Введите цену', 'Enter a price'),
+        // Demo (review) accounts never see the price field at all, so there
+        // was nothing for them to type — fall back instead of blocking on
+        // an "enter a price" error for a field they can't reach.
+        if (CurrentUser.instance.isDemo) {
+          price = 50000;
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                tr(lang, 'Narxni kiriting', 'Введите цену', 'Enter a price'),
+              ),
             ),
-          ),
-        );
-        return;
+          );
+          return;
+        }
       }
     }
     setState(() => _busy = true);
@@ -85,8 +92,8 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
       tr(lang, 'Koʻrgandan keyin', 'После осмотра', 'After inspection'),
     ];
     // Demo (app-store/Play-Market review) master — never show a price field.
-    // `_type` stays at its default (0 = fixed) and `_price` keeps its default
-    // placeholder text, so `_submit()` still sends a valid offer underneath.
+    // `_type` stays at its default (0 = fixed); `_submit()` falls back to a
+    // fixed demo price since there's no field left for them to fill in.
     final isDemo = CurrentUser.instance.isDemo;
     return BrandedScaffold(
       title: tr(lang, 'Sizning taklifingiz', 'Ваше предложение', 'Your offer'),
@@ -118,10 +125,16 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    _TypeChip(
-                      label: types[2],
-                      selected: _type == 2,
-                      onTap: () => setState(() => _type = 2),
+                    // Was unconstrained, sizing to its own (longest) label —
+                    // that squeezed the other two chips until "Diapazon"
+                    // no longer fit on one line and wrapped, making that
+                    // one chip taller than its neighbors.
+                    Expanded(
+                      child: _TypeChip(
+                        label: types[2],
+                        selected: _type == 2,
+                        onTap: () => setState(() => _type = 2),
+                      ),
                     ),
                   ],
                 ),
@@ -134,6 +147,7 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
                   controller: _price,
                   keyboardType: TextInputType.number,
                   inputFormatters: [_ThousandsSeparatorInputFormatter()],
+                  hintText: '50 000',
                   textStyle: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -203,6 +217,13 @@ class _ThousandsSeparatorInputFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
+    // Pure cursor/selection move (arrow keys, tap) — the text is unchanged,
+    // so leave the selection exactly as the platform placed it. Re-deriving
+    // it from a digit count collapses the "before the space" / "after the
+    // space" cursor positions into one, which makes left/right navigation
+    // get stuck at the space between digit groups.
+    if (newValue.text == oldValue.text) return newValue;
+
     final digits = newValue.text.replaceAll(_nonDigits, '');
     if (digits.isEmpty) {
       return const TextEditingValue(
@@ -306,12 +327,18 @@ class _TypeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = Text(
-      label,
-      textAlign: TextAlign.center,
-      style: TextStyle(
-        fontSize: 14,
-        color: selected ? Colors.white : AppColors.navy,
+    // FittedBox + maxLines: 1 shrinks the label to fit instead of wrapping —
+    // wrapping made a chip taller than its neighbors and broke the row.
+    final text = FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        label,
+        maxLines: 1,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 14,
+          color: selected ? Colors.white : AppColors.navy,
+        ),
       ),
     );
     return GestureDetector(

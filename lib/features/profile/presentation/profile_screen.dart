@@ -4,7 +4,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/full_screen_image_viewer.dart';
 import 'package:fixleo/app/widgets/glass/glass.dart';
+import 'package:fixleo/core/media/avatar_picker.dart';
 import 'package:fixleo/features/auth/data/client_auth_service.dart';
 import 'package:fixleo/features/auth/data/client_model.dart';
 import 'package:fixleo/features/welcome/presentation/intro_screen.dart';
@@ -104,19 +106,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (action == 'delete') {
       await _deleteAvatar();
     } else if (action == 'gallery' || action == 'camera') {
-      final file = await _picker.pickImage(
+      final path = await pickAndCropAvatar(
+        picker: _picker,
         source: action == 'camera' ? ImageSource.camera : ImageSource.gallery,
-        imageQuality: 85,
-        maxWidth: 1600,
       );
-      if (file != null) await _uploadAvatar(file);
+      if (path != null) await _uploadAvatar(path);
     }
   }
 
-  Future<void> _uploadAvatar(XFile file) async {
+  Future<void> _uploadAvatar(String path) async {
     setState(() => _avatarBusy = true);
     try {
-      final updated = await _authService.uploadAvatar(file.path);
+      final updated = await _authService.uploadAvatar(path);
       if (!mounted) return;
       setState(() => _client = updated);
       await CurrentUser.instance.refresh();
@@ -360,12 +361,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          GestureDetector(
-            onTap: _chooseAvatarSource,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              GestureDetector(
+                // The photo itself opens full-screen when there is one;
+                // with no photo yet, tapping it starts the same pick flow
+                // as the edit badge.
+                onTap: _client?.avatarUrl != null
+                    ? () => showFullScreenImage(context, _client!.avatarUrl!)
+                    : _chooseAvatarSource,
+                child: Container(
                   width: 66,
                   height: 66,
                   decoration: BoxDecoration(
@@ -386,9 +392,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         )
                       : const Icon(Icons.person, size: 38, color: _gray),
                 ),
-                Positioned(
-                  right: -5,
-                  bottom: -5,
+              ),
+              Positioned(
+                right: -5,
+                bottom: -5,
+                child: GestureDetector(
+                  onTap: _chooseAvatarSource,
                   child: Container(
                     width: 24,
                     height: 24,
@@ -407,8 +416,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         : const Icon(Icons.edit, size: 14, color: Colors.white),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           Text(

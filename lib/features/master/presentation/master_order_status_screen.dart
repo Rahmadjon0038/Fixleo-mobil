@@ -23,10 +23,24 @@ class MasterOrderStatusScreen extends StatefulWidget {
 }
 
 class _MasterOrderStatusScreenState extends State<MasterOrderStatusScreen> {
+  static const _terminalStatuses = {
+    'completed',
+    'disputed',
+    'cancelled_by_client',
+    'cancelled_by_master',
+    'expired',
+  };
+
   final MasterMarketplaceService _market = MasterMarketplaceService();
   MasterOrderDetail? _order;
   bool _loading = true;
   bool _busy = false;
+
+  /// A finished/cancelled/expired order has nothing left to "advance" —
+  /// notification taps (payment received, order completed, ...) land here
+  /// for orders in exactly this state, so the advance button needs to stay
+  /// hidden instead of offering to re-run the completion flow.
+  bool get _isTerminal => _terminalStatuses.contains(_order?.status);
 
   @override
   void initState() {
@@ -59,7 +73,7 @@ class _MasterOrderStatusScreenState extends State<MasterOrderStatusScreen> {
 
   Future<void> _advance() async {
     final o = _order;
-    if (o == null || _busy) return;
+    if (o == null || _busy || _isTerminal) return;
     setState(() => _busy = true);
     try {
       if (o.status == 'assigned') {
@@ -103,59 +117,135 @@ class _MasterOrderStatusScreenState extends State<MasterOrderStatusScreen> {
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
     final statuses = _statuses(lang);
-    if (_loading) {
+    if (_loading || _order == null) {
       return BrandedScaffold(
         title: tr(lang, 'Buyurtma holati', 'Статус заказа', 'Order status'),
         showBack: true,
-        body: const Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: _loading
+              ? const CircularProgressIndicator()
+              : Text(
+                  tr(
+                    lang,
+                    'Buyurtmani yuklab boʻlmadi',
+                    'Не удалось загрузить заказ',
+                    'Could not load the order',
+                  ),
+                  style: const TextStyle(color: Color(0xFF8D96A4)),
+                ),
+        ),
       );
     }
+    final o = _order!;
     return BrandedScaffold(
-      title: tr(lang, 'Buyurtma holati', 'Статус заказа', 'Order status'),
+      title:
+          tr(lang, 'Buyurtma', 'Заказ', 'Order') +
+          (o.id != 0 ? ' #${o.id}' : ''),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
         child: Column(
           children: [
-            _Card(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  for (var i = 0; i < statuses.length; i++) ...[
-                    if (i != 0) const SizedBox(height: 10),
-                    _StatusRow(
-                      status: statuses[i].copyWith(
-                        selected: i <= _selectedIndex,
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // What the order is actually about — title/address/price
+                    // — so a notification tap ("payment received", "order
+                    // completed") lands on something specific to that order,
+                    // not just a bare status tracker.
+                    _Card(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            o.title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.navy,
+                            ),
+                          ),
+                          if (o.clientName?.isNotEmpty == true) ...[
+                            const SizedBox(height: 6),
+                            _InfoLine(
+                              icon: Icons.person_outline,
+                              text:
+                                  '${tr(lang, 'Mijoz', 'Клиент', 'Client')} — ${o.clientName}',
+                            ),
+                          ],
+                          const SizedBox(height: 6),
+                          _InfoLine(
+                            icon: Icons.location_on_outlined,
+                            text: o.addressText,
+                          ),
+                          if (o.price != null) ...[
+                            const SizedBox(height: 6),
+                            _InfoLine(
+                              icon: Icons.payments_outlined,
+                              text:
+                                  '${o.price} ${tr(lang, 'soʻm', 'сум', 'sum')}',
+                            ),
+                          ],
+                        ],
                       ),
-                      onTap: null,
                     ),
+                    // The step-by-step tracker only means something for a
+                    // job still in progress — a "payment received"/"order
+                    // completed" notification tap landed here for an order
+                    // that's already finished, where a full 4-step checklist
+                    // is just noise on top of the info card above.
+                    if (!_isTerminal) ...[
+                      const SizedBox(height: 10),
+                      _Card(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            for (var i = 0; i < statuses.length; i++) ...[
+                              if (i != 0) const SizedBox(height: 10),
+                              _StatusRow(
+                                status: statuses[i].copyWith(
+                                  selected: i <= _selectedIndex,
+                                ),
+                                onTap: null,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _Card(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        child: Text(
+                          tr(
+                            lang,
+                            'Mijoz status oʻzgarishini real vaqtda koʻradi.',
+                            'Клиент видит смену статуса в реальном времени.',
+                            'The client sees status changes in real time.',
+                          ),
+                          style: TextStyle(
+                            fontSize: 16,
+                            height: 22 / 16,
+                            letterSpacing: -0.18,
+                            color: AppColors.blue,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            _Card(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Text(
-                tr(
-                  lang,
-                  'Mijoz status oʻzgarishini real vaqtda koʻradi.',
-                  'Клиент видит смену статуса в реальном времени.',
-                  'The client sees status changes in real time.',
-                ),
-                style: TextStyle(
-                  fontSize: 16,
-                  height: 22 / 16,
-                  letterSpacing: -0.18,
-                  color: AppColors.blue,
                 ),
               ),
             ),
-            const Spacer(),
-            PrimaryButton(
-              label: _busy ? '…' : _buttonLabel(lang),
-              onPressed: _busy ? null : _advance,
-            ),
+            if (!_isTerminal) ...[
+              const SizedBox(height: 16),
+              PrimaryButton(
+                label: _busy ? '…' : _buttonLabel(lang),
+                onPressed: _busy ? null : _advance,
+              ),
+            ],
           ],
         ),
       ),
@@ -308,6 +398,31 @@ class _Card extends StatelessWidget {
       radius: 20,
       padding: padding ?? const EdgeInsets.all(16),
       child: child,
+    );
+  }
+}
+
+/// Gray icon + gray label row used for address / client / price.
+class _InfoLine extends StatelessWidget {
+  const _InfoLine({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: const Color(0xFF8D96A4)),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF8D96A4)),
+          ),
+        ),
+      ],
     );
   }
 }

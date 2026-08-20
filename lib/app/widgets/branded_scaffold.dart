@@ -171,7 +171,9 @@ class BrandedScaffold extends StatelessWidget {
         child: SafeArea(
           child: Column(
             children: [
-              if (!showBrandBar) const SizedBox(height: 32),
+              // Matches the home tab's top gap for a consistent header
+              // position across every screen.
+              if (!showBrandBar) const SizedBox(height: 8),
               if (showBrandBar)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),

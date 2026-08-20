@@ -105,6 +105,37 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Future<void> _deleteCard(SavedCard card) async {
+    final lang = LocaleController.language.value;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => GlassAlertDialog(
+        title: Text(
+          tr(lang, 'Kartani oʻchirish', 'Удалить карту', 'Delete card'),
+        ),
+        content: Text(
+          tr(
+            lang,
+            '${card.brand.toUpperCase()} •••• ${card.last4} oʻchirilsinmi? Bu amalni bekor qilib boʻlmaydi.',
+            'Удалить ${card.brand.toUpperCase()} •••• ${card.last4}? Это действие нельзя отменить.',
+            'Delete ${card.brand.toUpperCase()} •••• ${card.last4}? This can\'t be undone.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(tr(lang, 'Bekor qilish', 'Отмена', 'Cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              tr(lang, 'Oʻchirish', 'Удалить', 'Delete'),
+              style: const TextStyle(color: AppColors.danger),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
     try {
       await _payments.deleteCard(card.id);
       if (mounted) _load();

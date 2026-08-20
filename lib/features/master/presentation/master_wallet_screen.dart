@@ -312,7 +312,7 @@ class _MasterWalletScreenState extends State<MasterWalletScreen> {
   }
 
   Widget _txnTile(WalletTx txn, AppLanguage lang) {
-    final d = txn.createdAt;
+    final d = txn.createdAt?.toLocal();
     final date = d == null
         ? ''
         : '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';

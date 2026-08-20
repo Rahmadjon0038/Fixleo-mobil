@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
+import 'package:fixleo/app/widgets/full_screen_photo_gallery.dart';
 import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/features/master/data/master_marketplace_models.dart';
@@ -158,17 +159,24 @@ class _MasterRequestDetailScreenState extends State<MasterRequestDetailScreen> {
                                 i++
                               ) ...[
                                 if (i != 0) const SizedBox(width: 8),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(
-                                    d.photos[i],
-                                    width: 64,
-                                    height: 64,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, _, _) => Container(
+                                GestureDetector(
+                                  onTap: () => showFullScreenPhotoGallery(
+                                    context,
+                                    photos: d.photos,
+                                    initialIndex: i,
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.network(
+                                      d.photos[i],
                                       width: 64,
                                       height: 64,
-                                      color: const Color(0xFFE2E8F0),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, _, _) => Container(
+                                        width: 64,
+                                        height: 64,
+                                        color: const Color(0xFFE2E8F0),
+                                      ),
                                     ),
                                   ),
                                 ),

@@ -30,6 +30,11 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
   bool _busy = false;
   String? _error;
 
+  /// The order's current status — lets the empty state tell "no offers yet"
+  /// apart from "the offers already got resolved" (order moved on, e.g. via
+  /// a stale notification tapped after the client already picked a master).
+  String? _orderStatus;
+
   /// Offer ordering — 'rating' (default) or 'price', like the FINAL chip.
   String _sort = 'rating';
 
@@ -51,9 +56,17 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
     });
     try {
       final offers = await _orders.offers(widget.orderId, sort: _sort);
+      String? status;
+      try {
+        status = (await _orders.detail(widget.orderId)).status;
+      } on ApiException {
+        // The offers list is the primary data — a failed status lookup just
+        // means the empty state falls back to the generic message.
+      }
       if (!mounted) return;
       setState(() {
         _offers = offers;
+        _orderStatus = status;
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -104,7 +117,7 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
     return BrandedScaffold(
       title: tr(
         lang,
-        'Otkliklar · ${_offers.length}',
+        'Takliflar · ${_offers.length}',
         'Отклики · ${_offers.length}',
         'Offers · ${_offers.length}',
       ),
@@ -125,7 +138,7 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
                       Text(
                         tr(
                           lang,
-                          '${_offers.length} usta otklik qoldirdi',
+                          '${_offers.length} usta taklif qoldirdi',
                           '${_offers.length} мастера откликнулись',
                           '${_offers.length} masters responded',
                         ),
@@ -187,14 +200,50 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
                     Padding(
                       padding: const EdgeInsets.only(top: 80),
                       child: Center(
-                        child: Text(
-                          tr(
-                            lang,
-                            'Hozircha javoblar yoʻq',
-                            'Пока нет ответов',
-                            'No replies yet',
-                          ),
-                          style: const TextStyle(color: _gray),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _orderStatus != null &&
+                                      _orderStatus != 'searching'
+                                  ? tr(
+                                      lang,
+                                      'Bu buyurtma boʻyicha qaror allaqachon qabul qilingan',
+                                      'Решение по этому заказу уже принято',
+                                      'A decision has already been made for this order',
+                                    )
+                                  : tr(
+                                      lang,
+                                      'Hozircha javoblar yoʻq',
+                                      'Пока нет ответов',
+                                      'No replies yet',
+                                    ),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: _gray),
+                            ),
+                            if (_orderStatus != null &&
+                                _orderStatus != 'searching') ...[
+                              const SizedBox(height: 12),
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pushReplacement(
+                                      MaterialPageRoute(
+                                        builder: (_) => OrderTrackingScreen(
+                                          orderId: widget.orderId,
+                                        ),
+                                      ),
+                                    ),
+                                child: Text(
+                                  tr(
+                                    lang,
+                                    'Buyurtmani ochish',
+                                    'Открыть заказ',
+                                    'Open order',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ),

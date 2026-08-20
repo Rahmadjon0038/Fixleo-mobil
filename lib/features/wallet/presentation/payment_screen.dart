@@ -344,18 +344,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final tile = selected
         ? GlassContainer.tinted(
             borderRadius: 32,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 16,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: _cardTileContent(card, selected),
           )
         : GlassContainer.lite(
             borderRadius: 32,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 16,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: _cardTileContent(card, selected),
           );
     return GestureDetector(
@@ -365,34 +359,41 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Widget _cardTileContent(SavedCard card, bool selected) {
+    // Selected sits on a saturated blue tint (GlassContainer.tinted) — the
+    // navy/gray text meant for the plain light tile was nearly unreadable
+    // against it, same reason the primary button below uses white on blue.
+    final titleColor = selected ? Colors.white : AppColors.navy;
+    final subtitleColor = selected
+        ? Colors.white.withValues(alpha: 0.8)
+        : _gray;
     return Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Karta **** ${card.last4}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      height: 22 / 16,
-                      letterSpacing: -0.18,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.navy,
-                    ),
-                  ),
-                  Text(
-                    card.brand.isEmpty ? '—' : card.brand,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      height: 20 / 14,
-                      letterSpacing: -0.16,
-                      color: _gray,
-                    ),
-                  ),
-                ],
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Karta **** ${card.last4}',
+                style: TextStyle(
+                  fontSize: 16,
+                  height: 22 / 16,
+                  letterSpacing: -0.18,
+                  fontWeight: FontWeight.w500,
+                  color: titleColor,
+                ),
               ),
-            ),
+              Text(
+                card.brand.isEmpty ? '—' : card.brand.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 20 / 14,
+                  letterSpacing: -0.16,
+                  color: subtitleColor,
+                ),
+              ),
+            ],
+          ),
+        ),
         _radio(selected),
       ],
     );
@@ -404,12 +405,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
       height: 22,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: selected ? AppColors.blue : Colors.transparent,
+        // A blue-filled dot disappeared into the tile's own blue tint when
+        // selected — white reads as a clear "checked" mark against it.
+        color: selected ? Colors.white : Colors.transparent,
         border: selected ? null : Border.all(color: _slate300, width: 2),
       ),
       child: selected
           ? const Center(
-              child: Icon(Icons.circle, size: 7, color: Colors.white),
+              child: Icon(Icons.circle, size: 7, color: AppColors.blue),
             )
           : null,
     );

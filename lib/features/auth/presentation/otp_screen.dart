@@ -403,54 +403,88 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 }
 
-class _OtpBox extends StatelessWidget {
+class _OtpBox extends StatefulWidget {
   const _OtpBox({required this.index, required this.state});
 
   final int index;
   final _OtpScreenState state;
 
   @override
+  State<_OtpBox> createState() => _OtpBoxState();
+}
+
+class _OtpBoxState extends State<_OtpBox> {
+  @override
+  void initState() {
+    super.initState();
+    widget.state._focusNodes[widget.index].addListener(_onFocusChange);
+  }
+
+  @override
+  void dispose() {
+    widget.state._focusNodes[widget.index].removeListener(_onFocusChange);
+    super.dispose();
+  }
+
+  void _onFocusChange() => setState(() {});
+
+  @override
   Widget build(BuildContext context) {
-    final hasError = state._error != null || state._blockSeconds > 0;
+    final hasError = widget.state._error != null || widget.state._blockSeconds > 0;
+    final focused = widget.state._focusNodes[widget.index].hasFocus;
+
+    // The colored border is drawn here, on a plain fixed-size box, instead
+    // of via TextField/InputDecoration — Flutter's InputDecorator computes
+    // the OutlineInputBorder's rect from its own internal content height
+    // (shrunk whenever isDense/isCollapsed is set to fix vertical centering),
+    // which turned the 64x64 square into a pill. Keeping the border and the
+    // centering on two separate widgets means neither can distort the other.
     return GlassContainer(
       width: 64,
       height: 64,
       borderRadius: 16,
       padding: EdgeInsets.zero,
-      borderOpacity: hasError ? 0 : 0.75,
+      borderOpacity: 0,
       // No drop shadow — 4 boxes sit only 14px apart, and the default soft
       // shadow smears across the gap into one glowing blob behind the row
       // instead of 4 distinct boxes.
       shadow: false,
-      child: SizedBox.expand(
-        child: TextField(
-          controller: state._controllers[index],
-          focusNode: state._focusNodes[index],
-          onChanged: (v) => state._onChanged(index, v),
-          keyboardType: TextInputType.number,
-          textAlign: TextAlign.center,
-          maxLength: 1,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: AppColors.navy,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: hasError
+                ? AppColors.danger
+                : focused
+                ? AppColors.blue
+                : Colors.white.withValues(alpha: 0.75),
+            width: hasError ? (focused ? 2 : 1.5) : (focused ? 2 : 1),
           ),
-          decoration: InputDecoration(
-            counterText: '',
-            filled: false,
-            contentPadding: EdgeInsets.zero,
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: hasError
-                  ? const BorderSide(color: AppColors.danger, width: 1.5)
-                  : BorderSide.none,
+        ),
+        child: Center(
+          child: TextField(
+            controller: widget.state._controllers[widget.index],
+            focusNode: widget.state._focusNodes[widget.index],
+            onChanged: (v) => widget.state._onChanged(widget.index, v),
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            textAlignVertical: TextAlignVertical.center,
+            maxLength: 1,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: AppColors.navy,
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: hasError
-                  ? const BorderSide(color: AppColors.danger, width: 2)
-                  : const BorderSide(color: AppColors.blue, width: 2),
+            cursorColor: AppColors.blue,
+            decoration: const InputDecoration(
+              counterText: '',
+              filled: false,
+              isCollapsed: true,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
             ),
           ),
         ),

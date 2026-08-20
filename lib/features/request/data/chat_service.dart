@@ -13,6 +13,7 @@ class Conversation {
     required this.orderId,
     required this.orderTitle,
     this.writable = true,
+    this.peerId,
     this.peerName,
     this.peerPhone,
     this.peerAvatarUrl,
@@ -28,6 +29,11 @@ class Conversation {
   final int orderId;
   final String orderTitle;
   final bool writable;
+
+  /// The peer's own account id (master id if [Conversation] was fetched by a
+  /// client, client id if fetched by a master) — lets the UI open their full
+  /// profile, not just show the name/avatar inline.
+  final int? peerId;
   final String? peerName;
   final String? peerPhone;
   final String? peerAvatarUrl;
@@ -46,6 +52,7 @@ class Conversation {
       orderId: _int(j['orderId']),
       orderTitle: j['orderTitle'] as String? ?? '',
       writable: j['writable'] != false,
+      peerId: _intN(peer['id']),
       peerName: peer['name'] as String?,
       peerPhone: peer['phone'] as String?,
       peerAvatarUrl: ApiConfig.resolveMediaUrl(peer['avatarUrl']),

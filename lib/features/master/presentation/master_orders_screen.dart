@@ -123,7 +123,7 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
   }
 
   _Order _toOrder(MasterOrder o, AppLanguage lang) {
-    final d = o.createdAt;
+    final d = o.createdAt?.toLocal();
     final date = d == null
         ? ''
         : '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';

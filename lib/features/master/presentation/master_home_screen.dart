@@ -594,7 +594,8 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
                       child: LiquidGlassNavBar(
                         items: _visibleNavItems(navItems),
                         currentIndex: _visibleNavIndex(_navIndex),
-                        onTap: (visibleIndex) => _setTab(_realNavIndex(visibleIndex)),
+                        onTap: (visibleIndex) =>
+                            _setTab(_realNavIndex(visibleIndex)),
                       ),
                     ),
                   ],
@@ -704,10 +705,7 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
           alignment: Alignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(22),
@@ -989,10 +987,7 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
             onTap: _changeWorkZone,
             child: GlassContainer.tinted(
               borderRadius: 40,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Text(
                 tr(
                   lang,
@@ -1150,21 +1145,28 @@ class _MiniCard extends StatelessWidget {
     return GlassContainer(
       height: 122,
       borderRadius: 24,
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.zero,
       child: Stack(
         children: [
-          SizedBox(
-            width: 110,
-            child: Text(
-              tr(lang, titleUz, titleRu, titleEn),
-              style: const TextStyle(
-                fontSize: 16,
-                height: 22 / 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.navy,
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: SizedBox(
+              width: 110,
+              child: Text(
+                tr(lang, titleUz, titleRu, titleEn),
+                style: const TextStyle(
+                  fontSize: 16,
+                  height: 22 / 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navy,
+                ),
               ),
             ),
           ),
+          // Bleeds to the true card corner (not inset by the text's own
+          // padding) so the icon has room to sit clear of a three-line
+          // title instead of overlapping its last line — same fix as
+          // home_screen.dart's _FeedbackCard.
           Positioned(
             right: 0,
             bottom: 0,
@@ -1175,4 +1177,3 @@ class _MiniCard extends StatelessWidget {
     );
   }
 }
-

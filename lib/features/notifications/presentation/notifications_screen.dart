@@ -5,11 +5,13 @@ import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
-import 'package:fixleo/features/master/presentation/master_orders_screen.dart';
+import 'package:fixleo/features/master/presentation/master_order_status_screen.dart';
 import 'package:fixleo/features/master/presentation/master_request_detail_screen.dart';
 import 'package:fixleo/features/notifications/data/notification_service.dart';
+import 'package:fixleo/features/request/presentation/chat_screen.dart';
 import 'package:fixleo/features/request/presentation/chats_list_screen.dart';
 import 'package:fixleo/features/request/presentation/masters_responses_screen.dart';
+import 'package:fixleo/features/request/presentation/order_status_screen.dart';
 import 'package:fixleo/features/request/presentation/order_tracking_screen.dart';
 
 /// Real in-app notification inbox shared by clients and masters.
@@ -150,8 +152,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void _open(AppNotification notification) {
     final isMaster = widget.kind == 'master';
     if (notification.type == 'chat_message') {
+      final conversationId = notification.conversationId;
       Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => LiveChatsScreen(kind: widget.kind)),
+        MaterialPageRoute(
+          builder: (_) => conversationId != null
+              ? ChatScreen(conversationId: conversationId, kind: widget.kind)
+              : LiveChatsScreen(kind: widget.kind),
+        ),
       );
       return;
     }
@@ -170,14 +177,33 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
       );
     } else if (isMaster) {
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const MasterOrdersScreen()));
-    } else {
+      // MasterOrdersScreen is bare tab content meant to sit inside
+      // MasterHomeScreen's own Scaffold/SafeArea — pushed directly as its
+      // own route it painted with no background/safe-area at all, showing
+      // through to whatever the OS compositor had underneath. This is the
+      // actual standalone, self-scaffolded per-order screen (client's
+      // OrderTrackingScreen equivalent).
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => MasterOrderStatusScreen(orderId: orderId),
+        ),
+      );
+    } else if (notification.type == 'order_reopened') {
+      // The order fell back to searching (master declined) — the client
+      // still needs the map + "choose a master" flow, not a status timeline.
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => OrderTrackingScreen(orderId: orderId),
         ),
+      );
+    } else {
+      // Every other client-facing order type (on_the_way, arrived, work_done,
+      // completed, cancelled, expired, ...) previously all landed on the same
+      // read-only OrderTrackingScreen overview, with the notification's own
+      // subject (e.g. "confirm completion") requiring one more tap to reach —
+      // OrderStatusScreen is the focused, actionable screen for exactly that.
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => OrderStatusScreen(orderId: orderId)),
       );
     }
   }

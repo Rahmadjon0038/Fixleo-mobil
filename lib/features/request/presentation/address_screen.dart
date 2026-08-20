@@ -278,36 +278,41 @@ class _AddressScreenState extends State<AddressScreen> {
             ),
 
             // Top brand badge + "the map can be moved" hint.
-            SafeArea(
-              bottom: false,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 8),
-                  if (shouldShowBrandBar()) const Center(child: BrandBar()),
-                  const SizedBox(height: 18),
-                  Text(
-                    tr(
-                      lang,
-                      'Xaritani siljitish mumkin',
-                      'Карту можно двигать',
-                      'You can move the map',
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 8),
+                    if (shouldShowBrandBar()) const Center(child: BrandBar()),
+                    const SizedBox(height: 18),
+                    Text(
+                      tr(
+                        lang,
+                        'Xaritani siljitish mumkin',
+                        'Карту можно двигать',
+                        'You can move the map',
+                      ),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 20,
+                        height: 24 / 20,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.navy,
+                        shadows: [
+                          Shadow(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            blurRadius: 12,
+                          ),
+                        ],
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 20,
-                      height: 24 / 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.navy,
-                      shadows: [
-                        Shadow(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          blurRadius: 12,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
 

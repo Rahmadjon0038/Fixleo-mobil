@@ -26,12 +26,11 @@ String orderStatusLabel(AppLanguage language, String status) =>
         'Поиск мастера',
         'Searching for a master',
       ),
-      'assigned' => tr(
-        language,
-        'Usta tayinlandi',
-        'Мастер назначен',
-        'Master assigned',
-      ),
+      // Not "Usta tayinlandi" (master assigned) — the master's name is
+      // already shown right next to this badge/label, so repeating "a
+      // master was assigned" read as unclear/redundant. A plain in-progress
+      // label carries the status without restating who's already visible.
+      'assigned' => tr(language, 'Jarayonda', 'В процессе', 'In progress'),
       'on_the_way' => tr(
         language,
         'Usta yo‘lda',

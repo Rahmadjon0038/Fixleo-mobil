@@ -8,6 +8,40 @@ import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/core/network/current_user.dart';
+import 'package:fixleo/features/wallet/data/payment_service.dart';
+
+/// "+998901234567" -> "+998 *** ** 67" — keeps the dial code and the last
+/// two digits visible, masks the rest. Used on the SMS confirmation screen.
+String _maskPhone(String? raw) {
+  final digits = (raw ?? '').replaceAll(RegExp(r'\D'), '');
+  if (digits.length < 5) return raw ?? '';
+  final codeLen = switch (digits) {
+    String s when s.startsWith('998') => 3,
+    String s when s.startsWith('996') => 3,
+    String s when s.startsWith('992') => 3,
+    String s when s.startsWith('7') => 1,
+    _ => digits.length > 9 ? digits.length - 9 : 1,
+  };
+  final code = digits.substring(0, codeLen);
+  final local = digits.substring(codeLen);
+  if (local.length <= 2) return '+$code $local';
+  final last2 = local.substring(local.length - 2);
+  return '+$code ${'*' * (local.length - 2)} $last2';
+}
+
+/// Guesses a card brand from its number prefix, for the backend `addCard`
+/// payload. Must match the backend's `CardBrand` enum exactly — lowercase,
+/// one of visa/mastercard/uzcard/humo (UzCard/Humo are the common
+/// local-issued cards; anything unrecognized defaults to uzcard, the most
+/// common local card, since the enum has no generic "other" value).
+String _detectBrand(String digits) {
+  if (digits.startsWith('9860')) return 'humo';
+  if (digits.startsWith('4')) return 'visa';
+  if (digits.startsWith('5')) return 'mastercard';
+  return 'uzcard';
+}
 
 /// First step of the "add card" flow — card number, expiry and CVV.
 class AddCardScreen extends StatefulWidget {
@@ -18,9 +52,9 @@ class AddCardScreen extends StatefulWidget {
 }
 
 class _AddCardScreenState extends State<AddCardScreen> {
-  final _number = TextEditingController(text: '8600 0604 2144 1917');
-  final _expiry = TextEditingController(text: '12/12');
-  final _cvv = TextEditingController(text: '123');
+  final _number = TextEditingController();
+  final _expiry = TextEditingController();
+  final _cvv = TextEditingController();
 
   @override
   void dispose() {
@@ -36,9 +70,19 @@ class _AddCardScreenState extends State<AddCardScreen> {
       _cvv.text.trim().length == 3;
 
   void _continue() {
-    Navigator.of(context).pushReplacement(
+    final digits = _number.text.replaceAll(RegExp(r'\D'), '');
+    // push, not pushReplacement — replacing this route would immediately
+    // complete WalletScreen's `await Navigator.push(AddCardScreen())`
+    // (before the card is even created), so its post-flow refresh fired too
+    // early and the new card never showed up in the list.
+    Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => AddCardSmsScreen(maskedPhone: '+998 *** ** 67'),
+        builder: (_) => AddCardSmsScreen(
+          maskedPhone: _maskPhone(CurrentUser.instance.profile.value?.phone),
+          brand: _detectBrand(digits),
+          last4: digits.substring(digits.length - 4),
+          expiry: _expiry.text.trim(),
+        ),
       ),
     );
   }
@@ -65,11 +109,7 @@ class _AddCardScreenState extends State<AddCardScreen> {
                       controller: _number,
                       hint: '1234 5678 9101 1213',
                       keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(16),
-                        _CardNumberFormatter(),
-                      ],
+                      inputFormatters: [_CardNumberFormatter()],
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -171,25 +211,42 @@ class _AddCardScreenState extends State<AddCardScreen> {
   }
 }
 
-/// Formats a card number as `#### #### #### ####` while typing.
+/// Formats a card number as `#### #### #### ####` while typing, capped at 16
+/// digits. Does its own digit-filtering and length-limiting (instead of
+/// being chained after separate formatters for those) so it can tell a real
+/// edit apart from a pure cursor move.
 class _CardNumberFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
+    // Pure cursor/selection move (arrow keys, tap) — the text is unchanged,
+    // so leave the selection exactly as the platform placed it. Re-deriving
+    // it from a digit count would collapse the "before the space" / "after
+    // the space" cursor positions into one, which made left/right
+    // navigation get stuck at the space between digit groups.
+    if (newValue.text == oldValue.text) return newValue;
+
+    final digitsBeforeCursor = newValue.text
+        .substring(
+          0,
+          newValue.selection.extentOffset.clamp(0, newValue.text.length),
+        )
+        .replaceAll(RegExp(r'\D'), '')
+        .length;
     final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
     final trimmed = digits.length > 16 ? digits.substring(0, 16) : digits;
     final formatted = _format(trimmed);
-    final selectionIndex = _selectionIndex(
-      formatted,
-      trimmed.length,
-      newValue.selection.extentOffset,
-    );
 
     return TextEditingValue(
       text: formatted,
-      selection: TextSelection.collapsed(offset: selectionIndex),
+      selection: TextSelection.collapsed(
+        offset: _offsetForDigitCount(
+          formatted,
+          digitsBeforeCursor.clamp(0, trimmed.length),
+        ),
+      ),
     );
   }
 
@@ -202,32 +259,34 @@ class _CardNumberFormatter extends TextInputFormatter {
     return buffer.toString();
   }
 
-  int _selectionIndex(String formatted, int digitCount, int rawSelection) {
-    if (digitCount == 0) return 0;
-
+  /// The offset in [formatted] that sits right after its [count]-th digit
+  /// character (skipping over the grouping spaces, which don't count).
+  int _offsetForDigitCount(String formatted, int count) {
+    if (count <= 0) return 0;
     var digitsSeen = 0;
-    var offset = 0;
-    for (final rune in formatted.runes) {
-      if (digitsSeen >= digitCount) break;
-      offset++;
-      if (String.fromCharCode(rune) != ' ') {
-        digitsSeen++;
-      }
+    for (var i = 0; i < formatted.length; i++) {
+      if (formatted[i] == ' ') continue;
+      digitsSeen++;
+      if (digitsSeen == count) return i + 1;
     }
-
-    final desired = rawSelection.clamp(0, formatted.length);
-    if (desired < formatted.length) {
-      return desired;
-    }
-    return offset;
+    return formatted.length;
   }
 }
 
 /// Second step — SMS code confirmation.
 class AddCardSmsScreen extends StatefulWidget {
-  const AddCardSmsScreen({super.key, required this.maskedPhone});
+  const AddCardSmsScreen({
+    super.key,
+    required this.maskedPhone,
+    required this.brand,
+    required this.last4,
+    required this.expiry,
+  });
 
   final String maskedPhone;
+  final String brand;
+  final String last4;
+  final String expiry;
 
   @override
   State<AddCardSmsScreen> createState() => _AddCardSmsScreenState();
@@ -236,12 +295,14 @@ class AddCardSmsScreen extends StatefulWidget {
 class _AddCardSmsScreenState extends State<AddCardSmsScreen> {
   final _controllers = List.generate(4, (_) => TextEditingController());
   final _focusNodes = List.generate(4, (_) => FocusNode());
+  final _payments = PaymentService(kind: 'client');
   Timer? _timer;
 
   int _secondsLeft = 59;
   String? _error;
+  bool _submitting = false;
 
-  static const _validCode = '5834';
+  static const _validCode = '1111';
 
   @override
   void initState() {
@@ -288,16 +349,35 @@ class _AddCardSmsScreenState extends State<AddCardSmsScreen> {
     }
   }
 
-  void _submit() {
-    if (_code.length != 4) return;
-    if (_code == _validCode) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const AddCardSuccessScreen()),
+  Future<void> _submit() async {
+    if (_code.length != 4 || _submitting) return;
+    if (_code != _validCode) {
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const AddCardFailureScreen()));
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      // Actually persists the card server-side — without this call the
+      // "success" screen was purely cosmetic and the wallet's card list
+      // stayed empty after returning to it.
+      await _payments.addCard(
+        brand: widget.brand,
+        last4: widget.last4,
+        expiry: widget.expiry,
       );
-    } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const AddCardFailureScreen()),
-      );
+      if (!mounted) return;
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const AddCardSuccessScreen()));
+    } on ApiException {
+      if (!mounted) return;
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const AddCardFailureScreen()));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -395,8 +475,10 @@ class _AddCardSmsScreenState extends State<AddCardSmsScreen> {
             ],
             const Spacer(),
             PrimaryButton(
-              label: tr(lang, 'Tasdiqlash', 'Подтвердить', 'Confirm'),
-              onPressed: _code.length == 4 ? _submit : null,
+              label: _submitting
+                  ? tr(lang, 'Tekshirilmoqda...', 'Проверка...', 'Verifying...')
+                  : tr(lang, 'Tasdiqlash', 'Подтвердить', 'Confirm'),
+              onPressed: _code.length == 4 && !_submitting ? _submit : null,
             ),
             const SizedBox(height: 12),
             Center(
@@ -419,7 +501,7 @@ class _AddCardSmsScreenState extends State<AddCardSmsScreen> {
   }
 }
 
-class _CodeBox extends StatelessWidget {
+class _CodeBox extends StatefulWidget {
   const _CodeBox({
     required this.controller,
     required this.focusNode,
@@ -431,31 +513,72 @@ class _CodeBox extends StatelessWidget {
   final ValueChanged<String> onChanged;
 
   @override
+  State<_CodeBox> createState() => _CodeBoxState();
+}
+
+class _CodeBoxState extends State<_CodeBox> {
+  @override
+  void initState() {
+    super.initState();
+    widget.focusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void dispose() {
+    widget.focusNode.removeListener(_onFocusChange);
+    super.dispose();
+  }
+
+  void _onFocusChange() => setState(() {});
+
+  @override
   Widget build(BuildContext context) {
+    final focused = widget.focusNode.hasFocus;
+    // White glass box with the border drawn on a plain fixed-size Container
+    // (not via TextField/InputDecoration) — an OutlineInputBorder sizes
+    // itself from the decorator's internal content height, which turns a
+    // square box into a pill/oval the moment the field is focused.
     return Expanded(
-      child: GlassContainer.tinted(
+      child: GlassContainer(
         height: 64,
         borderRadius: 18,
-        alignment: Alignment.center,
-        child: TextField(
-          controller: controller,
-          focusNode: focusNode,
-          keyboardType: TextInputType.number,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            color: AppColors.navy,
+        padding: EdgeInsets.zero,
+        borderOpacity: 0,
+        shadow: false,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: focused
+                  ? AppColors.blue
+                  : Colors.white.withValues(alpha: 0.75),
+              width: focused ? 2 : 1,
+            ),
           ),
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(1),
-          ],
-          onChanged: onChanged,
-          decoration: const InputDecoration(
-            isCollapsed: true,
-            border: InputBorder.none,
-            counterText: '',
+          child: Center(
+            child: TextField(
+              controller: widget.controller,
+              focusNode: widget.focusNode,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              textAlignVertical: TextAlignVertical.center,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: AppColors.navy,
+              ),
+              cursorColor: AppColors.blue,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(1),
+              ],
+              onChanged: widget.onChanged,
+              decoration: const InputDecoration(
+                isCollapsed: true,
+                border: InputBorder.none,
+                counterText: '',
+              ),
+            ),
           ),
         ),
       ),
@@ -479,10 +602,7 @@ class AddCardSuccessScreen extends StatelessWidget {
             const Spacer(),
             GlassCard(
               radius: 30,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 20,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -541,7 +661,10 @@ class AddCardSuccessScreen extends StatelessWidget {
                 'На главную',
                 'Back to wallet',
               ),
-              onPressed: () => Navigator.of(context).pop(),
+              // Pops all the way back to the wallet tab (Add/Sms/Success are
+              // three separate pushed routes now, not one replaced in place).
+              onPressed: () =>
+                  Navigator.of(context).popUntil((route) => route.isFirst),
             ),
           ],
         ),
@@ -566,10 +689,7 @@ class AddCardFailureScreen extends StatelessWidget {
             const Spacer(),
             GlassCard(
               radius: 30,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 20,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -628,7 +748,10 @@ class AddCardFailureScreen extends StatelessWidget {
                 'На главную',
                 'Back to wallet',
               ),
-              onPressed: () => Navigator.of(context).pop(),
+              // Pops all the way back to the wallet tab (Add/Sms/Success are
+              // three separate pushed routes now, not one replaced in place).
+              onPressed: () =>
+                  Navigator.of(context).popUntil((route) => route.isFirst),
             ),
           ],
         ),

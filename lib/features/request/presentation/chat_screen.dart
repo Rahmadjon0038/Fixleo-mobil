@@ -17,6 +17,8 @@ import 'package:fixleo/core/realtime/chat_socket.dart';
 import 'package:fixleo/features/calls/presentation/call_screen.dart';
 import 'package:fixleo/features/request/data/chat_service.dart' as api_chat;
 import 'package:fixleo/features/request/presentation/attach_photos_sheet.dart';
+import 'package:fixleo/features/request/presentation/client_info_screen.dart';
+import 'package:fixleo/features/request/presentation/master_profile_screen.dart';
 import 'package:fixleo/features/request/presentation/widgets/chat_media_message.dart';
 import 'package:fixleo/features/request/presentation/widgets/chat_peer_avatar.dart';
 import 'package:fixleo/features/request/presentation/widgets/chat_presence_text.dart';
@@ -129,6 +131,10 @@ class _ChatScreenState extends State<ChatScreen> {
   DateTime? _peerLastSeenAt;
   String? _peerName;
   String? _peerAvatarUrl;
+  String? _peerPhone;
+
+  /// The peer's own account id — needed to open their full profile.
+  int? _peerId;
 
   @override
   void initState() {
@@ -182,6 +188,35 @@ class _ChatScreenState extends State<ChatScreen> {
     if (mounted && call.isBusy) _openCallScreen();
   }
 
+  /// Tapping the header now opens the peer's full profile — a browsable
+  /// master profile (rating, bio, reviews, work photos) for clients, or a
+  /// lighter client-info screen for masters (clients don't have that kind of
+  /// public profile) — instead of just a zoomable photo.
+  void _openPeerProfile() {
+    if (widget.kind == 'client') {
+      if (_peerId == null) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => MasterProfileScreen(masterId: _peerId!),
+        ),
+      );
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ClientInfoScreen(
+            name: _peerName ?? tr(_lang, 'Mijoz', 'Клиент', 'Client'),
+            avatarUrl: _peerAvatarUrl,
+            phone: _peerPhone,
+            online: _peerOnline,
+            lastSeenAt: _peerLastSeenAt,
+          ),
+        ),
+      );
+    }
+  }
+
+  AppLanguage get _lang => LocaleController.language.value;
+
   Future<void> _loadPresence() async {
     try {
       final conv = await _service.conversation(widget.conversationId);
@@ -191,6 +226,8 @@ class _ChatScreenState extends State<ChatScreen> {
           _peerLastSeenAt = conv.peerLastSeenAt;
           _peerName = conv.peerName ?? _peerName;
           _peerAvatarUrl = conv.peerAvatarUrl ?? _peerAvatarUrl;
+          _peerPhone = conv.peerPhone ?? _peerPhone;
+          _peerId = conv.peerId ?? _peerId;
         });
       }
     } on ApiException {
@@ -216,7 +253,10 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   ChatMessage _toBubble(api_chat.ChatMessage m) {
-    final t = m.createdAt;
+    // .toLocal() — createdAt comes from the backend as UTC; without this the
+    // bubble showed the UTC hour (e.g. "12:24" at 17:24 local in Tashkent,
+    // UTC+5) instead of the device's actual wall-clock time.
+    final t = m.createdAt?.toLocal();
     final time = t == null
         ? ''
         : '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
@@ -633,68 +673,71 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           Expanded(
             child: Center(
-              child: GlassContainer(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
-                ),
-                borderRadius: 30,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ChatPeerAvatar(imageUrl: _peerAvatarUrl, size: 36),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _peerName ?? tr(lang, 'Suhbat', 'Чат', 'Chat'),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              height: 22 / 16,
-                              letterSpacing: -0.18,
-                              fontWeight: FontWeight.w700,
-                              color: _bubbleText,
+              child: GestureDetector(
+                onTap: _openPeerProfile,
+                child: GlassContainer(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
+                  borderRadius: 30,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ChatPeerAvatar(imageUrl: _peerAvatarUrl, size: 36),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _peerName ?? tr(lang, 'Suhbat', 'Чат', 'Chat'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                height: 22 / 16,
+                                letterSpacing: -0.18,
+                                fontWeight: FontWeight.w700,
+                                color: _bubbleText,
+                              ),
                             ),
-                          ),
-                          Text(
-                            _peerOnline == null
-                                ? tr(
-                                    lang,
-                                    'holat aniqlanmoqda',
-                                    'статус загружается',
-                                    'checking status',
-                                  )
-                                : _peerOnline!
-                                ? tr(lang, 'onlayn', 'в сети', 'online')
-                                : tr(lang, 'oflayn', 'не в сети', 'offline'),
-                            style: TextStyle(
-                              fontSize: 13,
-                              height: 17 / 13,
-                              letterSpacing: -0.14,
-                              color: _peerOnline == true
-                                  ? AppColors.blue
-                                  : const Color(0xFF8D96A4),
+                            Text(
+                              _peerOnline == null
+                                  ? tr(
+                                      lang,
+                                      'holat aniqlanmoqda',
+                                      'статус загружается',
+                                      'checking status',
+                                    )
+                                  : _peerOnline!
+                                  ? tr(lang, 'onlayn', 'в сети', 'online')
+                                  : tr(lang, 'oflayn', 'не в сети', 'offline'),
+                              style: TextStyle(
+                                fontSize: 13,
+                                height: 17 / 13,
+                                letterSpacing: -0.14,
+                                color: _peerOnline == true
+                                    ? AppColors.blue
+                                    : const Color(0xFF8D96A4),
+                              ),
                             ),
-                          ),
-                          Text(
-                            formatLastSeenLabel(lang, _peerLastSeenAt),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              height: 15 / 11,
-                              color: Color(0xFF8D96A4),
+                            Text(
+                              formatLastSeenLabel(lang, _peerLastSeenAt),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                height: 15 / 11,
+                                color: Color(0xFF8D96A4),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

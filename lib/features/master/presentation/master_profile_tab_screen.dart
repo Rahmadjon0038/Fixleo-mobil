@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
+import 'package:fixleo/app/widgets/account_delete_confirmation.dart';
 import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/features/master/data/master_model.dart';
 import 'package:fixleo/features/master/data/master_service.dart';
@@ -314,6 +315,16 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
     );
   }
 
+  Future<void> _confirmDeleteAccount(AppLanguage lang) async {
+    if (_logoutBusy) return;
+    final confirmed = await showAccountDeleteConfirmation(
+      context: context,
+      language: lang,
+    );
+    if (!confirmed || !mounted) return;
+    await _logoutAndReturnToIntro();
+  }
+
   /// Red logout pill.
   Widget _logout(BuildContext context, AppLanguage lang) {
     return GestureDetector(
@@ -353,10 +364,10 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
   }
 
   /// Store-facing account action. Until the destructive backend flow is
-  /// enabled, this intentionally performs the same safe session logout.
+  /// enabled, confirmation is followed by the same safe session logout.
   Widget _deleteAccount(AppLanguage lang) {
     return GestureDetector(
-      onTap: _logoutBusy ? null : () => _logoutAndReturnToIntro(),
+      onTap: _logoutBusy ? null : () => _confirmDeleteAccount(lang),
       child: GlassContainer(
         width: double.infinity,
         borderRadius: 999,

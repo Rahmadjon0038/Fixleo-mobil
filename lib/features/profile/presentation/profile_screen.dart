@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
+import 'package:fixleo/app/widgets/account_delete_confirmation.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/full_screen_image_viewer.dart';
 import 'package:fixleo/app/widgets/glass/glass.dart';
@@ -252,6 +253,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       MaterialPageRoute(builder: (_) => const IntroScreen()),
       (route) => false,
     );
+  }
+
+  Future<void> _confirmDeleteAccount(AppLanguage lang) async {
+    if (_logoutBusy) return;
+    final confirmed = await showAccountDeleteConfirmation(
+      context: context,
+      language: lang,
+    );
+    if (!confirmed || !mounted) return;
+    await _logoutAndReturnToIntro();
   }
 
   @override
@@ -517,10 +528,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   /// Store-facing account action. Until the destructive backend flow is
-  /// enabled, this intentionally performs the same safe session logout.
+  /// enabled, confirmation is followed by the same safe session logout.
   Widget _deleteAccount(AppLanguage lang) {
     return GestureDetector(
-      onTap: _logoutBusy ? null : () => _logoutAndReturnToIntro(),
+      onTap: _logoutBusy ? null : () => _confirmDeleteAccount(lang),
       child: GlassContainer(
         borderRadius: 999,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),

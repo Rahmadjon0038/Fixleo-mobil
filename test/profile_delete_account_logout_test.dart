@@ -39,7 +39,9 @@ void main() {
     LocaleController.language.value = AppLanguage.uz;
   });
 
-  testWidgets('client delete account action only logs out', (tester) async {
+  testWidgets('client delete account requires confirmation before logout', (
+    tester,
+  ) async {
     final service = _FakeClientAuthService();
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
@@ -57,11 +59,25 @@ void main() {
     await tester.tap(deleteButton);
     await tester.pumpAndSettle();
 
+    expect(find.text('Akkauntni oʻchirasizmi?'), findsOneWidget);
+    expect(service.logoutCalls, 0);
+
+    await tester.tap(find.text('Bekor qilish'));
+    await tester.pumpAndSettle();
+    expect(service.logoutCalls, 0);
+
+    await tester.tap(deleteButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ha, oʻchirish'));
+    await tester.pumpAndSettle();
+
     expect(service.logoutCalls, 1);
     expect(find.byType(IntroScreen), findsOneWidget);
   });
 
-  testWidgets('master delete account action only logs out', (tester) async {
+  testWidgets('master delete account requires confirmation before logout', (
+    tester,
+  ) async {
     final service = _FakeMasterService();
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
@@ -84,6 +100,18 @@ void main() {
     expect(deleteButton, findsOneWidget);
     await tester.ensureVisible(deleteButton);
     await tester.tap(deleteButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Akkauntni oʻchirasizmi?'), findsOneWidget);
+    expect(service.logoutCalls, 0);
+
+    await tester.tap(find.text('Bekor qilish'));
+    await tester.pumpAndSettle();
+    expect(service.logoutCalls, 0);
+
+    await tester.tap(deleteButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ha, oʻchirish'));
     await tester.pumpAndSettle();
 
     expect(service.logoutCalls, 1);

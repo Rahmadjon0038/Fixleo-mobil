@@ -41,6 +41,7 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
 
   late final MasterService _service = widget.service ?? MasterService();
   Master? _master;
+  bool _logoutBusy = false;
 
   @override
   void initState() {
@@ -149,6 +150,8 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
           ]),
           const SizedBox(height: 8),
           _logout(context, lang),
+          const SizedBox(height: 8),
+          _deleteAccount(lang),
         ],
       ),
     );
@@ -297,6 +300,12 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
       ),
     );
     if (ok != true) return;
+    await _logoutAndReturnToIntro();
+  }
+
+  Future<void> _logoutAndReturnToIntro() async {
+    if (_logoutBusy) return;
+    setState(() => _logoutBusy = true);
     await _service.logout();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -328,6 +337,50 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
             Expanded(
               child: Text(
                 tr(lang, 'Akkauntdan chiqish', 'Выйти из аккаунта', 'Sign out'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  height: 22 / 16,
+                  letterSpacing: -0.18,
+                  fontWeight: FontWeight.w600,
+                  color: _red700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Store-facing account action. Until the destructive backend flow is
+  /// enabled, this intentionally performs the same safe session logout.
+  Widget _deleteAccount(AppLanguage lang) {
+    return GestureDetector(
+      onTap: _logoutBusy ? null : () => _logoutAndReturnToIntro(),
+      child: GlassContainer(
+        width: double.infinity,
+        borderRadius: 999,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                color: _red50,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.delete_outline, size: 22, color: _red700),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                tr(
+                  lang,
+                  'Akkauntni o‘chirish',
+                  'Удалить аккаунт',
+                  'Delete account',
+                ),
                 style: const TextStyle(
                   fontSize: 16,
                   height: 22 / 16,

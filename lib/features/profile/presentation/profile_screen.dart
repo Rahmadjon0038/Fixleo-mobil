@@ -20,9 +20,10 @@ import 'package:fixleo/features/profile/presentation/my_addresses_screen.dart';
 /// User profile — account header (live `GET /clients/me`) plus grouped settings
 /// rows and logout.
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key, this.embedded = false});
+  const ProfileScreen({super.key, this.embedded = false, this.service});
 
   final bool embedded;
+  final ClientAuthService? service;
 
   static const _gray = Color(0xFF8D96A4);
   static const _slate50 = Color(0xFFF8FAFC);
@@ -38,10 +39,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   static const _red50 = ProfileScreen._red50;
   static const _red700 = ProfileScreen._red700;
 
-  final _authService = ClientAuthService();
+  late final ClientAuthService _authService =
+      widget.service ?? ClientAuthService();
   final _picker = ImagePicker();
   Client? _client;
   bool _avatarBusy = false;
+  bool _logoutBusy = false;
 
   @override
   void initState() {
@@ -237,6 +240,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (ok != true) return;
+    await _logoutAndReturnToIntro();
+  }
+
+  Future<void> _logoutAndReturnToIntro() async {
+    if (_logoutBusy) return;
+    setState(() => _logoutBusy = true);
     await _authService.logout();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -345,6 +354,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ]),
               const SizedBox(height: 8),
               _logout(context, lang),
+              const SizedBox(height: 8),
+              _deleteAccount(lang),
             ],
           ),
         ),
@@ -490,6 +501,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Expanded(
               child: Text(
                 tr(lang, 'Akkauntdan chiqish', 'Выйти из аккаунта', 'Sign out'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  height: 22 / 16,
+                  letterSpacing: -0.18,
+                  fontWeight: FontWeight.w600,
+                  color: _red700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Store-facing account action. Until the destructive backend flow is
+  /// enabled, this intentionally performs the same safe session logout.
+  Widget _deleteAccount(AppLanguage lang) {
+    return GestureDetector(
+      onTap: _logoutBusy ? null : () => _logoutAndReturnToIntro(),
+      child: GlassContainer(
+        borderRadius: 999,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                color: _red50,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.delete_outline, size: 22, color: _red700),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                tr(
+                  lang,
+                  'Akkauntni o‘chirish',
+                  'Удалить аккаунт',
+                  'Delete account',
+                ),
                 style: const TextStyle(
                   fontSize: 16,
                   height: 22 / 16,

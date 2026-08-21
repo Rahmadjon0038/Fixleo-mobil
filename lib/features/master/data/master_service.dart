@@ -5,6 +5,7 @@ import 'package:fixleo/core/network/auth_session.dart';
 import 'package:fixleo/core/network/auth_tokens.dart';
 import 'package:fixleo/features/master/data/master_document_model.dart';
 import 'package:fixleo/features/master/data/master_model.dart';
+import 'package:fixleo/app/locale/app_locale.dart';
 
 /// Result of master `verify-otp`: tokens + profile, plus whether this call
 /// just created the master (`isNewMaster == true` → start onboarding from the
@@ -40,7 +41,7 @@ class MasterService {
   Future<int> sendOtp(String phone) async {
     final data = await _client.post(
       '/masters/auth/send-otp',
-      body: {'phone': phone},
+      body: {'phone': phone, 'language': LocaleController.language.value.name},
     );
     return (data?['expiresInSeconds'] as num?)?.toInt() ?? 300;
   }
@@ -49,7 +50,7 @@ class MasterService {
   Future<int> resendOtp(String phone) async {
     final data = await _client.post(
       '/masters/auth/resend-otp',
-      body: {'phone': phone},
+      body: {'phone': phone, 'language': LocaleController.language.value.name},
     );
     return (data?['expiresInSeconds'] as num?)?.toInt() ?? 300;
   }

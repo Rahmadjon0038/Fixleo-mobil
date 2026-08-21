@@ -9,8 +9,7 @@ import 'package:fixleo/features/auth/presentation/phone_screen.dart';
 import 'package:fixleo/features/language/presentation/language_screen.dart';
 
 /// "Кто вы?" onboarding step — choose between the client and master flows.
-/// The choice only picks which auth flow starts; the info pill reminds the
-/// user the role can be changed later in the profile.
+/// The choice only picks which auth flow starts.
 class RoleSelectScreen extends StatefulWidget {
   const RoleSelectScreen({super.key});
 
@@ -65,38 +64,6 @@ class _RoleSelectScreenState extends State<RoleSelectScreen> {
                     ),
                     selected: _isMaster,
                     onTap: () => setState(() => _isMaster = true),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            GlassContainer(
-              width: double.infinity,
-              borderRadius: 30,
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.info_outline,
-                    size: 20,
-                    color: AppColors.blue,
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      tr(
-                        lang,
-                        'Rolni keyinroq profilda oʻzgartirish mumkin',
-                        'Роль можно сменить позже в профиле',
-                        'You can change the role later in your profile',
-                      ),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        height: 20 / 14,
-                        letterSpacing: -0.16,
-                        color: AppColors.blue,
-                      ),
-                    ),
                   ),
                 ],
               ),

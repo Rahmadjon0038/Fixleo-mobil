@@ -3,6 +3,7 @@ import 'package:fixleo/core/network/api_client.dart';
 import 'package:fixleo/core/network/auth_session.dart';
 import 'package:fixleo/core/network/auth_tokens.dart';
 import 'package:fixleo/features/auth/data/client_model.dart';
+import 'package:fixleo/app/locale/app_locale.dart';
 
 /// Result of `verify-otp`: either the user was already registered (tokens +
 /// client returned → go to home), or they are new (`isRegistered == false`,
@@ -36,7 +37,7 @@ class ClientAuthService {
   Future<int> sendOtp(String phone) async {
     final data = await _client.post(
       '/clients/auth/send-otp',
-      body: {'phone': phone},
+      body: {'phone': phone, 'language': LocaleController.language.value.name},
     );
     return (data?['expiresInSeconds'] as num?)?.toInt() ?? 300;
   }
@@ -45,7 +46,7 @@ class ClientAuthService {
   Future<int> resendOtp(String phone) async {
     final data = await _client.post(
       '/clients/auth/resend-otp',
-      body: {'phone': phone},
+      body: {'phone': phone, 'language': LocaleController.language.value.name},
     );
     return (data?['expiresInSeconds'] as num?)?.toInt() ?? 300;
   }

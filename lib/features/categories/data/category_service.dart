@@ -16,30 +16,17 @@ class CategoryService {
         .toList(growable: false);
   }
 
+  /// `GET /category-groups` — localized groups with nested active services.
+  Future<List<CategoryGroup>> getGroups() async {
+    final data = await _client.get('/category-groups');
+    return (data as List<dynamic>)
+        .map((item) => CategoryGroup.fromJson(item as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
   /// `GET /categories/:id` — public.
   Future<Category> getById(int id) async {
     final data = await _client.get('/categories/$id');
     return Category.fromJson(data as Map<String, dynamic>);
   }
-
-  /// `POST /admin/categories` — admin. `name` must be unique.
-  Future<Category> create({required String name, int? order}) async {
-    final data = await _client.post(
-      '/admin/categories',
-      body: {'name': name, 'order': ?order},
-    );
-    return Category.fromJson(data as Map<String, dynamic>);
-  }
-
-  /// `PATCH /admin/categories/:id` — admin, partial update.
-  Future<Category> update(int id, {String? name, int? order}) async {
-    final data = await _client.patch(
-      '/admin/categories/$id',
-      body: {'name': ?name, 'order': ?order},
-    );
-    return Category.fromJson(data as Map<String, dynamic>);
-  }
-
-  /// `DELETE /admin/categories/:id` — admin.
-  Future<void> delete(int id) => _client.delete('/admin/categories/$id');
 }

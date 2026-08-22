@@ -10,13 +10,42 @@ import 'package:fixleo/features/request/presentation/request_category_screen.dar
 
 class _FakeCategoryService extends CategoryService {
   @override
-  Future<List<Category>> getAll() async => const [
-    Category(id: 7, name: 'Plumbing'),
-    Category(id: 8, name: 'Electrical'),
+  Future<List<CategoryGroup>> getGroups() async => const [
+    CategoryGroup(
+      id: 1,
+      slug: 'home-repair',
+      title: 'Home repair',
+      titleUz: 'Uy ta’miri',
+      titleRu: 'Ремонт дома',
+      titleEn: 'Home repair',
+      order: 0,
+      isActive: true,
+      services: [
+        Category(id: 7, name: 'Plumbing', titleEn: 'Plumbing'),
+        Category(id: 8, name: 'Electrical', titleEn: 'Electrical'),
+      ],
+    ),
   ];
 }
 
 void main() {
+  testWidgets('search can receive focus immediately when requested', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RequestCategoryScreen(
+          service: _FakeCategoryService(),
+          autofocusSearch: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final editableText = tester.widget<EditableText>(find.byType(EditableText));
+    expect(editableText.focusNode.hasFocus, isTrue);
+  });
+
   testWidgets('request creation starts with a required category choice', (
     tester,
   ) async {

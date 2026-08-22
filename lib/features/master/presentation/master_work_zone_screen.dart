@@ -10,6 +10,8 @@ import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/location/device_location_feedback.dart';
 import 'package:fixleo/core/location/device_location_service.dart';
+import 'package:fixleo/core/location/place_search_field.dart';
+import 'package:fixleo/core/location/place_search_service.dart';
 import 'package:fixleo/core/location/reverse_geocoder.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/master/data/master_service.dart';
@@ -28,6 +30,7 @@ class MasterWorkZoneScreen extends StatefulWidget {
     this.initialRadiusKm,
     this.locationService,
     this.geocoder,
+    this.placeSearchService,
     this.workRadiusService,
     this.masterService,
     this.loadMapTiles = true,
@@ -39,6 +42,7 @@ class MasterWorkZoneScreen extends StatefulWidget {
   final int? initialRadiusKm;
   final DeviceLocationService? locationService;
   final ReverseGeocoder? geocoder;
+  final PlaceSearchService? placeSearchService;
   final WorkRadiusService? workRadiusService;
   final MasterService? masterService;
   final bool loadMapTiles;
@@ -58,6 +62,7 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
   gmap.GoogleMapController? _mapController;
   late final DeviceLocationService _locationService;
   late final ReverseGeocoder _geocoder;
+  late final PlaceSearchService _placeSearchService;
   late final WorkRadiusService _workRadiusService;
   late final MasterService _masterService;
   bool _saving = false;
@@ -83,6 +88,7 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
     super.initState();
     _locationService = widget.locationService ?? DeviceLocationService();
     _geocoder = widget.geocoder ?? ReverseGeocoder();
+    _placeSearchService = widget.placeSearchService ?? PlaceSearchService();
     _workRadiusService = widget.workRadiusService ?? WorkRadiusService();
     _masterService = widget.masterService ?? MasterService();
     final hasInitial =
@@ -211,6 +217,21 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
         _resolvingPlace = false;
       });
     }
+  }
+
+  Future<void> _selectSearchResult(PlaceSearchResult result) async {
+    _geocodeDebounce?.cancel();
+    final point = result.point;
+    setState(() {
+      _center = point;
+      _placeLabel = result.label;
+      _placeSubtitle = result.subtitle;
+      _resolvingPlace = false;
+      _dragging = false;
+    });
+    await _mapController?.animateCamera(
+      gmap.CameraUpdate.newLatLngZoom(_toGoogle(point), 14),
+    );
   }
 
   /// Saves the base location + radius (`PUT /masters/me/work-zone`) then moves on.
@@ -351,6 +372,16 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
                           blurRadius: 12,
                         ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: PlaceSearchField(
+                      language: lang,
+                      service: _placeSearchService,
+                      bias: _center,
+                      onSelected: _selectSearchResult,
                     ),
                   ),
                 ],

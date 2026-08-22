@@ -39,6 +39,7 @@ class OrderService {
 
   Future<ClientAddress> saveAddress({
     int? id,
+    String? label,
     required String addressText,
     String? district,
     required double latitude,
@@ -47,6 +48,7 @@ class OrderService {
     bool isDefault = true,
   }) async {
     final body = <String, dynamic>{
+      if (label != null && label.isNotEmpty) 'label': label,
       'addressText': addressText,
       if (district != null && district.isNotEmpty) 'district': district,
       'latitude': latitude,

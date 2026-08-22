@@ -11,12 +11,20 @@ import 'package:fixleo/features/request/presentation/address_screen.dart';
 
 /// Client address book backed by `GET /clients/me/addresses`.
 ///
-/// Every row opens the existing real Google Maps editor. The bottom action
-/// creates a new address and makes it the client's default location.
+/// In profile mode every row opens the Google Maps editor. In selection mode
+/// a row becomes the client's default location and is returned to the caller.
+/// The bottom action creates a new address in both modes.
 class MyAddressesScreen extends StatefulWidget {
-  const MyAddressesScreen({super.key, this.orderService});
+  const MyAddressesScreen({
+    super.key,
+    this.orderService,
+    this.selectionMode = false,
+    this.selectedAddressId,
+  });
 
   final OrderService? orderService;
+  final bool selectionMode;
+  final int? selectedAddressId;
 
   @override
   State<MyAddressesScreen> createState() => _MyAddressesScreenState();
@@ -26,6 +34,7 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
   late final OrderService _orders = widget.orderService ?? OrderService();
   List<ClientAddress> _addresses = const [];
   bool _loading = true;
+  int? _selectingAddressId;
   String? _error;
 
   @override
@@ -58,18 +67,69 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
   Future<void> _openEditor([ClientAddress? address]) async {
     final saved = await Navigator.of(context).push<ClientAddress>(
       MaterialPageRoute(
-        builder: (_) =>
-            AddressScreen(isEditingHome: true, initialAddress: address),
+        builder: (_) => AddressScreen(
+          isEditingHome: true,
+          initialAddress: address,
+          orderService: _orders,
+        ),
       ),
     );
-    if (saved != null && mounted) await _load();
+    if (saved == null || !mounted) return;
+    if (widget.selectionMode) {
+      Navigator.of(context).pop(saved);
+      return;
+    }
+    await _load();
+  }
+
+  Future<void> _selectAddress(ClientAddress address) async {
+    if (_selectingAddressId != null) return;
+    setState(() => _selectingAddressId = address.id);
+    try {
+      final saved = await _orders.saveAddress(
+        id: address.id,
+        label: address.label,
+        addressText: address.addressText,
+        district: address.district,
+        latitude: address.latitude,
+        longitude: address.longitude,
+        details: address.details,
+        isDefault: true,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(saved);
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+      setState(() => _selectingAddressId = null);
+    } on Object {
+      if (!mounted) return;
+      final lang = LocaleController.language.value;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              lang,
+              'Manzilni tanlab bo‘lmadi',
+              'Не удалось выбрать адрес',
+              'Could not select the address',
+            ),
+          ),
+        ),
+      );
+      setState(() => _selectingAddressId = null);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
     return BrandedScaffold(
-      title: tr(lang, 'Mening manzillarim', 'Мои адреса', 'My addresses'),
+      title: widget.selectionMode
+          ? tr(lang, 'Manzilni tanlang', 'Выберите адрес', 'Choose an address')
+          : tr(lang, 'Mening manzillarim', 'Мои адреса', 'My addresses'),
       showBack: true,
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -126,11 +186,20 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
         separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (context, index) {
           final address = _addresses[index];
+          final isSelected =
+              address.id == widget.selectedAddressId ||
+              (widget.selectedAddressId == null && address.isDefault);
+          final isSelecting = _selectingAddressId == address.id;
           return Semantics(
             button: true,
+            selected: widget.selectionMode && isSelected,
             label: address.addressText,
             child: GestureDetector(
-              onTap: () => _openEditor(address),
+              onTap: _selectingAddressId != null
+                  ? null
+                  : widget.selectionMode
+                  ? () => _selectAddress(address)
+                  : () => _openEditor(address),
               child: GlassContainer.lite(
                 borderRadius: 24,
                 padding: const EdgeInsets.all(16),
@@ -183,7 +252,23 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right, color: AppColors.muted),
+                    if (isSelecting)
+                      const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      )
+                    else
+                      Icon(
+                        widget.selectionMode
+                            ? isSelected
+                                  ? Icons.check_circle_rounded
+                                  : Icons.radio_button_unchecked_rounded
+                            : Icons.chevron_right,
+                        color: widget.selectionMode && isSelected
+                            ? AppColors.blue
+                            : AppColors.muted,
+                      ),
                   ],
                 ),
               ),

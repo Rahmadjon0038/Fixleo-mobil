@@ -10,6 +10,8 @@ import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/location/device_location_feedback.dart';
 import 'package:fixleo/core/location/device_location_service.dart';
+import 'package:fixleo/core/location/place_search_field.dart';
+import 'package:fixleo/core/location/place_search_service.dart';
 import 'package:fixleo/core/location/reverse_geocoder.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/home/presentation/home_screen.dart';
@@ -33,6 +35,7 @@ class AddressScreen extends StatefulWidget {
     this.draft,
     this.locationService,
     this.geocoder,
+    this.placeSearchService,
     this.orderService,
     this.loadMapTiles = true,
   });
@@ -51,6 +54,7 @@ class AddressScreen extends StatefulWidget {
 
   final DeviceLocationService? locationService;
   final ReverseGeocoder? geocoder;
+  final PlaceSearchService? placeSearchService;
   final OrderService? orderService;
   final bool loadMapTiles;
 
@@ -67,6 +71,7 @@ class _AddressScreenState extends State<AddressScreen> {
   final _detailsController = TextEditingController();
   late final DeviceLocationService _locationService;
   late final ReverseGeocoder _geocoder;
+  late final PlaceSearchService _placeSearchService;
 
   /// Current selected map center.
   late final ll.LatLng _initialCenter;
@@ -85,6 +90,7 @@ class _AddressScreenState extends State<AddressScreen> {
     super.initState();
     _locationService = widget.locationService ?? DeviceLocationService();
     _geocoder = widget.geocoder ?? ReverseGeocoder();
+    _placeSearchService = widget.placeSearchService ?? PlaceSearchService();
     _orders = widget.orderService ?? OrderService();
     final initial = widget.initialAddress;
     _initialCenter = initial == null
@@ -196,6 +202,21 @@ class _AddressScreenState extends State<AddressScreen> {
     }
   }
 
+  Future<void> _selectSearchResult(PlaceSearchResult result) async {
+    _geocodeDebounce?.cancel();
+    final point = result.point;
+    setState(() {
+      _center = point;
+      _placeLabel = result.label;
+      _placeSubtitle = result.subtitle;
+      _resolvingPlace = false;
+      _dragging = false;
+    });
+    await _mapController?.animateCamera(
+      gmap.CameraUpdate.newLatLngZoom(_toGoogle(point), 16),
+    );
+  }
+
   String _addressText() {
     final value = [?_placeLabel, ?_placeSubtitle].join(', ').trim();
     return value.isNotEmpty
@@ -209,6 +230,7 @@ class _AddressScreenState extends State<AddressScreen> {
     try {
       final saved = await _orders.saveAddress(
         id: widget.initialAddress?.id,
+        label: widget.initialAddress?.label,
         addressText: _addressText(),
         latitude: _center.latitude,
         longitude: _center.longitude,
@@ -309,6 +331,16 @@ class _AddressScreenState extends State<AddressScreen> {
                             blurRadius: 12,
                           ),
                         ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: PlaceSearchField(
+                        language: lang,
+                        service: _placeSearchService,
+                        bias: _center,
+                        onSelected: _selectSearchResult,
                       ),
                     ),
                   ],

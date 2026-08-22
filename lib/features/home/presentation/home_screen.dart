@@ -11,15 +11,17 @@ import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
 import 'package:fixleo/core/network/current_user.dart';
 import 'package:fixleo/core/realtime/app_presence_service.dart';
 import 'package:fixleo/core/realtime/call_service.dart';
+import 'package:fixleo/features/categories/data/category_model.dart';
 import 'package:fixleo/features/categories/data/category_service.dart';
+import 'package:fixleo/features/categories/presentation/category_image.dart';
 import 'package:fixleo/features/notifications/data/notification_service.dart';
 import 'package:fixleo/features/notifications/presentation/notifications_screen.dart';
+import 'package:fixleo/features/profile/presentation/my_addresses_screen.dart';
 import 'package:fixleo/features/profile/presentation/profile_screen.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/data/chat_service.dart';
 import 'package:fixleo/features/request/presentation/chats_list_screen.dart';
-import 'package:fixleo/features/request/presentation/address_screen.dart';
 import 'package:fixleo/features/request/presentation/my_orders_screen.dart';
 import 'package:fixleo/features/request/presentation/order_tracking_screen.dart';
 import 'package:fixleo/features/request/presentation/request_category_screen.dart';
@@ -54,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late final NotificationService _notifications;
   late final CategoryService _categories;
   late final ChatService _chats;
+  final GlobalKey<_CategoriesCardState> _categoriesCardKey = GlobalKey();
   ClientAddress? _defaultAddress;
   List<OrderSummary> _activeOrders = const [];
   int _unreadNotifications = 0;
@@ -99,8 +102,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _loadDefaultAddress() async {
     try {
       final addresses = await _orders.addresses();
-      if (!mounted || addresses.isEmpty) return;
-      setState(() => _defaultAddress = addresses.first);
+      if (!mounted) return;
+      if (addresses.isEmpty) {
+        setState(() => _defaultAddress = null);
+        return;
+      }
+      final defaultAddress = addresses
+          .where((item) => item.isDefault)
+          .firstOrNull;
+      setState(() => _defaultAddress = defaultAddress ?? addresses.first);
     } on Object {
       // The fallback city remains visible when the address book is unavailable.
     }
@@ -109,8 +119,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _changeLocation() async {
     final saved = await Navigator.of(context).push<ClientAddress>(
       MaterialPageRoute(
-        builder: (_) =>
-            AddressScreen(isEditingHome: true, initialAddress: _defaultAddress),
+        builder: (_) => MyAddressesScreen(
+          orderService: _orders,
+          selectionMode: true,
+          selectedAddressId: _defaultAddress?.id,
+        ),
       ),
     );
     if (saved != null && mounted) setState(() => _defaultAddress = saved);
@@ -156,6 +169,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _setUnreadChats(int count) {
     if (!mounted || count == _unreadChats) return;
     setState(() => _unreadChats = count);
+  }
+
+  Future<void> _refreshHome() async {
+    await Future.wait([
+      CurrentUser.instance.refresh(),
+      _loadDefaultAddress(),
+      _loadActiveOrders(),
+      _loadUnreadNotifications(),
+      _loadUnreadChats(),
+      if (_categoriesCardKey.currentState case final categories?)
+        categories.refresh(),
+    ]);
   }
 
   Future<void> _openNotifications() async {
@@ -245,47 +270,76 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _homeTab(AppLanguage lang) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 8),
-          _HomeHeader(
-            lang: lang,
-            unreadNotifications: _unreadNotifications,
-            onNotifications: _openNotifications,
-            onProfile: () => _setTab(4),
-          ),
-          const SizedBox(height: 14),
-          _GreetingCard(
-            lang: lang,
-            locationText: _defaultAddress?.addressText,
-            onChangeLocation: _changeLocation,
-          ),
-          const SizedBox(height: 14),
-          if (_activeOrders.isNotEmpty) ...[
-            _ActiveOrdersBanner(
-              lang: lang,
-              count: _activeOrders.length,
-              onView: _openActiveOrders,
+    return RefreshIndicator(
+      color: AppColors.blue,
+      backgroundColor: Colors.white,
+      displacement: 64,
+      onRefresh: _refreshHome,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  _HomeHeader(
+                    lang: lang,
+                    unreadNotifications: _unreadNotifications,
+                    onNotifications: _openNotifications,
+                    onProfile: () => _setTab(4),
+                  ),
+                  const SizedBox(height: 14),
+                  _GreetingCard(
+                    lang: lang,
+                    locationText: _defaultAddress?.addressText,
+                    onChangeLocation: _changeLocation,
+                  ),
+                  if (_activeOrders.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    _ActiveOrdersBanner(
+                      lang: lang,
+                      count: _activeOrders.length,
+                      onView: _openActiveOrders,
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                ],
+              ),
             ),
-            const SizedBox(height: 14),
-          ],
-          _SearchHero(lang: lang),
-          const SizedBox(height: 14),
-          _CategoriesCard(lang: lang, service: _categories),
-          const SizedBox(height: 14),
-          const _PhotosCard(),
-          const SizedBox(height: 14),
-          _FeedbackRow(lang: lang),
-          const SizedBox(height: 14),
-          _SpecialistCard(lang: lang),
-          const SizedBox(height: 14),
-          _ActiveOrderCard(
-            lang: lang,
-            order: _activeOrders.isEmpty ? null : _activeOrders.first,
-            onChanged: _loadActiveOrders,
+          ),
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _StickySearchDelegate(lang: lang, service: _categories),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 110),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _CategoriesCard(
+                    key: _categoriesCardKey,
+                    lang: lang,
+                    service: _categories,
+                  ),
+                  const SizedBox(height: 14),
+                  _FeedbackRow(lang: lang),
+                  const SizedBox(height: 14),
+                  _SpecialistCard(lang: lang),
+                  const SizedBox(height: 14),
+                  _ActiveOrderCard(
+                    lang: lang,
+                    order: _activeOrders.isEmpty ? null : _activeOrders.first,
+                    onChanged: _loadActiveOrders,
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -537,78 +591,130 @@ class _GreetingCard extends StatelessWidget {
 }
 
 class _SearchHero extends StatelessWidget {
-  const _SearchHero({required this.lang});
+  const _SearchHero({required this.lang, required this.service});
 
   final AppLanguage lang;
+  final CategoryService service;
+
+  void _openSearch(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            RequestCategoryScreen(service: service, autofocusSearch: true),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.heroDark,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            tr(
-              lang,
-              'Har qanday vazifa uchun tekshirilgan\nusta topamiz',
-              'Найдём проверенного мастера\nдля любой задачи',
-              'We’ll find a vetted master\nfor any task',
-            ),
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              height: 1.25,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            height: 50,
+    final label = RequestCategoryScreen.searchHint(lang);
+    return Semantics(
+      button: true,
+      label: label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _openSearch(context),
+          borderRadius: BorderRadius.circular(20),
+          child: Ink(
+            height: 60,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.white, Colors.white.withValues(alpha: 0.82)],
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.92)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x120F172A),
+                  blurRadius: 12,
+                  offset: Offset(0, 4),
+                ),
+              ],
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const Icon(
+                  Icons.search_rounded,
+                  color: AppColors.blue,
+                  size: 24,
+                ),
+                const SizedBox(width: 11),
                 Expanded(
-                  child: Center(
-                    child: TextField(
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.navy,
-                      ),
-                      decoration: InputDecoration(
-                        isCollapsed: true,
-                        border: InputBorder.none,
-                        hintText: tr(
-                          lang,
-                          'Mutaxassis yoki xizmat',
-                          'Специалист или услуга',
-                          'Specialist or service',
-                        ),
-                        hintStyle: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 14,
-                        ),
-                      ),
+                  child: Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 14.5,
+                      height: 1.25,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
-                Center(child: Icon(Icons.search, color: AppColors.muted)),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.muted,
+                  size: 22,
+                ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
+  }
+}
+
+class _StickySearchDelegate extends SliverPersistentHeaderDelegate {
+  const _StickySearchDelegate({required this.lang, required this.service});
+
+  final AppLanguage lang;
+  final CategoryService service;
+
+  static const double _height = 74;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: overlapsContent
+            ? AppColors.background.withValues(alpha: 0.96)
+            : Colors.transparent,
+        boxShadow: overlapsContent
+            ? const [
+                BoxShadow(
+                  color: Color(0x0D0F172A),
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
+                ),
+              ]
+            : null,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 0, 10, 14),
+        child: _SearchHero(lang: lang, service: service),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _StickySearchDelegate oldDelegate) {
+    return oldDelegate.lang != lang || oldDelegate.service != service;
   }
 }
 
@@ -705,14 +811,8 @@ class _ActiveOrdersBanner extends StatelessWidget {
   }
 }
 
-class _Category {
-  const _Category(this.label, {this.id});
-  final String label;
-  final int? id;
-}
-
 class _CategoriesCard extends StatefulWidget {
-  const _CategoriesCard({required this.lang, required this.service});
+  const _CategoriesCard({super.key, required this.lang, required this.service});
 
   final AppLanguage lang;
   final CategoryService service;
@@ -722,95 +822,109 @@ class _CategoriesCard extends StatefulWidget {
 }
 
 class _CategoriesCardState extends State<_CategoriesCard> {
-  late List<_Category> _items;
+  List<CategoryGroup> _groups = const [];
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _items = _fallback(widget.lang);
     _load();
   }
 
-  List<_Category> _fallback(AppLanguage lang) => [
-    _Category(tr(lang, 'Santexnika', 'Сантехника', 'Plumbing')),
-    _Category(tr(lang, 'Elektrika', 'Электрика', 'Electrical')),
-    _Category(tr(lang, 'Tozalash', 'Уборка', 'Cleaning')),
-    _Category(
-      tr(lang, 'Maishiy texnika', 'Бытовая техника', 'Home appliances'),
-    ),
-    _Category(tr(lang, 'Boʻyash', 'Покраска', 'Painting')),
-    _Category(tr(lang, 'Yigʻish', 'Сборка', 'Assembly')),
-  ];
-
   Future<void> _load() async {
     try {
-      final categories = await widget.service.getAll();
-      if (!mounted || categories.isEmpty) return;
+      final groups = await widget.service.getGroups();
+      if (!mounted) return;
+      final visibleGroups = groups
+          .where((group) => group.services.isNotEmpty)
+          .toList(growable: false);
       setState(() {
-        _items = categories
-            .map((c) => _Category(c.name, id: c.id))
-            .toList(growable: false);
+        _groups = visibleGroups;
+        _loading = false;
       });
     } catch (_) {
-      // Keep the fallback list on any error.
+      if (mounted) setState(() => _loading = false);
     }
   }
 
+  Future<void> refresh() => _load();
+
   @override
   Widget build(BuildContext context) {
-    final half = (_items.length / 2).ceil();
-    final row1 = _items.take(half).toList();
-    final row2 = _items.skip(half).toList();
-
     return GlassCard(
+      padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            tr(widget.lang, 'Bizning Fix-erlar', 'Наши Fix-еры', 'Our Fix-ers'),
-            style: TextStyle(
-              fontSize: 16,
+            tr(
+              widget.lang,
+              'Sizga qanday yordam kerak?',
+              'Какая помощь вам нужна?',
+              'What do you need help with?',
+            ),
+            style: const TextStyle(
+              fontSize: 17,
+              height: 1.2,
               fontWeight: FontWeight.w700,
               color: AppColors.navy,
             ),
           ),
-          const SizedBox(height: 14),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    for (final c in row1)
-                      _CategoryChip(
-                        category: c,
-                        onTap: () => _openCategory(context, c),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    for (final c in row2)
-                      _CategoryChip(
-                        category: c,
-                        onTap: () => _openCategory(context, c),
-                      ),
-                  ],
-                ),
-              ],
+          const SizedBox(height: 6),
+          Text(
+            tr(
+              widget.lang,
+              'Kerakli xizmatni tanlang',
+              'Выберите нужную услугу',
+              'Choose the service you need',
+            ),
+            style: const TextStyle(
+              color: AppColors.muted,
+              fontSize: 12.5,
+              height: 1.3,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
+          if (_loading)
+            const SizedBox(
+              height: 150,
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_groups.isEmpty)
+            SizedBox(
+              height: 90,
+              child: Center(
+                child: Text(
+                  tr(
+                    widget.lang,
+                    'Hozircha xizmatlar yo‘q',
+                    'Пока нет доступных услуг',
+                    'No services are available yet',
+                  ),
+                  style: const TextStyle(color: AppColors.muted),
+                ),
+              ),
+            )
+          else
+            for (var index = 0; index < _groups.length; index++) ...[
+              if (index != 0) const SizedBox(height: 18),
+              _HomeCategoryRow(
+                key: ValueKey('home-category-row-${_groups[index].id}'),
+                group: _groups[index],
+                language: widget.lang,
+                onServiceTap: (service) => _openCategory(context, service),
+              ),
+            ],
+          const SizedBox(height: 18),
           GlassButton(
             label: tr(
               widget.lang,
-              'Vazifa soʻrash',
-              'Запросить задание',
-              'Request a task',
+              'Barcha xizmatlar',
+              'Все услуги',
+              'All services',
             ),
-            icon: Icons.add,
-            height: 52,
+            icon: Icons.grid_view_rounded,
+            height: 50,
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -825,205 +939,138 @@ class _CategoriesCardState extends State<_CategoriesCard> {
     );
   }
 
-  void _openCategory(BuildContext context, _Category category) {
-    final id = category.id;
+  void _openCategory(BuildContext context, Category category) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => id == null
-            ? RequestCategoryScreen(service: widget.service)
-            : NewRequestScreen(categoryId: id, categoryName: category.label),
-      ),
-    );
-  }
-}
-
-/// Per-category icon, matched by name keywords (FINAL gives every category a
-/// distinct icon; the backend Category model has no icon field yet).
-IconData _categoryIcon(String name) {
-  final n = name.toLowerCase();
-  if (n.contains('сантех') || n.contains('santex')) {
-    return Icons.water_drop_outlined;
-  }
-  if (n.contains('электр') || n.contains('elektr')) {
-    return Icons.bolt_outlined;
-  }
-  if (n.contains('клин') || n.contains('убор') || n.contains('tozal')) {
-    return Icons.cleaning_services_outlined;
-  }
-  if (n.contains('быт') || n.contains('техник') || n.contains('texnik')) {
-    return Icons.kitchen_outlined;
-  }
-  if (n.contains('крас') ||
-      n.contains('boʻyash') ||
-      n.contains("bo'yash") ||
-      n.contains('paint')) {
-    return Icons.format_paint_outlined;
-  }
-  if (n.contains('сбор') ||
-      n.contains('мебел') ||
-      n.contains('yigʻ') ||
-      n.contains("yig'") ||
-      n.contains('mebel')) {
-    return Icons.chair_alt_outlined;
-  }
-  return Icons.handyman_outlined;
-}
-
-class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({required this.category, required this.onTap});
-
-  final _Category category;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: GlassContainer.lite(
-          borderRadius: 24,
-          padding: const EdgeInsets.all(14),
-          // No drop shadow — these sit edge-to-edge in a scrolling row, and
-          // the default soft shadow smears into a glow across the whole
-          // row instead of reading as separate chips.
-          shadow: false,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEAF3FE),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.center,
-                child: Icon(
-                  _categoryIcon(category.label),
-                  size: 22,
-                  color: AppColors.blue,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                category.label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navy,
-                  height: 1.15,
-                ),
-              ),
-            ],
-          ),
+        builder: (_) => NewRequestScreen(
+          categoryId: category.id,
+          categoryName: category.localizedName(widget.lang),
         ),
       ),
     );
   }
 }
 
-class _PhotosCard extends StatelessWidget {
-  const _PhotosCard();
+class _HomeCategoryRow extends StatelessWidget {
+  const _HomeCategoryRow({
+    super.key,
+    required this.group,
+    required this.language,
+    required this.onServiceTap,
+  });
 
-  static const _colors = [
-    Color(0xFF2C3E50),
-    Color(0xFFC79A3B),
-    Color(0xFFDCE3DA),
-    Color(0xFFE8E2D5),
-    Color(0xFFCBD3DA),
-    Color(0xFFEAEEF1),
-  ];
+  final CategoryGroup group;
+  final AppLanguage language;
+  final ValueChanged<Category> onServiceTap;
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            tr(
-              LocaleController.language.value,
-              'Ustalar fotosi',
-              'Фото Мастеров',
-              'Masters’ photos',
-            ),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.navy,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          group.localizedTitle(language),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.navy,
+            fontSize: 15.5,
+            height: 1.2,
+            fontWeight: FontWeight.w700,
           ),
-          const SizedBox(height: 14),
-          Stack(
-            children: [
-              Column(
-                children: [
-                  _PhotoRow(colors: _colors.sublist(0, 3)),
-                  const SizedBox(height: 10),
-                  _PhotoRow(colors: _colors.sublist(3, 6)),
-                ],
+        ),
+        const SizedBox(height: 9),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const spacing = 7.0;
+            final cardWidth = (constraints.maxWidth - spacing * 2) / 3;
+            return SizedBox(
+              height: 130,
+              child: ListView.separated(
+                key: PageStorageKey('home-category-list-${group.id}'),
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                itemCount: group.services.length,
+                separatorBuilder: (_, _) => const SizedBox(width: spacing),
+                itemBuilder: (context, index) {
+                  final service = group.services[index];
+                  return _HomeServiceCard(
+                    key: ValueKey('home-service-${service.id}'),
+                    width: cardWidth,
+                    service: service,
+                    language: language,
+                    onTap: () => onServiceTap(service),
+                  );
+                },
               ),
-              Positioned(
-                right: 4,
-                bottom: 4,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.blue,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Text(
-                    tr(
-                      LocaleController.language.value,
-                      'Barcha foto',
-                      'Все фото',
-                      'All photos',
-                    ),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+            );
+          },
+        ),
+      ],
     );
   }
 }
 
-class _PhotoRow extends StatelessWidget {
-  const _PhotoRow({required this.colors});
+class _HomeServiceCard extends StatelessWidget {
+  const _HomeServiceCard({
+    super.key,
+    required this.width,
+    required this.service,
+    required this.language,
+    required this.onTap,
+  });
 
-  final List<Color> colors;
+  final double width;
+  final Category service;
+  final AppLanguage language;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (var i = 0; i < colors.length; i++) ...[
-          if (i != 0) const SizedBox(width: 10),
-          Expanded(
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: colors[i],
-                  borderRadius: BorderRadius.circular(14),
+    return Semantics(
+      button: true,
+      label: service.localizedName(language),
+      child: SizedBox(
+        width: width,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: width,
+                  height: 86,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE0E6EE)),
+                    ),
+                    child: CategoryImage(category: service, borderRadius: 13),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 7),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 1),
+                  child: Text(
+                    service.localizedName(language),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.navy,
+                      fontSize: 12.5,
+                      height: 1.15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ],
+        ),
+      ),
     );
   }
 }

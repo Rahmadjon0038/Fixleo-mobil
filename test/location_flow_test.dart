@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/core/location/device_location_service.dart';
+import 'package:fixleo/core/location/place_search_service.dart';
 import 'package:fixleo/core/location/reverse_geocoder.dart';
 import 'package:fixleo/features/master/presentation/master_work_zone_screen.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
@@ -50,6 +51,27 @@ class _FakeReverseGeocoder extends ReverseGeocoder {
   }
 }
 
+class _FakePlaceSearchService extends PlaceSearchService {
+  int searchCalls = 0;
+
+  @override
+  Future<List<PlaceSearchResult>> search(
+    String query, {
+    required AppLanguage language,
+    int limit = 5,
+    LatLng? bias,
+  }) async {
+    searchCalls++;
+    return const [
+      PlaceSearchResult(
+        point: LatLng(51.5074, -0.1278),
+        label: 'London',
+        subtitle: 'United Kingdom',
+      ),
+    ];
+  }
+}
+
 class _FakeWorkRadiusService extends WorkRadiusService {
   @override
   Future<List<WorkRadius>> getOptions() async => const [];
@@ -63,6 +85,7 @@ class _FakeOrderService extends OrderService {
   @override
   Future<ClientAddress> saveAddress({
     int? id,
+    String? label,
     required String addressText,
     String? district,
     required double latitude,
@@ -75,6 +98,7 @@ class _FakeOrderService extends OrderService {
     savedLongitude = longitude;
     return ClientAddress(
       id: id ?? 99,
+      label: label,
       addressText: addressText,
       latitude: latitude,
       longitude: longitude,
@@ -123,6 +147,53 @@ void main() {
     expect(find.text('Test street'), findsOneWidget);
   });
 
+  testWidgets('address search moves the selected map location', (tester) async {
+    final places = _FakePlaceSearchService();
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AddressScreen(
+          isEditingHome: true,
+          initialAddress: _savedAddress,
+          geocoder: _FakeReverseGeocoder(),
+          placeSearchService: places,
+          loadMapTiles: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('location-search-field')),
+      'Lon',
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(places.searchCalls, 0);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('location-search-field')),
+      'London',
+    );
+    await tester.pump(const Duration(milliseconds: 449));
+    expect(places.searchCalls, 0);
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump();
+
+    expect(places.searchCalls, 1);
+    expect(find.text('United Kingdom'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('location-search-result-0')));
+    await tester.pump();
+
+    expect(find.text('51.507400, -0.127800'), findsOneWidget);
+    expect(find.text('United Kingdom'), findsOneWidget);
+  });
+
   testWidgets('my-location button moves an existing address to device GPS', (
     tester,
   ) async {
@@ -164,6 +235,7 @@ void main() {
         home: MasterWorkZoneScreen(
           locationService: location,
           geocoder: _FakeReverseGeocoder(),
+          placeSearchService: _FakePlaceSearchService(),
           workRadiusService: _FakeWorkRadiusService(),
           loadMapTiles: false,
         ),
@@ -174,6 +246,7 @@ void main() {
 
     expect(location.locationCalls, 1);
     expect(find.text('Current GPS location'), findsOneWidget);
+    expect(find.byKey(const ValueKey('location-search-field')), findsOneWidget);
   });
 
   testWidgets('an address anywhere in the world can be saved', (tester) async {

@@ -1,31 +1,38 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
-import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/categories/data/category_model.dart';
 import 'package:fixleo/features/categories/data/category_service.dart';
+import 'package:fixleo/features/categories/presentation/category_image.dart';
 import 'package:fixleo/features/master/data/master_service.dart';
 import 'package:fixleo/features/master/presentation/master_work_zone_screen.dart';
 
-/// Final master onboarding step — pick which job categories to receive
-/// requests for. Multi-select; at least one must be chosen to continue.
+/// Grouped multi-select used in master onboarding and service settings.
 class MasterCategoriesScreen extends StatefulWidget {
-  const MasterCategoriesScreen({super.key});
+  const MasterCategoriesScreen({
+    super.key,
+    this.categoryService,
+    this.masterService,
+  });
+
+  final CategoryService? categoryService;
+  final MasterService? masterService;
 
   @override
   State<MasterCategoriesScreen> createState() => _MasterCategoriesScreenState();
 }
 
 class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
-  final _categoryService = CategoryService();
-  final _masterService = MasterService();
-
-  List<Category> _categories = const [];
+  late final CategoryService _categoryService =
+      widget.categoryService ?? CategoryService();
+  late final MasterService _masterService =
+      widget.masterService ?? MasterService();
+  final _searchController = TextEditingController();
+  List<CategoryGroup> _groups = const [];
   final _selectedIds = <int>{};
   bool _loading = true;
   bool _saving = false;
@@ -37,25 +44,35 @@ class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final categories = await _categoryService.getAll();
+      final groups = await _categoryService.getGroups();
+      final master = await _masterService.me();
       if (!mounted) return;
       setState(() {
-        _categories = categories;
+        _groups = groups;
+        _selectedIds
+          ..clear()
+          ..addAll(master.categories.map((category) => category.id));
         _loading = false;
       });
-    } on ApiException catch (e) {
+    } on ApiException catch (error) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = e.message;
+        _error = error.message;
       });
-    } catch (_) {
+    } on Object {
       if (!mounted) return;
       setState(() {
         _loading = false;
@@ -75,28 +92,27 @@ class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
     });
   }
 
-  /// Saves the selected categories (`PUT /masters/me/categories`) then moves on.
   Future<void> _saveAndContinue() async {
     if (_selectedIds.isEmpty || _saving) return;
     setState(() => _saving = true);
     try {
-      await _masterService.setCategories(_selectedIds.toList());
+      await _masterService.setCategories(_selectedIds.toList(growable: false));
       if (!mounted) return;
       Navigator.of(
         context,
       ).push(MaterialPageRoute(builder: (_) => const MasterWorkZoneScreen()));
-    } on ApiException catch (e) {
+    } on ApiException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(e.message)));
-    } catch (_) {
+        ..showSnackBar(SnackBar(content: Text(error.message)));
+    } on Object {
       if (!mounted) return;
-      final lang = LocaleController.language.value;
+      final language = LocaleController.language.value;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'),
+            tr(language, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'),
           ),
         ),
       );
@@ -107,66 +123,88 @@ class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final lang = LocaleController.language.value;
+    final language = LocaleController.language.value;
     return BrandedScaffold(
-      title: tr(lang, 'Xizmat turlari', 'Виды услуг', 'Service types'),
+      title: tr(language, 'Xizmatlaringiz', 'Ваши услуги', 'Your services'),
       showBack: true,
       body: Column(
         children: [
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                ? _ErrorState(message: _error!, onRetry: _load)
-                : SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    child: GlassContainer(
-                      borderRadius: 30,
-                      padding: const EdgeInsets.fromLTRB(10, 14, 20, 14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(left: 10, bottom: 4),
-                            child: Text(
-                              tr(
-                                lang,
-                                'Qaysi buyurtmalarni olishni tanlang.',
-                                'Выберите, какие заказы получать.',
-                                'Choose which requests to receive.',
-                              ),
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppColors.muted,
-                              ),
-                            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr(
+                    language,
+                    'Buyurtma oladigan barcha xizmatlarni belgilang',
+                    'Отметьте все услуги, по которым хотите получать заказы',
+                    'Select every service you want to receive requests for',
+                  ),
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 14,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _searchController,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    hintText: tr(
+                      language,
+                      'Xizmat yoki teg bo‘yicha qidirish',
+                      'Поиск услуги или тега',
+                      'Search services or tags',
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      color: AppColors.blue,
+                    ),
+                    suffixIcon: _searchController.text.isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {});
+                            },
+                            icon: const Icon(Icons.close_rounded),
                           ),
-                          for (var i = 0; i < _categories.length; i++) ...[
-                            if (i != 0)
-                              const Divider(
-                                height: 1,
-                                thickness: 1,
-                                color: Color(0xFFE2E8F0),
-                              ),
-                            _CategoryRow(
-                              name: _categories[i].name,
-                              selected: _selectedIds.contains(
-                                _categories[i].id,
-                              ),
-                              onTap: () => _toggle(_categories[i].id),
-                            ),
-                          ],
-                        ],
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: const BorderSide(color: Color(0xFFD8DEE8)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: const BorderSide(color: Color(0xFFD8DEE8)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: const BorderSide(
+                        color: AppColors.blue,
+                        width: 1.5,
                       ),
                     ),
                   ),
+                ),
+              ],
+            ),
           ),
+          Expanded(child: _content(language)),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
             child: PrimaryButton(
               label: _saving
-                  ? tr(lang, 'Saqlanmoqda...', 'Сохранение...', 'Saving...')
-                  : tr(lang, 'Davom etish', 'Продолжить', 'Continue'),
+                  ? tr(language, 'Saqlanmoqda...', 'Сохранение...', 'Saving...')
+                  : tr(
+                      language,
+                      'Davom etish · ${_selectedIds.length}',
+                      'Продолжить · ${_selectedIds.length}',
+                      'Continue · ${_selectedIds.length}',
+                    ),
               onPressed: _selectedIds.isEmpty || _saving
                   ? null
                   : _saveAndContinue,
@@ -176,9 +214,199 @@ class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
       ),
     );
   }
+
+  Widget _content(AppLanguage language) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) return _ErrorState(message: _error!, onRetry: _load);
+
+    final query = _searchController.text;
+    final visibleGroups = _groups
+        .map(
+          (group) => (
+            group: group,
+            services: group.services
+                .where((category) => category.matches(query))
+                .toList(),
+          ),
+        )
+        .where((entry) => entry.services.isNotEmpty)
+        .toList();
+    if (visibleGroups.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            tr(
+              language,
+              'Mos xizmat topilmadi',
+              'Подходящие услуги не найдены',
+              'No matching services found',
+            ),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.muted),
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+        itemCount: visibleGroups.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 18),
+        itemBuilder: (context, index) {
+          final entry = visibleGroups[index];
+          return _MasterServiceGroup(
+            title: entry.group.localizedTitle(language),
+            services: entry.services,
+            language: language,
+            selectedIds: _selectedIds,
+            onToggle: _toggle,
+          );
+        },
+      ),
+    );
+  }
 }
 
-/// Simple centered error message with a retry button.
+class _MasterServiceGroup extends StatelessWidget {
+  const _MasterServiceGroup({
+    required this.title,
+    required this.services,
+    required this.language,
+    required this.selectedIds,
+    required this.onToggle,
+  });
+
+  final String title;
+  final List<Category> services;
+  final AppLanguage language;
+  final Set<int> selectedIds;
+  final ValueChanged<int> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 2, bottom: 10),
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.navy,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: services.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.02,
+          ),
+          itemBuilder: (context, index) {
+            final service = services[index];
+            return _MasterServiceTile(
+              service: service,
+              language: language,
+              selected: selectedIds.contains(service.id),
+              onTap: () => onToggle(service.id),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _MasterServiceTile extends StatelessWidget {
+  const _MasterServiceTile({
+    required this.service,
+    required this.language,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Category service;
+  final AppLanguage language;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: service.localizedName(language),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFFEAF3FE) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected ? AppColors.blue : const Color(0xFFE2E8F0),
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CategoryImage(category: service, borderRadius: 15),
+                    Positioned(
+                      right: 7,
+                      top: 7,
+                      child: Icon(
+                        selected
+                            ? Icons.check_circle_rounded
+                            : Icons.add_circle_outline_rounded,
+                        color: selected ? AppColors.blue : Colors.white,
+                        size: 25,
+                        shadows: const [
+                          Shadow(color: Color(0x66000000), blurRadius: 7),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(7, 8, 7, 7),
+                child: Text(
+                  service.localizedName(language),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.navy,
+                    fontSize: 14,
+                    height: 1.2,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.message, required this.onRetry});
 
@@ -196,7 +424,7 @@ class _ErrorState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 15, color: AppColors.muted),
+              style: const TextStyle(fontSize: 15, color: AppColors.muted),
             ),
             const SizedBox(height: 12),
             TextButton(
@@ -213,94 +441,6 @@ class _ErrorState extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _CategoryRow extends StatelessWidget {
-  const _CategoryRow({
-    required this.name,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String name;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        height: 60,
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF8FAFC),
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: SvgPicture.asset(
-                'assets/icon/Waterdrop.svg',
-                width: 24,
-                height: 24,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                name,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.navy,
-                ),
-              ),
-            ),
-            _SelectDot(selected: selected),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Round selection indicator — filled blue with a white center when chosen,
-/// otherwise an empty gray-bordered circle.
-class _SelectDot extends StatelessWidget {
-  const _SelectDot({required this.selected});
-
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 22,
-      height: 22,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: selected ? AppColors.blue : Colors.transparent,
-        border: Border.all(
-          color: selected ? AppColors.blue : const Color(0xFFE2E8F0),
-          width: 2,
-        ),
-      ),
-      child: selected
-          ? Center(
-              child: Container(
-                width: 7,
-                height: 7,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                ),
-              ),
-            )
-          : null,
     );
   }
 }

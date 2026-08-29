@@ -28,7 +28,7 @@ class MasterCategoriesScreen extends StatefulWidget {
 
 class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
   late final CategoryService _categoryService =
-      widget.categoryService ?? CategoryService();
+      widget.categoryService ?? CategoryService(audience: 'master');
   late final MasterService _masterService =
       widget.masterService ?? MasterService();
   final _searchController = TextEditingController();
@@ -260,6 +260,9 @@ class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
           final entry = visibleGroups[index];
           return _MasterServiceGroup(
             title: entry.group.localizedTitle(language),
+            description: entry.group
+                .localizedDescription(language)
+                .replaceAll('**', ''),
             services: entry.services,
             language: language,
             selectedIds: _selectedIds,
@@ -274,6 +277,7 @@ class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
 class _MasterServiceGroup extends StatelessWidget {
   const _MasterServiceGroup({
     required this.title,
+    required this.description,
     required this.services,
     required this.language,
     required this.selectedIds,
@@ -281,6 +285,7 @@ class _MasterServiceGroup extends StatelessWidget {
   });
 
   final String title;
+  final String description;
   final List<Category> services;
   final AppLanguage language;
   final Set<int> selectedIds;
@@ -293,13 +298,31 @@ class _MasterServiceGroup extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 2, bottom: 10),
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: AppColors.navy,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppColors.navy,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if (description.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
         GridView.builder(

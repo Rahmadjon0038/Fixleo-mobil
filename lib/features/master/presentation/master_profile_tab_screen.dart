@@ -9,6 +9,7 @@ import 'package:fixleo/features/master/data/master_service.dart';
 import 'package:fixleo/features/master/presentation/master_edit_profile_screen.dart';
 import 'package:fixleo/features/notifications/presentation/notifications_screen.dart';
 import 'package:fixleo/features/welcome/presentation/intro_screen.dart';
+import 'package:fixleo/features/faq/presentation/faq_screen.dart';
 
 /// Master's profile tab — mirrors the client profile layout: account header
 /// (live `GET /masters/me`), a working language switcher (O‘zbekcha /
@@ -136,7 +137,13 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
             _MenuItem(
               icon: Icons.headset_mic_outlined,
               label: tr(lang, 'Qoʻllab-quvvatlash', 'Поддержка', 'Support'),
-              onTap: () {},
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const FaqScreen(audience: 'master'),
+                  ),
+                );
+              },
             ),
             _MenuItem(
               icon: Icons.shield_outlined,

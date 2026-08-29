@@ -75,7 +75,7 @@ class _MasterFiltersScreenState extends State<MasterFiltersScreen> {
 
   Future<void> _loadCategories() async {
     try {
-      final categories = await CategoryService().getAll();
+      final categories = await CategoryService(audience: 'master').getAll();
       if (!mounted) return;
       setState(() {
         _categories = categories;

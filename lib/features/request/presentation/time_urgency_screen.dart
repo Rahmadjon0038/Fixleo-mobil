@@ -12,9 +12,10 @@ import 'package:fixleo/features/request/presentation/review_request_screen.dart'
 /// Step 4 of the "new request" flow — choose urgent, today, or a later date.
 /// Urgent needs no slot; today needs only a slot; later needs date + slot.
 class TimeUrgencyScreen extends StatefulWidget {
-  const TimeUrgencyScreen({super.key, this.draft});
+  const TimeUrgencyScreen({super.key, this.draft, this.orderService});
 
   final NewOrderDraft? draft;
+  final OrderService? orderService;
 
   @override
   State<TimeUrgencyScreen> createState() => _TimeUrgencyScreenState();
@@ -33,7 +34,7 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
   int? _slot;
   DateTime? _scheduledDate;
 
-  final _orders = OrderService();
+  late final OrderService _orders;
 
   /// Real slot/urgent-option availability from the backend (the single
   /// source of truth — see `timingOptions`). Null while the current date's
@@ -45,6 +46,7 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
   @override
   void initState() {
     super.initState();
+    _orders = widget.orderService ?? OrderService();
     final draft = widget.draft;
     _option = switch (draft?.timing) {
       'today' => 1,

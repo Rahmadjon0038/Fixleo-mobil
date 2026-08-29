@@ -198,6 +198,9 @@ class _RequestCategoryScreenState extends State<RequestCategoryScreen> {
           final entry = visibleGroups[index];
           return _ServiceGroupSection(
             title: entry.group.localizedTitle(language),
+            description: entry.group
+                .localizedDescription(language)
+                .replaceAll('**', ''),
             services: entry.services,
             language: language,
             selectedId: _selectedId,
@@ -264,6 +267,7 @@ class _SearchField extends StatelessWidget {
 class _ServiceGroupSection extends StatelessWidget {
   const _ServiceGroupSection({
     required this.title,
+    required this.description,
     required this.services,
     required this.language,
     required this.selectedId,
@@ -271,6 +275,7 @@ class _ServiceGroupSection extends StatelessWidget {
   });
 
   final String title;
+  final String description;
   final List<Category> services;
   final AppLanguage language;
   final int? selectedId;
@@ -283,13 +288,31 @@ class _ServiceGroupSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 2, bottom: 12),
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: AppColors.navy,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppColors.navy,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if (description.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
         SizedBox(
@@ -373,6 +396,25 @@ class _ServiceCard extends StatelessWidget {
                           Icons.check_circle_rounded,
                           color: AppColors.blue,
                           size: 25,
+                        ),
+                      ),
+                    if (service.requiresTools)
+                      const Positioned(
+                        left: 8,
+                        top: 8,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Color(0xEFFFFFFF),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Padding(
+                            padding: EdgeInsets.all(5),
+                            child: Icon(
+                              Icons.handyman_outlined,
+                              color: AppColors.navy,
+                              size: 15,
+                            ),
+                          ),
                         ),
                       ),
                   ],

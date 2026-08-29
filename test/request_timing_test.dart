@@ -5,9 +5,25 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/features/request/data/new_order_draft.dart';
+import 'package:fixleo/features/request/data/order_models.dart';
+import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/data/order_timing_label.dart';
 import 'package:fixleo/features/request/presentation/review_request_screen.dart';
 import 'package:fixleo/features/request/presentation/time_urgency_screen.dart';
+
+class _FakeOrderService extends OrderService {
+  @override
+  Future<OrderSlots> slots({String? date}) async => OrderSlots(
+    date: date ?? '2026-08-28',
+    asapAvailable: true,
+    slots: const [
+      OrderSlot(slot: 's10_12', label: '10:00–12:00', available: true),
+      OrderSlot(slot: 's12_15', label: '12:00–15:00', available: true),
+      OrderSlot(slot: 's15_18', label: '15:00–18:00', available: true),
+      OrderSlot(slot: 's18_21', label: '18:00–21:00', available: true),
+    ],
+  );
+}
 
 void main() {
   setUp(() => LocaleController.language.value = AppLanguage.uz);
@@ -21,7 +37,12 @@ void main() {
 
   testWidgets('urgent hides time selection', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(home: TimeUrgencyScreen(draft: NewOrderDraft())),
+      MaterialApp(
+        home: TimeUrgencyScreen(
+          draft: NewOrderDraft(),
+          orderService: _FakeOrderService(),
+        ),
+      ),
     );
 
     expect(find.text('Bugungi vaqtlar'), findsNothing);
@@ -30,7 +51,12 @@ void main() {
 
   testWidgets('today requires only a time slot', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(home: TimeUrgencyScreen(draft: NewOrderDraft())),
+      MaterialApp(
+        home: TimeUrgencyScreen(
+          draft: NewOrderDraft(),
+          orderService: _FakeOrderService(),
+        ),
+      ),
     );
 
     await tester.tap(find.text('Bugun').first);
@@ -45,7 +71,12 @@ void main() {
 
   testWidgets('later requires a date before showing slots', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(home: TimeUrgencyScreen(draft: NewOrderDraft())),
+      MaterialApp(
+        home: TimeUrgencyScreen(
+          draft: NewOrderDraft(),
+          orderService: _FakeOrderService(),
+        ),
+      ),
     );
 
     await tester.tap(find.text('Ertaga yoki keyinroq').first);

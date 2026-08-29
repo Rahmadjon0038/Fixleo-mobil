@@ -17,6 +17,7 @@ import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/core/network/current_user.dart';
 import 'package:fixleo/features/notifications/presentation/notifications_screen.dart';
 import 'package:fixleo/features/profile/presentation/my_addresses_screen.dart';
+import 'package:fixleo/features/faq/presentation/faq_screen.dart';
 
 /// User profile — account header (live `GET /clients/me`) plus grouped settings
 /// rows and logout.
@@ -345,7 +346,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _MenuItem(
                   icon: Icons.headset_mic_outlined,
                   label: tr(lang, 'Qoʻllab-quvvatlash', 'Поддержка', 'Support'),
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const FaqScreen(audience: 'client'),
+                      ),
+                    );
+                  },
                 ),
                 _MenuItem(
                   icon: Icons.shield_outlined,

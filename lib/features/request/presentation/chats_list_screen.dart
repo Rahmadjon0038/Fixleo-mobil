@@ -128,6 +128,8 @@ class _LiveChatsScreenState extends State<LiveChatsScreen> {
         ? '📷 ${tr(lang, 'Foto', 'Фото', 'Photo')}'
         : t == 'voice'
         ? '🎤 ${tr(lang, 'Ovozli xabar', 'Голосовое сообщение', 'Voice message')}'
+        : t == 'location'
+        ? '📍 ${tr(lang, 'Joylashuv', 'Местоположение', 'Location')}'
         : t == 'call'
         ? '📞 ${tr(lang, 'Qoʻngʻiroq', 'Звонок', 'Call')}'
         : (c.lastMessageText ?? c.orderTitle);

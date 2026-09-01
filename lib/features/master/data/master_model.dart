@@ -47,6 +47,7 @@ class Master {
     this.latitude,
     this.longitude,
     this.workRadiusKm,
+    this.baseLabel,
     this.categories = const [],
     this.createdAt,
     this.updatedAt,
@@ -68,6 +69,7 @@ class Master {
   final double? latitude;
   final double? longitude;
   final int? workRadiusKm;
+  final String? baseLabel;
   final List<Category> categories;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -97,6 +99,7 @@ class Master {
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       workRadiusKm: (json['workRadiusKm'] as num?)?.toInt(),
+      baseLabel: json['baseLabel'] as String?,
       categories: (json['categories'] as List<dynamic>? ?? const [])
           .map((e) => Category.fromJson(e as Map<String, dynamic>))
           .toList(growable: false),

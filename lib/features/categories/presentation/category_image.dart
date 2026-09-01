@@ -10,38 +10,56 @@ class CategoryImage extends StatelessWidget {
     super.key,
     this.borderRadius = 18,
     this.fit = BoxFit.cover,
+    this.loadNetworkImage = true,
   });
 
   final Category category;
   final double borderRadius;
   final BoxFit fit;
+  final bool loadNetworkImage;
 
   @override
   Widget build(BuildContext context) {
     final imageUrl = category.imageUrl;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: imageUrl == null
-          ? _fallback()
-          : Image.network(
-              imageUrl,
-              fit: fit,
-              filterQuality: FilterQuality.medium,
-              errorBuilder: (_, _, _) => _fallback(),
-              loadingBuilder: (context, child, progress) => progress == null
-                  ? child
-                  : Container(
-                      color: const Color(0xFFF1F5F9),
-                      alignment: Alignment.center,
-                      child: const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final ratio = MediaQuery.devicePixelRatioOf(context);
+        int? decodeSize(double value) {
+          if (!value.isFinite || value <= 0) return null;
+          return (value * ratio).ceil().clamp(64, 1024).toInt();
+        }
+
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(borderRadius),
+          child: imageUrl == null
+              ? _fallback()
+              : !loadNetworkImage
+              ? _loadingPlaceholder()
+              : Image.network(
+                  imageUrl,
+                  fit: fit,
+                  cacheWidth: decodeSize(constraints.maxWidth),
+                  cacheHeight: decodeSize(constraints.maxHeight),
+                  filterQuality: FilterQuality.medium,
+                  gaplessPlayback: true,
+                  errorBuilder: (_, _, _) => _fallback(),
+                  loadingBuilder: (context, child, progress) =>
+                      progress == null ? child : _loadingPlaceholder(),
+                ),
+        );
+      },
     );
   }
+
+  Widget _loadingPlaceholder() => Container(
+    color: const Color(0xFFF1F5F9),
+    alignment: Alignment.center,
+    child: const SizedBox(
+      width: 22,
+      height: 22,
+      child: CircularProgressIndicator(strokeWidth: 2),
+    ),
+  );
 
   Widget _fallback() => Container(
     color: const Color(0xFFEAF3FE),

@@ -79,13 +79,16 @@ class ChatMessage {
     this.fileBytes,
     this.callStatus,
     this.callDurationSec,
+    this.latitude,
+    this.longitude,
+    this.locationLabel,
     this.readAt,
     this.createdAt,
   });
 
   final int id;
   final String sender; // 'client' | 'master'
-  final String type; // 'text' | 'image' | 'voice' | 'call'
+  final String type; // 'text' | 'image' | 'voice' | 'location' | 'call'
   final String? text;
   final String? imageUrl;
   final String? audioUrl;
@@ -94,6 +97,9 @@ class ChatMessage {
   final int? fileBytes;
   final String? callStatus;
   final int? callDurationSec;
+  final double? latitude;
+  final double? longitude;
+  final String? locationLabel;
   final DateTime? readAt;
   final DateTime? createdAt;
 
@@ -111,6 +117,9 @@ class ChatMessage {
       fileBytes: _intN(j['fileBytes']),
       callStatus: call?['status'] as String?,
       callDurationSec: _intN(call?['durationSec']),
+      latitude: (j['latitude'] as num?)?.toDouble(),
+      longitude: (j['longitude'] as num?)?.toDouble(),
+      locationLabel: j['locationLabel'] as String?,
       readAt: DateTime.tryParse(j['readAt']?.toString() ?? ''),
       createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
     );
@@ -191,6 +200,23 @@ class ChatService {
     final data = await _client.postMultipart(
       '$_base/$conversationId/messages/voice',
       form,
+    );
+    return ChatMessage.fromJson(data as Map<String, dynamic>);
+  }
+
+  Future<ChatMessage> sendLocation(
+    int conversationId, {
+    required double latitude,
+    required double longitude,
+    String? label,
+  }) async {
+    final data = await _client.post(
+      '$_base/$conversationId/messages/location',
+      body: {
+        'latitude': latitude,
+        'longitude': longitude,
+        if (label != null && label.trim().isNotEmpty) 'label': label.trim(),
+      },
     );
     return ChatMessage.fromJson(data as Map<String, dynamic>);
   }

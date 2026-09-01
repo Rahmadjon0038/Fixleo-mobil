@@ -6,7 +6,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +16,7 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/core/network/api_client.dart';
 import 'package:fixleo/core/network/auth_session.dart';
 import 'package:fixleo/core/realtime/call_service.dart';
+import 'package:fixleo/core/permissions/permission_prompt.dart';
 
 const _pendingBackgroundActionKey = 'pending_native_call_action';
 const _nativeCallsChannelName = 'com.fixleo.app/native_calls';
@@ -66,6 +67,8 @@ class NativeCallService {
   VoidCallback? _openCallUi;
   bool _initialized = false;
   bool _permissionsRequested = false;
+  bool _permissionPromptHandled = false;
+  bool _permissionPromptActive = false;
   bool _uiPending = false;
 
   static bool get hasCallableSession {
@@ -93,7 +96,6 @@ class NativeCallService {
     });
     _session.sessionEvents.addListener(_onSessionChanged);
     await _consumePendingActions();
-    await syncForCurrentSession();
   }
 
   void bindCallUi(VoidCallback callback) {
@@ -116,9 +118,53 @@ class NativeCallService {
     );
   }
 
-  Future<void> syncForCurrentSession() async {
+  /// Shows a Fixleo explanation first and only then opens Android/iOS system
+  /// permission surfaces. This must be called from an authenticated screen,
+  /// never before [runApp], so the user understands what is being requested.
+  Future<void> requestPermissions(BuildContext context) async {
+    if (!hasCallableSession || _permissionPromptActive) return;
+
+    final settings = await FirebaseMessaging.instance.getNotificationSettings();
+    final notificationsReady =
+        settings.authorizationStatus == AuthorizationStatus.authorized ||
+        settings.authorizationStatus == AuthorizationStatus.provisional;
+    var fullScreenReady = true;
+    if (Platform.isAndroid) {
+      try {
+        fullScreenReady = await FlutterCallkitIncoming.canUseFullScreenIntent();
+      } on Object {
+        fullScreenReady = false;
+      }
+    }
+    if (notificationsReady && fullScreenReady) {
+      await syncForCurrentSession();
+      return;
+    }
+    if (_permissionPromptHandled || !context.mounted) return;
+
+    _permissionPromptActive = true;
+    final shouldContinue = await showPermissionRationale(
+      context,
+      icon: Icons.notifications_active_outlined,
+      titleUz: 'Qo‘ng‘iroq va bildirishnomalar',
+      titleRu: 'Звонки и уведомления',
+      titleEn: 'Calls and notifications',
+      messageUz:
+          'Fixleo yopiq yoki ekran bloklangan bo‘lsa ham qo‘ng‘iroq va muhim xabarlarni ko‘rsatishi uchun bildirishnoma ruxsati kerak.',
+      messageRu:
+          'Разрешите уведомления, чтобы Fixleo показывал входящие звонки и важные сообщения, даже когда приложение закрыто или экран заблокирован.',
+      messageEn:
+          'Allow notifications so Fixleo can show incoming calls and important messages even when the app is closed or the screen is locked.',
+    );
+    _permissionPromptActive = false;
+    _permissionPromptHandled = true;
+    if (!shouldContinue) return;
+    await syncForCurrentSession(requestPermissions: true);
+  }
+
+  Future<void> syncForCurrentSession({bool requestPermissions = false}) async {
     if (!hasCallableSession) return;
-    if (!_permissionsRequested) {
+    if (requestPermissions && !_permissionsRequested) {
       _permissionsRequested = true;
       await FirebaseMessaging.instance.requestPermission(
         alert: true,

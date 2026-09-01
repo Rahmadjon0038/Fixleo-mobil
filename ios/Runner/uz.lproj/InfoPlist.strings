@@ -1,0 +1,4 @@
+"NSLocationWhenInUseUsageDescription" = "Fixleo manzilni tanlash va yaqin xizmatlarni ko‘rsatish uchun joylashuvingizdan foydalanadi.";
+"NSMicrophoneUsageDescription" = "Fixleo ovozli xabarlar va mijoz bilan usta o‘rtasidagi qo‘ng‘iroqlar uchun mikrofondan foydalanadi.";
+"NSPhotoLibraryUsageDescription" = "Fixleo buyurtma va chatga rasm biriktirish uchun fotolaringizdan foydalanadi.";
+"NSCameraUsageDescription" = "Fixleo profil, buyurtma va shaxsni tasdiqlash rasmlarini olish uchun kameradan foydalanadi.";

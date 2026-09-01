@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
@@ -10,6 +11,7 @@ import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
 import 'package:fixleo/core/network/current_user.dart';
 import 'package:fixleo/core/realtime/app_presence_service.dart';
 import 'package:fixleo/core/realtime/call_service.dart';
+import 'package:fixleo/core/notifications/native_call_service.dart';
 import 'package:fixleo/features/categories/data/category_model.dart';
 import 'package:fixleo/features/categories/data/category_service.dart';
 import 'package:fixleo/features/categories/presentation/category_image.dart';
@@ -81,6 +83,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         .listen((_) => unawaited(_loadUnreadChats()));
     // Voice-call signalling app-wide: an incoming call rings on any screen.
     CallService.instance.connect('client');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(NativeCallService.instance.requestPermissions(context));
+      }
+    });
   }
 
   @override
@@ -950,7 +957,7 @@ class _CategoriesCardState extends State<_CategoriesCard> {
   }
 }
 
-class _HomeCategoryRow extends StatelessWidget {
+class _HomeCategoryRow extends StatefulWidget {
   const _HomeCategoryRow({
     super.key,
     required this.group,
@@ -963,49 +970,68 @@ class _HomeCategoryRow extends StatelessWidget {
   final ValueChanged<Category> onServiceTap;
 
   @override
+  State<_HomeCategoryRow> createState() => _HomeCategoryRowState();
+}
+
+class _HomeCategoryRowState extends State<_HomeCategoryRow> {
+  bool _loadImages = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          group.localizedTitle(language),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppColors.navy,
-            fontSize: 15.5,
-            height: 1.2,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 9),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            const spacing = 7.0;
-            final cardWidth = (constraints.maxWidth - spacing * 2) / 3;
-            return SizedBox(
-              height: 130,
-              child: ListView.separated(
-                key: PageStorageKey('home-category-list-${group.id}'),
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                itemCount: group.services.length,
-                separatorBuilder: (_, _) => const SizedBox(width: spacing),
-                itemBuilder: (context, index) {
-                  final service = group.services[index];
-                  return _HomeServiceCard(
-                    key: ValueKey('home-service-${service.id}'),
-                    width: cardWidth,
-                    service: service,
-                    language: language,
-                    onTap: () => onServiceTap(service),
-                  );
-                },
+    return VisibilityDetector(
+      key: ValueKey('home-category-visibility-${widget.group.id}'),
+      onVisibilityChanged: (info) {
+        if (_loadImages || info.visibleFraction <= 0 || !mounted) return;
+        setState(() => _loadImages = true);
+      },
+      child: RepaintBoundary(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.group.localizedTitle(widget.language),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.navy,
+                fontSize: 15.5,
+                height: 1.2,
+                fontWeight: FontWeight.w700,
               ),
-            );
-          },
+            ),
+            const SizedBox(height: 9),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                const spacing = 7.0;
+                final cardWidth = (constraints.maxWidth - spacing * 2) / 3;
+                return SizedBox(
+                  height: 130,
+                  child: ListView.separated(
+                    key: PageStorageKey(
+                      'home-category-list-${widget.group.id}',
+                    ),
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: widget.group.services.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: spacing),
+                    itemBuilder: (context, index) {
+                      final service = widget.group.services[index];
+                      return _HomeServiceCard(
+                        key: ValueKey('home-service-${service.id}'),
+                        width: cardWidth,
+                        service: service,
+                        language: widget.language,
+                        loadImage: _loadImages,
+                        onTap: () => widget.onServiceTap(service),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -1016,12 +1042,14 @@ class _HomeServiceCard extends StatelessWidget {
     required this.width,
     required this.service,
     required this.language,
+    required this.loadImage,
     required this.onTap,
   });
 
   final double width;
   final Category service;
   final AppLanguage language;
+  final bool loadImage;
   final VoidCallback onTap;
 
   @override
@@ -1047,7 +1075,11 @@ class _HomeServiceCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: const Color(0xFFE0E6EE)),
                     ),
-                    child: CategoryImage(category: service, borderRadius: 13),
+                    child: CategoryImage(
+                      category: service,
+                      borderRadius: 13,
+                      loadNetworkImage: loadImage,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 7),

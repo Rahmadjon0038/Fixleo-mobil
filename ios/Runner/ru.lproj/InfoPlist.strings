@@ -1,0 +1,4 @@
+"NSLocationWhenInUseUsageDescription" = "Fixleo использует геолокацию, чтобы выбрать адрес и показать ближайшие услуги.";
+"NSMicrophoneUsageDescription" = "Fixleo использует микрофон для голосовых сообщений и звонков между клиентом и мастером.";
+"NSPhotoLibraryUsageDescription" = "Fixleo использует ваши фотографии, чтобы прикреплять изображения к заказам и сообщениям.";
+"NSCameraUsageDescription" = "Fixleo использует камеру для фотографий профиля, заказов и подтверждения личности.";

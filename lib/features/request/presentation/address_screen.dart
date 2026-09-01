@@ -13,6 +13,7 @@ import 'package:fixleo/core/location/device_location_service.dart';
 import 'package:fixleo/core/location/place_search_field.dart';
 import 'package:fixleo/core/location/place_search_service.dart';
 import 'package:fixleo/core/location/reverse_geocoder.dart';
+import 'package:fixleo/core/permissions/permission_prompt.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/home/presentation/home_screen.dart';
 import 'package:fixleo/features/request/data/new_order_draft.dart';
@@ -101,7 +102,7 @@ class _AddressScreenState extends State<AddressScreen> {
     _detailsController.text = initial?.details ?? '';
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (initial == null) {
-        unawaited(_locateCurrent(showErrors: true));
+        unawaited(_locateCurrent(showErrors: true, explainPermission: true));
       } else {
         _scheduleReverseGeocode(_center, immediate: true);
       }
@@ -146,10 +147,32 @@ class _AddressScreenState extends State<AddressScreen> {
     _scheduleReverseGeocode(_center);
   }
 
-  Future<void> _locateCurrent({required bool showErrors}) async {
+  Future<void> _locateCurrent({
+    required bool showErrors,
+    bool explainPermission = false,
+  }) async {
     if (_locating) return;
     setState(() => _locating = true);
     try {
+      final permission = await _locationService.permissionState();
+      if (!mounted) return;
+      if (explainPermission &&
+          permission == DeviceLocationPermissionState.denied) {
+        final shouldContinue = await showPermissionRationale(
+          context,
+          icon: Icons.my_location_rounded,
+          titleUz: 'Joylashuvga ruxsat',
+          titleRu: 'Доступ к геолокации',
+          titleEn: 'Location permission',
+          messageUz:
+              'Fixleo xaritani turgan joyingizga yo‘naltirish va yaqin manzilni tanlash uchun joylashuvga bir martalik ruxsat so‘raydi.',
+          messageRu:
+              'Fixleo запрашивает доступ к геолокации, чтобы показать ваше текущее место на карте и помочь выбрать ближайший адрес.',
+          messageEn:
+              'Fixleo uses location to center the map on your current position and help you choose the nearest address.',
+        );
+        if (!shouldContinue || !mounted) return;
+      }
       final point = await _locationService.currentLocation();
       if (!mounted) return;
       setState(() => _center = point);
@@ -357,7 +380,8 @@ class _AddressScreenState extends State<AddressScreen> {
                 placeSubtitle: _placeSubtitle,
                 resolvingPlace: _resolvingPlace,
                 onBack: () => Navigator.of(context).maybePop(),
-                onRecenter: () => _locateCurrent(showErrors: true),
+                onRecenter: () =>
+                    _locateCurrent(showErrors: true, explainPermission: true),
                 locating: _locating,
                 confirmLabel: widget.isOnboarding || widget.isEditingHome
                     ? tr(lang, 'Saqlash', 'Сохранить', 'Save')

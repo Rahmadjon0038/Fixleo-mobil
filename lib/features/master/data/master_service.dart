@@ -150,6 +150,7 @@ class MasterService {
     required double latitude,
     required double longitude,
     required int workRadiusKm,
+    String? baseLabel,
   }) async {
     final data = await _client.put(
       '/masters/me/work-zone',
@@ -157,6 +158,8 @@ class MasterService {
         'latitude': latitude,
         'longitude': longitude,
         'workRadiusKm': workRadiusKm,
+        if (baseLabel?.trim().isNotEmpty == true)
+          'baseLabel': baseLabel!.trim(),
       },
     );
     return Master.fromJson(data as Map<String, dynamic>);

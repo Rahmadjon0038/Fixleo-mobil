@@ -7,6 +7,7 @@ import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/features/master/data/master_model.dart';
 import 'package:fixleo/features/master/data/master_service.dart';
 import 'package:fixleo/features/master/presentation/master_edit_profile_screen.dart';
+import 'package:fixleo/features/master/presentation/master_addresses_screen.dart';
 import 'package:fixleo/features/notifications/presentation/notifications_screen.dart';
 import 'package:fixleo/features/welcome/presentation/intro_screen.dart';
 import 'package:fixleo/features/faq/presentation/faq_screen.dart';
@@ -103,6 +104,26 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
               icon: Icons.person_outline,
               label: tr(lang, 'Mening maʼlumotlarim', 'Мои данные', 'My data'),
               onTap: _editProfile,
+            ),
+            _MenuItem(
+              icon: Icons.location_on_outlined,
+              label: tr(
+                lang,
+                'Mening manzillarim',
+                'Мои адреса',
+                'My addresses',
+              ),
+              onTap: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => MasterAddressesScreen(
+                      service: _service,
+                      initialMaster: _master,
+                    ),
+                  ),
+                );
+                if (mounted) await _load();
+              },
             ),
             _MenuItem(
               icon: Icons.history,

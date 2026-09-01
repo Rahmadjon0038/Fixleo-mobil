@@ -41,6 +41,22 @@ void main() {
     expect(message.audioUrl, isNull);
   });
 
+  test('location message parses its point and readable address', () {
+    final message = ChatMessage.fromJson({
+      'id': 13,
+      'sender': 'master',
+      'type': 'location',
+      'latitude': 41.311081,
+      'longitude': 69.240562,
+      'locationLabel': 'Toshkent, O‘zbekiston',
+    });
+
+    expect(message.type, 'location');
+    expect(message.latitude, 41.311081);
+    expect(message.longitude, 69.240562);
+    expect(message.locationLabel, 'Toshkent, O‘zbekiston');
+  });
+
   test('message parses the server read receipt timestamp', () {
     final unread = ChatMessage.fromJson({
       'id': 11,

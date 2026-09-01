@@ -22,6 +22,10 @@ class _FakeLocationService extends DeviceLocationService {
   int appSettingsCalls = 0;
 
   @override
+  Future<DeviceLocationPermissionState> permissionState() async =>
+      DeviceLocationPermissionState.granted;
+
+  @override
   Future<LatLng> currentLocation() async {
     locationCalls++;
     if (error != null) throw error!;

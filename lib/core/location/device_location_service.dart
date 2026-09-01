@@ -11,6 +11,8 @@ enum DeviceLocationFailure {
   unavailable,
 }
 
+enum DeviceLocationPermissionState { granted, denied, deniedForever }
+
 class DeviceLocationException implements Exception {
   const DeviceLocationException(this.failure);
 
@@ -20,6 +22,18 @@ class DeviceLocationException implements Exception {
 /// Requests foreground location permission and returns the device's current
 /// coordinates. Background access is intentionally not requested.
 class DeviceLocationService {
+  Future<DeviceLocationPermissionState> permissionState() async {
+    final permission = await Geolocator.checkPermission();
+    return switch (permission) {
+      LocationPermission.always ||
+      LocationPermission.whileInUse => DeviceLocationPermissionState.granted,
+      LocationPermission.deniedForever =>
+        DeviceLocationPermissionState.deniedForever,
+      LocationPermission.denied || LocationPermission.unableToDetermine =>
+        DeviceLocationPermissionState.denied,
+    };
+  }
+
   Future<LatLng> currentLocation() async {
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {

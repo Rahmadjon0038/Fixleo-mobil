@@ -13,6 +13,7 @@ import 'package:fixleo/core/location/device_location_service.dart';
 import 'package:fixleo/core/location/place_search_field.dart';
 import 'package:fixleo/core/location/place_search_service.dart';
 import 'package:fixleo/core/location/reverse_geocoder.dart';
+import 'package:fixleo/core/permissions/permission_prompt.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/master/data/master_service.dart';
 import 'package:fixleo/features/master/presentation/master_documents_screen.dart';
@@ -102,7 +103,7 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
     _loadRadii();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!hasInitial) {
-        unawaited(_locateCurrent(showErrors: true));
+        unawaited(_locateCurrent(showErrors: true, explainPermission: true));
       } else {
         _scheduleReverseGeocode(_center, immediate: true);
       }
@@ -163,10 +164,32 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
     _scheduleReverseGeocode(_center);
   }
 
-  Future<void> _locateCurrent({required bool showErrors}) async {
+  Future<void> _locateCurrent({
+    required bool showErrors,
+    bool explainPermission = false,
+  }) async {
     if (_locating) return;
     setState(() => _locating = true);
     try {
+      final permission = await _locationService.permissionState();
+      if (!mounted) return;
+      if (explainPermission &&
+          permission == DeviceLocationPermissionState.denied) {
+        final shouldContinue = await showPermissionRationale(
+          context,
+          icon: Icons.my_location_rounded,
+          titleUz: 'Joylashuvga ruxsat',
+          titleRu: 'Доступ к геолокации',
+          titleEn: 'Location permission',
+          messageUz:
+              'Fixleo ish hududingizni hozirgi joyingizdan boshlash va yaqin buyurtmalarni topish uchun joylashuvga ruxsat so‘raydi.',
+          messageRu:
+              'Fixleo запрашивает геолокацию, чтобы задать рабочую зону от вашего текущего места и находить ближайшие заказы.',
+          messageEn:
+              'Fixleo uses location to set your work zone from your current position and find nearby orders.',
+        );
+        if (!shouldContinue || !mounted) return;
+      }
       final point = await _locationService.currentLocation();
       if (!mounted) return;
       setState(() => _center = point);
@@ -243,6 +266,7 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
         latitude: _center.latitude,
         longitude: _center.longitude,
         workRadiusKm: _radiusKm,
+        baseLabel: [?_placeLabel, ?_placeSubtitle].join(', '),
       );
       if (!mounted) return;
       if (widget.isEditing) {
@@ -401,7 +425,8 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
                 selectedRadius: _radiusKm,
                 onRadiusChanged: (km) => setState(() => _radiusKm = km),
                 onBack: () => Navigator.of(context).maybePop(),
-                onRecenter: () => _locateCurrent(showErrors: true),
+                onRecenter: () =>
+                    _locateCurrent(showErrors: true, explainPermission: true),
                 locating: _locating,
                 onSave: _save,
                 isSaving: _saving,

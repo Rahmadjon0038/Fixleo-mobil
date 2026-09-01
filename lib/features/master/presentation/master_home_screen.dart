@@ -9,6 +9,7 @@ import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
 import 'package:fixleo/core/realtime/app_presence_service.dart';
 import 'package:fixleo/core/realtime/call_service.dart';
+import 'package:fixleo/core/notifications/native_call_service.dart';
 import 'package:fixleo/core/realtime/master_realtime_service.dart';
 import 'package:fixleo/features/master/presentation/master_chats_screen.dart';
 import 'package:fixleo/features/master/presentation/master_filters_screen.dart';
@@ -275,6 +276,11 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
     // Voice-call signalling app-wide: an incoming call now rings on any screen,
     // not only inside a chat.
     CallService.instance.connect('master');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(NativeCallService.instance.requestPermissions(context));
+      }
+    });
     // Live feed: a new nearby order (or a cancellation) refreshes the list
     // without requiring pull-to-refresh.
     _realtime.connect(

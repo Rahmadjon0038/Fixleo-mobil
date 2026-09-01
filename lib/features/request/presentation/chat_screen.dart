@@ -3,16 +3,20 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/glass/glass.dart';
+import 'package:fixleo/core/location/device_location_service.dart';
+import 'package:fixleo/core/location/reverse_geocoder.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/core/realtime/app_presence_service.dart';
 import 'package:fixleo/core/realtime/call_service.dart';
 import 'package:fixleo/core/realtime/chat_socket.dart';
+import 'package:fixleo/core/permissions/permission_prompt.dart';
 import 'package:fixleo/features/calls/presentation/call_screen.dart';
 import 'package:fixleo/features/request/data/chat_service.dart' as api_chat;
 import 'package:fixleo/features/request/presentation/attach_photos_sheet.dart';
@@ -36,6 +40,9 @@ class ChatMessage {
     this.imageUrl,
     this.audioUrl,
     this.durationSec,
+    this.latitude,
+    this.longitude,
+    this.locationLabel,
   });
 
   final int id;
@@ -47,6 +54,9 @@ class ChatMessage {
   final String? imageUrl;
   final String? audioUrl;
   final int? durationSec;
+  final double? latitude;
+  final double? longitude;
+  final String? locationLabel;
 
   ChatMessage copyWith({bool? isRead}) {
     return ChatMessage(
@@ -59,6 +69,9 @@ class ChatMessage {
       imageUrl: imageUrl,
       audioUrl: audioUrl,
       durationSec: durationSec,
+      latitude: latitude,
+      longitude: longitude,
+      locationLabel: locationLabel,
     );
   }
 }
@@ -111,6 +124,8 @@ class _ChatScreenState extends State<ChatScreen> {
   final _scrollController = ScrollController();
   final _imagePicker = ImagePicker();
   final _recorder = AudioRecorder();
+  final _locationService = DeviceLocationService();
+  final _reverseGeocoder = ReverseGeocoder();
 
   final List<ChatMessage> _messages = [];
   final List<_ImageUpload> _imageUploads = [];
@@ -181,6 +196,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _startCall() async {
+    if (!await _ensureMicrophonePermission()) return;
     final call = CallService.instance;
     await call.startCall(widget.conversationId, displayName: _peerName);
     if (mounted && call.isBusy) _openCallScreen();
@@ -272,6 +288,9 @@ class _ChatScreenState extends State<ChatScreen> {
       imageUrl: m.imageUrl,
       audioUrl: m.audioUrl,
       durationSec: m.voiceDurationSec,
+      latitude: m.latitude,
+      longitude: m.longitude,
+      locationLabel: m.locationLabel,
     );
   }
 
@@ -355,11 +374,22 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> _pickAndSendImages() async {
+  Future<void> _pickAndSendAttachment() async {
     if (_sending || _recording) return;
-    final source = await showAttachPhotosSheet(context);
-    if (source == null || !mounted) return;
+    final action = await showChatAttachmentSheet(context);
+    if (action == null || !mounted) return;
+    if (action == ChatAttachmentAction.currentLocation) {
+      await _shareCurrentLocation();
+      return;
+    }
+    await _pickAndSendImages(
+      action == ChatAttachmentAction.gallery
+          ? ImageSource.gallery
+          : ImageSource.camera,
+    );
+  }
 
+  Future<void> _pickAndSendImages(ImageSource source) async {
     try {
       final List<XFile> files;
       if (source == ImageSource.gallery) {
@@ -410,6 +440,142 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       );
     }
+  }
+
+  Future<void> _shareCurrentLocation() async {
+    final lang = LocaleController.language.value;
+    late final DeviceLocationPermissionState permission;
+    try {
+      permission = await _locationService.permissionState();
+    } on Object {
+      _showLocationFailure(DeviceLocationFailure.unavailable);
+      return;
+    }
+    if (!mounted) return;
+    if (permission == DeviceLocationPermissionState.deniedForever) {
+      _showLocationFailure(DeviceLocationFailure.permissionDeniedForever);
+      return;
+    }
+    if (permission != DeviceLocationPermissionState.granted) {
+      final shouldContinue = await showPermissionRationale(
+        context,
+        icon: Icons.my_location_rounded,
+        titleUz: 'Joylashuvni yuborish',
+        titleRu: 'Отправить местоположение',
+        titleEn: 'Share location',
+        messageUz:
+            'Fixleo faqat hozirgi joylashuvingizni bir marta aniqlab, suhbatdoshingizga yuboradi. Live kuzatuv yoqilmaydi.',
+        messageRu:
+            'Fixleo определит ваше текущее местоположение один раз и отправит его собеседнику. Отслеживание в реальном времени не включается.',
+        messageEn:
+            'Fixleo will determine your current location once and send it to the other participant. Live tracking is not enabled.',
+      );
+      if (!shouldContinue || !mounted) return;
+    }
+
+    setState(() => _sending = true);
+    try {
+      final point = await _locationService.currentLocation();
+      String? label;
+      try {
+        final result = await _reverseGeocoder.resolve(point);
+        if (result != null) {
+          label = <String>{
+            result.label.trim(),
+            result.subtitle.trim(),
+          }.where((part) => part.isNotEmpty).join(', ');
+        }
+      } on Object {
+        // Coordinates are sufficient when reverse geocoding is unavailable.
+      }
+      final sent = await _service.sendLocation(
+        widget.conversationId,
+        latitude: point.latitude,
+        longitude: point.longitude,
+        label: label,
+      );
+      if (!mounted) return;
+      setState(() {
+        _messages.add(_toBubble(sent));
+        _sending = false;
+      });
+      _scrollToBottom();
+    } on DeviceLocationException catch (error) {
+      if (!mounted) return;
+      setState(() => _sending = false);
+      _showLocationFailure(error.failure);
+    } on ApiException catch (error) {
+      _showError(error.message);
+    } on Object {
+      _showError(
+        tr(
+          lang,
+          'Joylashuvni yuborib bo‘lmadi. Qayta urinib ko‘ring.',
+          'Не удалось отправить местоположение. Попробуйте снова.',
+          'Could not send the location. Please try again.',
+        ),
+      );
+    } finally {
+      if (mounted && _sending) setState(() => _sending = false);
+    }
+  }
+
+  void _showLocationFailure(DeviceLocationFailure failure) {
+    if (!mounted) return;
+    final lang = LocaleController.language.value;
+    final needsAppSettings =
+        failure == DeviceLocationFailure.permissionDeniedForever;
+    final needsLocationSettings =
+        failure == DeviceLocationFailure.serviceDisabled;
+    final message = switch (failure) {
+      DeviceLocationFailure.serviceDisabled => tr(
+        lang,
+        'Telefon joylashuv xizmati o‘chirilgan.',
+        'Служба геолокации телефона выключена.',
+        'The phone location service is turned off.',
+      ),
+      DeviceLocationFailure.permissionDeniedForever => tr(
+        lang,
+        'Joylashuv ruxsati bloklangan. Uni sozlamalardan yoqing.',
+        'Доступ к геолокации заблокирован. Включите его в настройках.',
+        'Location permission is blocked. Enable it in Settings.',
+      ),
+      DeviceLocationFailure.permissionDenied => tr(
+        lang,
+        'Joylashuvga ruxsat berilmadi.',
+        'Доступ к геолокации не предоставлен.',
+        'Location permission was not granted.',
+      ),
+      DeviceLocationFailure.timeout => tr(
+        lang,
+        'Joylashuvni aniqlash uzoq davom etdi. Qayta urinib ko‘ring.',
+        'Определение местоположения заняло слишком много времени. Попробуйте снова.',
+        'Determining the location took too long. Please try again.',
+      ),
+      DeviceLocationFailure.unavailable => tr(
+        lang,
+        'Joriy joylashuvni aniqlab bo‘lmadi.',
+        'Не удалось определить текущее местоположение.',
+        'Could not determine the current location.',
+      ),
+    };
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: needsAppSettings || needsLocationSettings
+            ? SnackBarAction(
+                label: tr(lang, 'Sozlamalar', 'Настройки', 'Settings'),
+                onPressed: () {
+                  if (needsAppSettings) {
+                    _locationService.openAppSettings();
+                  } else {
+                    _locationService.openLocationSettings();
+                  }
+                },
+              )
+            : null,
+      ),
+    );
   }
 
   Future<bool> _uploadImage(_ImageUpload upload) async {
@@ -485,10 +651,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     setState(() => _startingRecording = true);
     try {
-      final hasPermission = await _recorder.hasPermission().timeout(
-        const Duration(seconds: 5),
-        onTimeout: () => false,
-      );
+      final hasPermission = await _ensureMicrophonePermission();
       if (!hasPermission) {
         _showError(
           tr(
@@ -540,6 +703,32 @@ class _ChatScreenState extends State<ChatScreen> {
     } finally {
       if (mounted) setState(() => _startingRecording = false);
     }
+  }
+
+  Future<bool> _ensureMicrophonePermission() async {
+    final alreadyGranted = await _recorder
+        .hasPermission(request: false)
+        .timeout(const Duration(seconds: 3), onTimeout: () => false);
+    if (alreadyGranted) return true;
+    if (!mounted) return false;
+    final shouldContinue = await showPermissionRationale(
+      context,
+      icon: Icons.mic_none_rounded,
+      titleUz: 'Mikrofonga ruxsat',
+      titleRu: 'Доступ к микрофону',
+      titleEn: 'Microphone permission',
+      messageUz:
+          'Fixleo ovozli xabar yozish va qo‘ng‘iroqda suhbatlashish uchun mikrofondan foydalanadi. Mikrofon faqat siz boshlagan paytda yoqiladi.',
+      messageRu:
+          'Fixleo использует микрофон для голосовых сообщений и звонков. Микрофон включается только после вашего действия.',
+      messageEn:
+          'Fixleo uses the microphone for voice messages and calls. It is activated only after you start one of these actions.',
+    );
+    if (!shouldContinue) return false;
+    return _recorder.hasPermission().timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => false,
+    );
   }
 
   Future<void> _finishRecording({required bool send}) async {
@@ -761,7 +950,7 @@ class _ChatScreenState extends State<ChatScreen> {
       // Bubbles repeat dozens of times per scrolling thread — use the
       // blur-less glass variant so long conversations don't jank.
       child: GlassContainer.lite(
-        padding: m.type == 'image'
+        padding: m.type == 'image' || m.type == 'location'
             ? const EdgeInsets.fromLTRB(3, 3, 3, 6)
             : const EdgeInsets.fromLTRB(14, 10, 14, 8),
         borderRadius: 16,
@@ -867,6 +1056,21 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       );
     }
+    if (message.type == 'location') {
+      final latitude = message.latitude;
+      final longitude = message.longitude;
+      if (latitude != null && longitude != null) {
+        return ChatLocationMessage(
+          point: LatLng(latitude, longitude),
+          label: message.locationLabel,
+          isMine: message.isMine,
+        );
+      }
+      return Icon(
+        Icons.location_off_outlined,
+        color: message.isMine ? Colors.white70 : _incomingTime,
+      );
+    }
     return Text(
       message.text,
       style: TextStyle(
@@ -887,18 +1091,11 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           GlassIconButton(
             size: 44,
-            semanticLabel: tr(
-              lang,
-              'Rasm yuborish',
-              'Отправить фото',
-              'Send photo',
-            ),
-            onTap: _sending || _startingRecording ? null : _pickAndSendImages,
-            child: Icon(
-              Icons.photo_camera_outlined,
-              size: 22,
-              color: _slate500,
-            ),
+            semanticLabel: tr(lang, 'Biriktirish', 'Прикрепить', 'Attach'),
+            onTap: _sending || _startingRecording
+                ? null
+                : _pickAndSendAttachment,
+            child: Icon(Icons.attach_file_rounded, size: 22, color: _slate500),
           ),
           const SizedBox(width: 10),
           Expanded(

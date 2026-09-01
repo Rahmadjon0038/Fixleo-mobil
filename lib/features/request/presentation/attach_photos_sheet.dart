@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/glass/glass.dart';
 
-/// Functional Telegram-style attachment chooser. The system picker handles
-/// permissions and the real gallery/camera UI; the chat uploads selected files.
-Future<ImageSource?> showAttachPhotosSheet(BuildContext context) {
+enum ChatAttachmentAction { gallery, camera, currentLocation }
+
+/// Telegram-style attachment chooser shared by client and master chats.
+Future<ChatAttachmentAction?> showChatAttachmentSheet(BuildContext context) {
   final lang = LocaleController.language.value;
-  return showModalBottomSheet<ImageSource>(
+  return showModalBottomSheet<ChatAttachmentAction>(
     context: context,
     backgroundColor: Colors.transparent,
     barrierColor: const Color(0x55000000),
@@ -33,7 +33,7 @@ Future<ImageSource?> showAttachPhotosSheet(BuildContext context) {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                tr(lang, 'Rasm yuborish', 'Отправить фото', 'Send a photo'),
+                tr(lang, 'Biriktirish', 'Прикрепить', 'Attach'),
                 style: const TextStyle(
                   color: AppColors.navy,
                   fontSize: 18,
@@ -52,7 +52,8 @@ Future<ImageSource?> showAttachPhotosSheet(BuildContext context) {
                 'Можно выбрать несколько фото',
                 'Select multiple photos',
               ),
-              onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(ChatAttachmentAction.gallery),
             ),
             const SizedBox(height: 8),
             _AttachmentAction(
@@ -65,7 +66,28 @@ Future<ImageSource?> showAttachPhotosSheet(BuildContext context) {
                 'Сделать фото сейчас',
                 'Take a photo now',
               ),
-              onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(ChatAttachmentAction.camera),
+            ),
+            const SizedBox(height: 8),
+            _AttachmentAction(
+              icon: Icons.my_location_rounded,
+              iconColor: const Color(0xFFE54875),
+              title: tr(
+                lang,
+                'Joriy joylashuv',
+                'Текущее местоположение',
+                'Current location',
+              ),
+              subtitle: tr(
+                lang,
+                'Bir martalik joylashuvni yuborish',
+                'Отправить местоположение один раз',
+                'Share your location once',
+              ),
+              onTap: () => Navigator.of(
+                sheetContext,
+              ).pop(ChatAttachmentAction.currentLocation),
             ),
           ],
         ),

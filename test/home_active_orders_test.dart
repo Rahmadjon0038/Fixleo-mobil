@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/widgets/liquid_glass_nav_bar.dart';
@@ -290,6 +291,13 @@ void main() {
   testWidgets('home keeps all category rows visible in a compact layout', (
     tester,
   ) async {
+    final previousVisibilityInterval =
+        VisibilityDetectorController.instance.updateInterval;
+    VisibilityDetectorController.instance.updateInterval = Duration.zero;
+    addTearDown(() {
+      VisibilityDetectorController.instance.updateInterval =
+          previousVisibilityInterval;
+    });
     LocaleController.language.value = AppLanguage.en;
     addTearDown(() => LocaleController.language.value = AppLanguage.ru);
     tester.view.physicalSize = const Size(430, 932);

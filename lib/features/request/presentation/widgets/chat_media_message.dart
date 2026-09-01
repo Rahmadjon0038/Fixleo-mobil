@@ -2,7 +2,10 @@ import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as gmap;
+import 'package:latlong2/latlong.dart';
 
+import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 
 String formatChatDuration(int totalSeconds) {
@@ -104,6 +107,250 @@ class ChatImageMessage extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class ChatLocationMessage extends StatelessWidget {
+  const ChatLocationMessage({
+    super.key,
+    required this.point,
+    required this.isMine,
+    this.label,
+  });
+
+  final LatLng point;
+  final bool isMine;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
+    final center = gmap.LatLng(point.latitude, point.longitude);
+    final locationLabel = label?.trim().isNotEmpty == true
+        ? label!.trim()
+        : tr(
+            lang,
+            'Yuborilgan joylashuv',
+            'Отправленное местоположение',
+            'Shared location',
+          );
+    return Semantics(
+      button: true,
+      label:
+          '$locationLabel. ${tr(lang, 'Xaritada ko‘rish', 'Открыть на карте', 'View on map')}',
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                _ChatLocationViewer(center: center, label: locationLabel),
+          ),
+        ),
+        child: SizedBox(
+          width: 235,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(13),
+                child: SizedBox(
+                  height: 145,
+                  width: double.infinity,
+                  child: IgnorePointer(
+                    child: gmap.GoogleMap(
+                      key: ValueKey(
+                        'chat-map-${point.latitude}-${point.longitude}',
+                      ),
+                      initialCameraPosition: gmap.CameraPosition(
+                        target: center,
+                        zoom: 15,
+                      ),
+                      markers: {
+                        gmap.Marker(
+                          markerId: const gmap.MarkerId('shared-location'),
+                          position: center,
+                        ),
+                      },
+                      liteModeEnabled: true,
+                      compassEnabled: false,
+                      mapToolbarEnabled: false,
+                      myLocationButtonEnabled: false,
+                      myLocationEnabled: false,
+                      rotateGesturesEnabled: false,
+                      scrollGesturesEnabled: false,
+                      tiltGesturesEnabled: false,
+                      zoomControlsEnabled: false,
+                      zoomGesturesEnabled: false,
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 9, 8, 4),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: isMine
+                            ? Colors.white.withValues(alpha: 0.18)
+                            : AppColors.blue.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.location_on_rounded,
+                        size: 20,
+                        color: isMine ? Colors.white : AppColors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            locationLabel,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: isMine ? Colors.white : AppColors.navy,
+                              fontSize: 13,
+                              height: 17 / 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            tr(
+                              lang,
+                              'Xaritada ko‘rish',
+                              'Открыть на карте',
+                              'View on map',
+                            ),
+                            style: TextStyle(
+                              color: isMine
+                                  ? Colors.white.withValues(alpha: 0.76)
+                                  : AppColors.blue,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: isMine ? Colors.white70 : AppColors.blue,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatLocationViewer extends StatelessWidget {
+  const _ChatLocationViewer({required this.center, required this.label});
+
+  final gmap.LatLng center;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final lang = LocaleController.language.value;
+    return Scaffold(
+      backgroundColor: const Color(0xFFF3F5F8),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        foregroundColor: AppColors.navy,
+        elevation: 0,
+        title: Text(
+          tr(lang, 'Joylashuv', 'Местоположение', 'Location'),
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: gmap.GoogleMap(
+              initialCameraPosition: gmap.CameraPosition(
+                target: center,
+                zoom: 16,
+              ),
+              markers: {
+                gmap.Marker(
+                  markerId: const gmap.MarkerId('shared-location-full'),
+                  position: center,
+                  infoWindow: gmap.InfoWindow(title: label),
+                ),
+              },
+              compassEnabled: true,
+              mapToolbarEnabled: true,
+              myLocationButtonEnabled: false,
+              myLocationEnabled: false,
+              zoomControlsEnabled: false,
+            ),
+          ),
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 20,
+            child: SafeArea(
+              top: false,
+              child: Material(
+                elevation: 8,
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      const CircleAvatar(
+                        backgroundColor: Color(0xFFE8F3FF),
+                        child: Icon(
+                          Icons.location_on_rounded,
+                          color: AppColors.blue,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              label,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.navy,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              '${center.latitude.toStringAsFixed(6)}, ${center.longitude.toStringAsFixed(6)}',
+                              style: const TextStyle(
+                                color: Color(0xFF8D96A4),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -27,9 +27,9 @@
 		</dict>
 	</dict>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Чтобы прикрепить фото проблемы к заявке.</string>
+	<string>Fixleo buyurtma va chatga rasm biriktirish uchun fotolaringizdan foydalanadi.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Чтобы сделать селфи для проверки личности.</string>
+	<string>Fixleo profil, buyurtma va shaxsni tasdiqlash rasmlarini olish uchun kameradan foydalanadi.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

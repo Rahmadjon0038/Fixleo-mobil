@@ -34,6 +34,9 @@ ios/Flutter/Secrets.xcconfig
 /build/
 /coverage/
 
+# Local signing and server credentials. Never commit APNs/Firebase private keys.
+/keys/
+
 # Symbolication related
 app.*.symbols
 

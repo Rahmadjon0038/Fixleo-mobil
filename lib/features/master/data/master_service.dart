@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:fixleo/core/network/api_client.dart';
 import 'package:fixleo/core/network/auth_session.dart';
 import 'package:fixleo/core/network/auth_tokens.dart';
+import 'package:fixleo/core/notifications/native_call_service.dart';
 import 'package:fixleo/features/master/data/master_document_model.dart';
 import 'package:fixleo/features/master/data/master_model.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -83,6 +84,7 @@ class MasterService {
 
   /// `POST /masters/auth/logout` — revokes the refresh token, clears session.
   Future<void> logout() async {
+    await NativeCallService.instance.unregisterCurrentDevice();
     final refresh = _session.refreshToken;
     if (refresh != null) {
       try {

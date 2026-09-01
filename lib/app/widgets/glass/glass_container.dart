@@ -73,12 +73,11 @@ class GlassContainer extends StatelessWidget {
     this.tintOpacityTop = 0.72,
     this.tintOpacityBottom = 0.50,
     this.borderOpacity = 0.75,
-    this.borderWidth = 1,
     this.shadow = true,
-    this.shadowColor,
     this.alignment,
     super.key,
-  });
+  }) : borderWidth = 1,
+       shadowColor = null;
 
   /// Dark, higher-contrast glass for hero surfaces over the brand navy
   /// (search hero, dark banners) — same material, tinted dark instead of
@@ -239,7 +238,10 @@ class GlassContainer extends StatelessWidget {
       // text, pushing Positioned children out of place).
       child: Stack(
         fit: StackFit.passthrough,
-        children: [Positioned.fill(child: surface), content],
+        children: [
+          Positioned.fill(child: surface),
+          content,
+        ],
       ),
     );
   }

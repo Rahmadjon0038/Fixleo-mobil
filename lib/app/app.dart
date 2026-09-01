@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_theme.dart';
 import 'package:fixleo/core/network/auth_session.dart';
+import 'package:fixleo/core/notifications/native_call_service.dart';
 import 'package:fixleo/core/realtime/app_presence_service.dart';
 import 'package:fixleo/core/realtime/call_service.dart';
 import 'package:fixleo/features/calls/presentation/call_screen.dart';
@@ -43,9 +44,10 @@ class _FixleoAppState extends State<FixleoApp> with WidgetsBindingObserver {
     AuthSession.instance.expirationEvents.addListener(_onSessionExpired);
     AuthSession.instance.sessionEvents.addListener(_onSessionChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      NativeCallService.instance.bindCallUi(showIncomingCallUi);
       AppPresenceService.instance.setForeground(_foreground);
       CallService.instance.syncForCurrentSession(
-        onIncoming: showIncomingCallUi,
+        onIncoming: NativeCallService.instance.showIncomingFromSocket,
       );
     });
   }
@@ -66,7 +68,7 @@ class _FixleoAppState extends State<FixleoApp> with WidgetsBindingObserver {
     AppPresenceService.instance.setForeground(_foreground);
     if (_foreground) {
       CallService.instance.syncForCurrentSession(
-        onIncoming: showIncomingCallUi,
+        onIncoming: NativeCallService.instance.showIncomingFromSocket,
       );
       CallService.instance.retryPendingRecordings();
     }
@@ -76,7 +78,9 @@ class _FixleoAppState extends State<FixleoApp> with WidgetsBindingObserver {
     // Login, logout and role/account replacement must update call signalling
     // immediately. In particular, logout can never leave the old JWT socket
     // connected in the background.
-    CallService.instance.syncForCurrentSession(onIncoming: showIncomingCallUi);
+    CallService.instance.syncForCurrentSession(
+      onIncoming: NativeCallService.instance.showIncomingFromSocket,
+    );
     if (_foreground) {
       AppPresenceService.instance.connectForCurrentSession();
     } else {

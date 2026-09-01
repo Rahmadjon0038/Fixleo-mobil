@@ -52,6 +52,12 @@ dependencies:
   audioplayers: ^6.8.1
   path_provider: ^2.1.5
   flutter_markdown_plus: ^1.0.12
+  firebase_core: ^4.14.0
+  firebase_messaging: ^16.6.0
+  flutter_callkit_incoming: ^3.1.5
+  device_info_plus: ^13.2.0
+  vibration: ^3.2.0
+  uuid: ^4.6.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -103,6 +109,7 @@ flutter:
     - assets/icon/Ranking.svg
     - assets/icon/Camera.svg
     - assets/icon/search.svg
+    - assets/icon/app_icon.png
     - assets/icon/Illustration - Scene Plants.svg
     - assets/icon/Illustration - humaaans standing 23.svg
 

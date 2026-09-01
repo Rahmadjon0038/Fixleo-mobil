@@ -1,11 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:web_socket/web_socket.dart' show WebSocketConnectionClosed;
 
 import 'package:fixleo/app/app.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/core/network/auth_session.dart';
+import 'package:fixleo/core/notifications/native_call_service.dart';
 
 Future<void> main() async {
   // socket_io_client's WebSocketTransport.doClose() calls `_ws?.close()`
@@ -19,10 +23,16 @@ Future<void> main() async {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      await Firebase.initializeApp();
+      FirebaseMessaging.onBackgroundMessage(fixleoFirebaseBackgroundHandler);
+      await FlutterCallkitIncoming.onBackgroundMessage(
+        fixleoCallkitBackgroundHandler,
+      );
       // Restore any persisted login so the user stays signed in across restarts.
       await AuthSession.instance.load();
       // Restore the last chosen language before the first frame is built.
       await LocaleController.load();
+      await NativeCallService.instance.initialize();
       runApp(const FixleoApp());
     },
     (error, stack) {

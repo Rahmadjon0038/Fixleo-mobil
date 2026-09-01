@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import 'package:fixleo/app/app.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
 import 'package:fixleo/app/widgets/glass/glass.dart';
@@ -275,7 +274,7 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
         .listen((_) => unawaited(_loadUnreadChats()));
     // Voice-call signalling app-wide: an incoming call now rings on any screen,
     // not only inside a chat.
-    CallService.instance.connect('master', onIncoming: showIncomingCallUi);
+    CallService.instance.connect('master');
     // Live feed: a new nearby order (or a cancellation) refreshes the list
     // without requiring pull-to-refresh.
     _realtime.connect(

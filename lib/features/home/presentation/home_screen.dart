@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import 'package:fixleo/app/app.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/glass/glass.dart';
@@ -81,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _conversationSubscription = AppPresenceService.instance.conversationUpdates
         .listen((_) => unawaited(_loadUnreadChats()));
     // Voice-call signalling app-wide: an incoming call rings on any screen.
-    CallService.instance.connect('client', onIncoming: showIncomingCallUi);
+    CallService.instance.connect('client');
   }
 
   @override

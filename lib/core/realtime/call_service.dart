@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:record/record.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
@@ -16,6 +17,22 @@ import 'package:fixleo/core/realtime/call_recording_retry_queue.dart';
 
 /// Lifecycle of a voice call as seen by the UI.
 enum CallState { idle, calling, incoming, connecting, active, busy, ended }
+
+class IncomingCallSignal {
+  const IncomingCallSignal({
+    required this.callId,
+    required this.callUuid,
+    required this.conversationId,
+    required this.from,
+    required this.displayName,
+  });
+
+  final int callId;
+  final String callUuid;
+  final int conversationId;
+  final String from;
+  final String displayName;
+}
 
 /// A live client↔master voice call over WebRTC, signalled through the backend
 /// `/calls` Socket.IO namespace (offer / answer / ice / end — see the server
@@ -32,6 +49,7 @@ class CallService {
 
   static const _disconnectGrace = Duration(seconds: 10);
   static const _iceConfigTimeout = Duration(seconds: 5);
+  static const _ringTimeout = Duration(seconds: 60);
 
   final AuthSession _session = AuthSession.instance;
   final CallRecordingRetryQueue _recordingQueue =
@@ -45,6 +63,7 @@ class CallService {
   int? _connectedOwnerId;
 
   int? _callId;
+  String? _callUuid;
   Map<String, dynamic>?
   _pendingOffer; // remote SDP for an unaccepted incoming call
   final List<RTCIceCandidate> _pendingLocalIce = [];
@@ -55,11 +74,13 @@ class CallService {
   int? _recordingOwnerId;
   Future<void>? _recordingStartTask;
   Future<void>? _teardownTask;
+  Future<void>? _remoteIceDrainTask;
   Future<void>? _recordingRetryTask;
   bool _recordingRetryRequested = false;
   Timer? _recordingRetryTimer;
   DateTime? _recordingRetryAt;
   Timer? _disconnectGraceTimer;
+  Timer? _ringTimeoutTimer;
 
   /// Current call state — the UI listens to this.
   final ValueNotifier<CallState> state = ValueNotifier(CallState.idle);
@@ -76,7 +97,9 @@ class CallService {
 
   /// Fired when a call:incoming arrives and there's no active call — the app can
   /// present the incoming-call UI. Registered once at connect time.
-  void Function()? _onIncoming;
+  void Function(IncomingCallSignal signal)? _onIncoming;
+
+  String? get currentCallUuid => _callUuid;
 
   bool get isBusy =>
       _teardownTask != null ||
@@ -93,8 +116,11 @@ class CallService {
 
   /// Connect the signalling socket for [kind] ('client' | 'master'). The token
   /// identifies the user to the `/calls` namespace. Safe to call repeatedly.
-  void connect(String kind, {void Function()? onIncoming}) {
-    _onIncoming = onIncoming;
+  void connect(
+    String kind, {
+    void Function(IncomingCallSignal signal)? onIncoming,
+  }) {
+    if (onIncoming != null) _onIncoming = onIncoming;
     final token = _session.accessToken;
     final ownerId = _session.subjectId;
     if (token == null || ownerId == null) return;
@@ -167,7 +193,9 @@ class CallService {
 
   /// Follows the app's one active login. Logout/admin sessions close the calls
   /// socket; client/master sessions connect with the matching identity.
-  void syncForCurrentSession({void Function()? onIncoming}) {
+  void syncForCurrentSession({
+    void Function(IncomingCallSignal signal)? onIncoming,
+  }) {
     final role = _session.role;
     if (!_session.isLoggedIn ||
         (role != AuthRole.client && role != AuthRole.master)) {
@@ -185,6 +213,11 @@ class CallService {
     peerName.value = displayName;
     statusMessage.value = null;
     state.value = CallState.calling;
+    _ringTimeoutTimer?.cancel();
+    _ringTimeoutTimer = Timer(_ringTimeout, () {
+      _ringTimeoutTimer = null;
+      if (state.value == CallState.calling) hangup();
+    });
     try {
       await _createPeer();
       final offer = await _pc!.createOffer({'offerToReceiveAudio': true});
@@ -212,24 +245,91 @@ class CallService {
     if (data is! Map || _pc == null) return;
     final sdp = data['sdp'];
     if (sdp is Map) {
+      _ringTimeoutTimer?.cancel();
+      _ringTimeoutTimer = null;
       await _pc!.setRemoteDescription(
         RTCSessionDescription(sdp['sdp'] as String?, sdp['type'] as String?),
       );
       await _drainPendingIce();
       state.value = CallState.connecting;
+      // Both users have accepted at this point. Attach the recorder before ICE
+      // finishes so a fast connection/hang-up cannot race recorder startup.
+      _ensureRecordingStarted();
     }
   }
 
   // ------------------------------------------------------------------ incoming
 
   void _handleIncoming(dynamic data) {
-    if (data is! Map || isBusy) return;
-    _callId = (data['callId'] as num?)?.toInt();
+    if (data is! Map) return;
+    final callId = (data['callId'] as num?)?.toInt();
+    final callUuid = data['callUuid']?.toString();
+    final conversationId = (data['conversationId'] as num?)?.toInt();
+    if (callId == null || callUuid == null || conversationId == null) return;
+    if (isBusy && _callId != callId) return;
+    _callId = callId;
+    _callUuid = callUuid;
     final sdp = data['sdp'];
     _pendingOffer = sdp is Map ? Map<String, dynamic>.from(sdp) : null;
     peerName.value = data['displayName'] as String? ?? data['from'] as String?;
     state.value = CallState.incoming;
-    _onIncoming?.call();
+    _onIncoming?.call(
+      IncomingCallSignal(
+        callId: callId,
+        callUuid: callUuid,
+        conversationId: conversationId,
+        from: data['from']?.toString() ?? 'client',
+        displayName: peerName.value ?? 'Fixleo',
+      ),
+    );
+  }
+
+  /// Restore an offer after FCM/PushKit woke a suspended or terminated app,
+  /// then answer through the normal WebRTC + Socket.IO path.
+  Future<void> answerFromNative({
+    required int callId,
+    required String callUuid,
+    required String callerName,
+    required VoidCallback onShowUi,
+  }) async {
+    if (isBusy && _callId != callId) return;
+    _callId = callId;
+    _callUuid = callUuid;
+    peerName.value = callerName;
+    state.value = CallState.incoming;
+    onShowUi();
+    syncForCurrentSession(onIncoming: _onIncoming);
+
+    try {
+      if (_pendingOffer == null) {
+        final kind = _kind;
+        if (kind != 'client' && kind != 'master') {
+          throw StateError('Call session is unavailable');
+        }
+        final raw = await ApiClient.instance.get(
+          '/${kind}s/me/calls/$callId/invite',
+        );
+        if (raw is! Map) throw const FormatException('Invalid call invite');
+        final invite = Map<String, dynamic>.from(raw);
+        if (invite['callUuid']?.toString().toLowerCase() !=
+            callUuid.toLowerCase()) {
+          throw const FormatException('Call UUID mismatch');
+        }
+        final sdp = invite['sdp'];
+        if (sdp is! Map) throw const FormatException('Missing call offer');
+        _pendingOffer = Map<String, dynamic>.from(sdp);
+        final candidates = invite['iceCandidates'];
+        if (candidates is List) {
+          for (final candidate in candidates) {
+            if (candidate is Map) _queueRemoteCandidate(candidate);
+          }
+        }
+      }
+      await answer();
+    } on Object catch (error) {
+      debugPrint('Incoming call recovery failed: $error');
+      _failCall();
+    }
   }
 
   /// Accept the ringing incoming call.
@@ -249,6 +349,7 @@ class CallService {
       _socket!.emit('call:answer', {'callId': _callId, 'sdp': answer.toMap()});
       _pendingOffer = null;
       state.value = CallState.connecting;
+      _ensureRecordingStarted();
     } on Object {
       _failCall();
     }
@@ -322,16 +423,10 @@ class CallService {
     };
     pc.onConnectionState = (s) {
       if (s == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
-        _cancelDisconnectGrace();
-        _activeSince ??= DateTime.now();
-        state.value = CallState.active;
-        _startRecordingWhenConnected();
+        _markMediaConnected();
       } else if (s ==
           RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
-        _disconnectGraceTimer ??= Timer(_disconnectGrace, () {
-          _disconnectGraceTimer = null;
-          if (identical(_pc, pc)) _failCall();
-        });
+        _scheduleDisconnectFailure(pc);
       } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
         _cancelDisconnectGrace();
         _failCall();
@@ -339,7 +434,42 @@ class CallService {
         _cancelDisconnectGrace();
       }
     };
+    // Some Android WebRTC builds establish a usable ICE transport but do not
+    // subsequently emit the aggregate PeerConnectionState `connected` event.
+    // ICE carries the media, so use its connected/completed states as the
+    // authoritative fallback for the call timer and recording lifecycle.
+    pc.onIceConnectionState = (s) {
+      if (s == RTCIceConnectionState.RTCIceConnectionStateConnected ||
+          s == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
+        _markMediaConnected();
+      } else if (s == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+        _scheduleDisconnectFailure(pc);
+      } else if (s == RTCIceConnectionState.RTCIceConnectionStateFailed) {
+        _cancelDisconnectGrace();
+        _failCall();
+      } else if (s == RTCIceConnectionState.RTCIceConnectionStateClosed) {
+        _cancelDisconnectGrace();
+      }
+    };
     _pc = pc;
+  }
+
+  void _markMediaConnected() {
+    _cancelDisconnectGrace();
+    _activeSince ??= DateTime.now();
+    state.value = CallState.active;
+    final callUuid = _callUuid;
+    if (callUuid != null) {
+      unawaited(FlutterCallkitIncoming.setCallConnected(callUuid));
+    }
+    _ensureRecordingStarted();
+  }
+
+  void _scheduleDisconnectFailure(RTCPeerConnection pc) {
+    _disconnectGraceTimer ??= Timer(_disconnectGrace, () {
+      _disconnectGraceTimer = null;
+      if (identical(_pc, pc)) _failCall();
+    });
   }
 
   Future<Map<String, dynamic>> _loadIceConfiguration() async {
@@ -381,6 +511,11 @@ class CallService {
   }
 
   void _failCall() {
+    // Closing the peer connection during a normal local/remote hang-up may
+    // synchronously report `failed` before the native close completes. The
+    // call is already being finalized in that case; emitting call:fail would
+    // race call:end and could downgrade a successful call to `failed`.
+    if (_teardownTask != null || state.value == CallState.ended) return;
     final socket = _socket;
     final callId = _callId;
     if (socket != null && callId != null) {
@@ -393,23 +528,52 @@ class CallService {
     if (data is! Map) return;
     final c = data['candidate'];
     if (c is! Map) return;
+    _queueRemoteCandidate(c);
+    if (_pc != null) await _drainPendingIce();
+  }
+
+  void _queueRemoteCandidate(Map<dynamic, dynamic> c) {
     final candidate = RTCIceCandidate(
       c['candidate'] as String?,
       c['sdpMid'] as String?,
       (c['sdpMLineIndex'] as num?)?.toInt(),
     );
-    if (_pc == null) {
-      _pendingRemoteIce.add(candidate); // arrived before the peer was ready
-    } else {
-      await _pc!.addCandidate(candidate);
-    }
+    _pendingRemoteIce.add(candidate);
   }
 
   Future<void> _drainPendingIce() async {
-    for (final c in _pendingRemoteIce) {
-      await _pc?.addCandidate(c);
+    // Socket.IO may deliver several candidates while an earlier addCandidate
+    // call is still awaiting the native WebRTC layer. Serialize drains and
+    // detach each batch before awaiting so the event handler can safely append
+    // the next candidates without mutating the list being iterated.
+    final previous = _remoteIceDrainTask;
+    late final Future<void> task;
+    task = () async {
+      if (previous != null) {
+        try {
+          await previous;
+        } on Object {
+          // The original caller observes the failure. Keep the chain usable so
+          // teardown/recovery does not strand subsequently received candidates.
+        }
+      }
+
+      final pc = _pc;
+      if (pc == null || _pendingRemoteIce.isEmpty) return;
+      final pending = List<RTCIceCandidate>.of(_pendingRemoteIce);
+      _pendingRemoteIce.removeRange(0, pending.length);
+      for (final candidate in pending) {
+        await pc.addCandidate(candidate);
+      }
+    }();
+    _remoteIceDrainTask = task;
+    try {
+      await task;
+    } finally {
+      if (identical(_remoteIceDrainTask, task)) {
+        _remoteIceDrainTask = null;
+      }
     }
-    _pendingRemoteIce.clear();
   }
 
   Future<void> _teardown(CallState finalState) async {
@@ -426,8 +590,11 @@ class CallService {
 
   Future<void> _performTeardown(CallState finalState) async {
     _cancelDisconnectGrace();
+    _ringTimeoutTimer?.cancel();
+    _ringTimeoutTimer = null;
     state.value = finalState;
     final callId = _callId;
+    final callUuid = _callUuid;
     final kind = _kind;
     final recordingOwnerId = _recordingOwnerId;
     final wasActive = _activeSince != null;
@@ -442,11 +609,15 @@ class CallService {
     _pc = null;
     _activeSince = null;
     _callId = null;
+    _callUuid = null;
     _recordingOwnerId = null;
     _pendingOffer = null;
     _pendingLocalIce.clear();
     _pendingRemoteIce.clear();
     _muted = false;
+    if (callUuid != null) {
+      unawaited(FlutterCallkitIncoming.endCall(callUuid));
+    }
     if (_speakerOn) {
       _speakerOn = false;
       unawaited(Helper.setSpeakerphoneOn(false));
@@ -491,7 +662,7 @@ class CallService {
     });
   }
 
-  void _startRecordingWhenConnected() {
+  void _ensureRecordingStarted() {
     if (_recordingStartTask != null ||
         _androidRecorder != null ||
         _iosRecorder != null ||
@@ -718,5 +889,12 @@ class CallService {
     _recordingRetryTimer = null;
     _recordingRetryAt = null;
     _recordingRetryRequested = false;
+  }
+
+  void endIncomingFromRemote(String callUuid) {
+    if (_callUuid == null ||
+        _callUuid!.toLowerCase() == callUuid.toLowerCase()) {
+      _teardown(CallState.ended);
+    }
   }
 }

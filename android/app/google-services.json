@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "777087113153",
+    "project_id": "fixleo-production",
+    "storage_bucket": "fixleo-production.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:777087113153:android:c1b11bde216dc242478140",
+        "android_client_info": {
+          "package_name": "com.fixleo.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCh5vh1ekTO9BI0crKt_AMHdU6nwcp1Akc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

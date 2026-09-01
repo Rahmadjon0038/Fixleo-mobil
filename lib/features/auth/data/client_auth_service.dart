@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:fixleo/core/network/api_client.dart';
 import 'package:fixleo/core/network/auth_session.dart';
 import 'package:fixleo/core/network/auth_tokens.dart';
+import 'package:fixleo/core/notifications/native_call_service.dart';
 import 'package:fixleo/features/auth/data/client_model.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 
@@ -148,6 +149,7 @@ class ClientAuthService {
   /// `POST /clients/auth/logout` — revokes the refresh token, then clears the
   /// local session. Idempotent.
   Future<void> logout() async {
+    await NativeCallService.instance.unregisterCurrentDevice();
     final refresh = _session.refreshToken;
     if (refresh != null) {
       try {
@@ -164,6 +166,7 @@ class ClientAuthService {
 
   /// `DELETE /clients/me` — soft-deletes the account, then clears the session.
   Future<void> deleteAccount() async {
+    await NativeCallService.instance.unregisterCurrentDevice();
     await _client.delete('/clients/me');
     await _session.clear();
   }

@@ -6,7 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
-import 'package:fixleo/app/app.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/glass/glass.dart';
@@ -161,9 +160,8 @@ class _ChatScreenState extends State<ChatScreen> {
       _scrollToBottom();
       unawaited(_service.markRead(widget.conversationId).catchError((_) {}));
     }, onRead: _markOutgoingMessagesRead);
-    // Voice-call signalling: ensure connected (home already connects it app-wide);
-    // incoming calls present the call UI globally via showIncomingCallUi.
-    CallService.instance.connect(widget.kind, onIncoming: showIncomingCallUi);
+    // Voice-call signalling: ensure connected (home already connects it app-wide).
+    CallService.instance.connect(widget.kind);
     CallService.instance.state.addListener(_onCallStateChanged);
   }
 

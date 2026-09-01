@@ -36,6 +36,7 @@ ios/Flutter/Secrets.xcconfig
 
 # Local signing and server credentials. Never commit APNs/Firebase private keys.
 /keys/
+.fixleo-key-bundle-password
 
 # Symbolication related
 app.*.symbols

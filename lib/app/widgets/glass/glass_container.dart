@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'glass_platform.dart';
 
 /// Core "Liquid Glass" surface — a translucent, blurred panel with a bright
 /// specular edge highlight, matching iOS's frosted-glass material.
@@ -161,22 +162,29 @@ class GlassContainer extends StatelessWidget {
   final Color? shadowColor;
   final AlignmentGeometry? alignment;
 
-  DecoratedBox _fill(BorderRadius radius) {
+  DecoratedBox _fill(BorderRadius radius, {required bool glass}) {
     // Dark tints read better with a soft light-on-dark border than the
     // bright-white edge used for light glass.
     final isDark = tint.computeLuminance() < 0.5;
     return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            tint.withValues(alpha: tintOpacityTop),
-            tint.withValues(alpha: tintOpacityBottom),
-          ],
-        ),
+        color: glass ? null : Color.alphaBlend(tint, const Color(0xFFF4F5F7)),
+        gradient: !glass
+            ? null
+            : LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  tint.withValues(alpha: tintOpacityTop),
+                  tint.withValues(alpha: tintOpacityBottom),
+                ],
+              ),
         border: Border.all(
-          color: isDark
+          color: !glass
+              ? (isDark
+                    ? Color.lerp(tint, Colors.white, .16)!
+                    : const Color(0xFFE3E9F0))
+              : isDark
               ? Colors.white.withValues(alpha: borderOpacity)
               : Colors.white.withValues(alpha: borderOpacity),
           width: borderWidth,
@@ -189,15 +197,16 @@ class GlassContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(borderRadius);
+    final glass = usesGlassMaterial(context);
 
     final surface = ClipRRect(
       borderRadius: radius,
-      child: blur
+      child: blur && glass
           ? BackdropFilter(
               filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-              child: _fill(radius),
+              child: _fill(radius, glass: glass),
             )
-          : _fill(radius),
+          : _fill(radius, glass: glass),
     );
 
     final content = Padding(
@@ -221,10 +230,10 @@ class GlassContainer extends StatelessWidget {
               boxShadow: [
                 BoxShadow(
                   color: (shadowColor ?? const Color(0xFF0F172A)).withValues(
-                    alpha: 0.10,
+                    alpha: glass ? 0.10 : 0.05,
                   ),
-                  blurRadius: 14,
-                  offset: const Offset(0, 5),
+                  blurRadius: glass ? 14 : 6,
+                  offset: Offset(0, glass ? 5 : 2),
                 ),
               ],
             )

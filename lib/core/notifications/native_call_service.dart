@@ -9,17 +9,48 @@ import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vibration/vibration.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/core/network/api_client.dart';
+import 'package:fixleo/core/network/api_config.dart';
 import 'package:fixleo/core/network/auth_session.dart';
 import 'package:fixleo/core/realtime/call_service.dart';
 import 'package:fixleo/core/permissions/permission_prompt.dart';
+import 'push_delivery_policy.dart';
+import 'push_sync_retry.dart';
 
 const _pendingBackgroundActionKey = 'pending_native_call_action';
 const _nativeCallsChannelName = 'com.fixleo.app/native_calls';
+
+class AppPushNotification {
+  const AppPushNotification({
+    required this.title,
+    required this.body,
+    required this.data,
+  });
+
+  final String title;
+  final String body;
+  final Map<String, dynamic> data;
+
+  factory AppPushNotification.fromRemoteMessage(RemoteMessage message) {
+    return AppPushNotification(
+      title:
+          message.notification?.title ??
+          message.data['title']?.toString() ??
+          'Fixleo',
+      body:
+          message.notification?.body ?? message.data['body']?.toString() ?? '',
+      data: {
+        ...message.data,
+        if (message.messageId != null) '_remoteMessageId': message.messageId,
+      },
+    );
+  }
+}
 
 /// FCM invokes this in a separate isolate when Android is backgrounded/killed.
 @pragma('vm:entry-point')
@@ -64,7 +95,15 @@ class NativeCallService {
   final AuthSession _session = AuthSession.instance;
   final Set<String> _handledActions = <String>{};
   StreamSubscription<String>? _tokenRefreshSubscription;
+  final _deliveryPolicy = PushDeliveryPolicy();
+  late final _tokenSync = PushSyncRetry(_syncTokens);
+  bool _foreground = true;
+  bool _unregistering = false;
   VoidCallback? _openCallUi;
+  void Function(AppPushNotification notification)? _showNotificationUi;
+  void Function(AppPushNotification notification)? _openNotificationUi;
+  AppPushNotification? _pendingOpenedNotification;
+  int? _activeConversationId;
   bool _initialized = false;
   bool _permissionsRequested = false;
   bool _permissionPromptHandled = false;
@@ -85,17 +124,58 @@ class NativeCallService {
         await _handleAction(Map<String, dynamic>.from(call.arguments as Map));
       }
     });
-    FirebaseMessaging.onMessage.listen(
-      (message) => unawaited(handlePushData(message.data)),
-    );
-    FirebaseMessaging.onMessageOpenedApp.listen(
-      (message) => unawaited(handlePushData(message.data)),
-    );
+    FirebaseMessaging.onMessage.listen((message) {
+      if (_isCallPush(message.data)) {
+        unawaited(handlePushData(message.data));
+      } else {
+        _showForegroundNotification(message);
+      }
+    });
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      if (_isCallPush(message.data)) {
+        unawaited(handlePushData(message.data));
+      } else {
+        _openNotification(AppPushNotification.fromRemoteMessage(message));
+      }
+    });
     FlutterCallkitIncoming.onEvent.listen((event) {
       if (event != null) unawaited(_handleCallEvent(event));
     });
     _session.sessionEvents.addListener(_onSessionChanged);
-    await _consumePendingActions();
+    _tokenRefreshSubscription ??= FirebaseMessaging.instance.onTokenRefresh
+        .listen(
+          (_) => unawaited(syncForCurrentSession()),
+          onError: (Object error) => unawaited(syncForCurrentSession()),
+        );
+    // The Flutter banner is the sole foreground presentation on iOS.
+    // Background alerts remain owned by APNs/FCM, avoiding duplicate alerts.
+    try {
+      await FirebaseMessaging.instance
+          .setForegroundNotificationPresentationOptions(
+            alert: false,
+            badge: false,
+            sound: false,
+          );
+    } on Object {
+      debugPrint('Push foreground presentation configuration unavailable');
+    }
+    try {
+      await _consumePendingActions();
+    } on Object {
+      debugPrint('Pending native action unavailable at startup');
+    }
+    try {
+      final initialMessage = await FirebaseMessaging.instance
+          .getInitialMessage();
+      if (initialMessage != null && !_isCallPush(initialMessage.data)) {
+        _openNotification(
+          AppPushNotification.fromRemoteMessage(initialMessage),
+        );
+      }
+    } on Object {
+      debugPrint('Initial push unavailable at startup');
+    }
+    unawaited(syncForCurrentSession());
   }
 
   void bindCallUi(VoidCallback callback) {
@@ -106,6 +186,88 @@ class NativeCallService {
     }
   }
 
+  void bindNotificationUi({
+    required void Function(AppPushNotification notification) show,
+    required void Function(AppPushNotification notification) open,
+  }) {
+    _showNotificationUi = show;
+    _openNotificationUi = open;
+    final pending = _pendingOpenedNotification;
+    if (pending != null) {
+      _pendingOpenedNotification = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) => open(pending));
+    }
+  }
+
+  void unbindNotificationUi() {
+    _showNotificationUi = null;
+    _openNotificationUi = null;
+    _openCallUi = null;
+  }
+
+  void setForeground(bool value) {
+    _foreground = value;
+    if (value) unawaited(syncForCurrentSession());
+  }
+
+  void setActiveConversation(int conversationId) {
+    _activeConversationId = conversationId;
+  }
+
+  void clearActiveConversation(int conversationId) {
+    if (_activeConversationId == conversationId) {
+      _activeConversationId = null;
+    }
+  }
+
+  void _showForegroundNotification(RemoteMessage message) {
+    if (!hasCallableSession || !_foreground) return;
+    final notification = AppPushNotification.fromRemoteMessage(message);
+    if (!_deliveryPolicy.belongsTo(
+      notification.data,
+      _session.role!.name,
+      _session.subjectId,
+    )) {
+      return;
+    }
+    final conversationId = _toInt(notification.data['conversationId']);
+    if (notification.data['type'] == 'chat_message' &&
+        conversationId != null &&
+        conversationId == _activeConversationId) {
+      return;
+    }
+    if (_showNotificationUi != null &&
+        _deliveryPolicy.acceptShown(notification.data)) {
+      _showNotificationUi?.call(notification);
+    }
+  }
+
+  void _openNotification(AppPushNotification notification) {
+    if (!hasCallableSession ||
+        !_deliveryPolicy.belongsTo(
+          notification.data,
+          _session.role!.name,
+          _session.subjectId,
+        ) ||
+        !_deliveryPolicy.acceptOpened(notification.data)) {
+      return;
+    }
+    if (notification.data['type'] == 'chat_message' &&
+        _activeConversationId == _toInt(notification.data['conversationId'])) {
+      return;
+    }
+    final callback = _openNotificationUi;
+    if (callback == null) {
+      _pendingOpenedNotification = notification;
+    } else {
+      callback(notification);
+    }
+  }
+
+  static bool _isCallPush(Map<String, dynamic> data) {
+    return data['type'] == 'incoming_call' || data['type'] == 'call_ended';
+  }
+
   void showIncomingFromSocket(IncomingCallSignal signal) {
     unawaited(
       showIncoming(
@@ -114,6 +276,7 @@ class NativeCallService {
         conversationId: signal.conversationId,
         callerKind: signal.from,
         callerName: signal.displayName,
+        callerAvatarUrl: signal.avatarUrl,
       ),
     );
   }
@@ -123,7 +286,17 @@ class NativeCallService {
   /// never before [runApp], so the user understands what is being requested.
   Future<void> requestPermissions(BuildContext context) async {
     if (!hasCallableSession || _permissionPromptActive) return;
+    _permissionPromptActive = true;
+    try {
+      await _requestPermissions(context);
+    } on Object {
+      debugPrint('Notification permission request unavailable');
+    } finally {
+      _permissionPromptActive = false;
+    }
+  }
 
+  Future<void> _requestPermissions(BuildContext context) async {
     final settings = await FirebaseMessaging.instance.getNotificationSettings();
     final notificationsReady =
         settings.authorizationStatus == AuthorizationStatus.authorized ||
@@ -142,7 +315,6 @@ class NativeCallService {
     }
     if (_permissionPromptHandled || !context.mounted) return;
 
-    _permissionPromptActive = true;
     final shouldContinue = await showPermissionRationale(
       context,
       icon: Icons.notifications_active_outlined,
@@ -156,55 +328,130 @@ class NativeCallService {
       messageEn:
           'Allow notifications so Fixleo can show incoming calls and important messages even when the app is closed or the screen is locked.',
     );
-    _permissionPromptActive = false;
     _permissionPromptHandled = true;
     if (!shouldContinue) return;
-    await syncForCurrentSession(requestPermissions: true);
-  }
-
-  Future<void> syncForCurrentSession({bool requestPermissions = false}) async {
-    if (!hasCallableSession) return;
-    if (requestPermissions && !_permissionsRequested) {
+    if (!_permissionsRequested) {
       _permissionsRequested = true;
       await FirebaseMessaging.instance.requestPermission(
         alert: true,
         badge: true,
         sound: true,
       );
-      if (Platform.isAndroid) {
-        await FlutterCallkitIncoming.requestNotificationPermission({
-          'title': 'Qo‘ng‘iroqlar uchun bildirishnoma ruxsati',
-          'rationaleMessagePermission':
-              'Fixleo yopiq bo‘lsa ham qo‘ng‘iroqlarni ko‘rsatish uchun ruxsat kerak.',
-          'postNotificationMessageRequired': 'Ruxsatni sozlamalardan yoqing.',
-        });
-        if (!await FlutterCallkitIncoming.canUseFullScreenIntent()) {
-          await FlutterCallkitIncoming.requestFullIntentPermission();
-        }
-      }
+    }
+    final updatedSettings = await FirebaseMessaging.instance
+        .getNotificationSettings();
+    final notificationsGranted =
+        updatedSettings.authorizationStatus == AuthorizationStatus.authorized ||
+        updatedSettings.authorizationStatus == AuthorizationStatus.provisional;
+    if (!notificationsGranted) {
+      if (context.mounted) _showSettingsHint(context);
+      return;
     }
 
-    final fcmToken = await FirebaseMessaging.instance.getToken();
-    if (fcmToken != null && fcmToken.isNotEmpty) {
-      await _registerToken(fcmToken, type: 'fcm');
-    }
-    _tokenRefreshSubscription ??= FirebaseMessaging.instance.onTokenRefresh
-        .listen((token) => unawaited(_registerToken(token, type: 'fcm')));
-    if (Platform.isIOS) {
-      final voipToken = await FlutterCallkitIncoming.getDevicePushTokenVoIP();
-      if (voipToken != null && voipToken.isNotEmpty) {
-        await _registerToken(voipToken, type: 'apns_voip');
+    await syncForCurrentSession();
+    if (Platform.isAndroid &&
+        !await FlutterCallkitIncoming.canUseFullScreenIntent() &&
+        context.mounted) {
+      final allowFullScreen = await showPermissionRationale(
+        context,
+        icon: Icons.phone_in_talk_rounded,
+        titleUz: 'Qulflangan ekrandagi qo‘ng‘iroq',
+        titleRu: 'Звонок на заблокированном экране',
+        titleEn: 'Calls on the lock screen',
+        messageUz:
+            'Kiruvchi qo‘ng‘iroqni ekran qulflanganda ham to‘liq ko‘rsatish uchun Fixleo’ga maxsus ruxsat bering.',
+        messageRu:
+            'Разрешите Fixleo показывать входящий вызов на весь экран, когда телефон заблокирован.',
+        messageEn:
+            'Allow Fixleo to show incoming calls full-screen while the phone is locked.',
+      );
+      if (allowFullScreen) {
+        await FlutterCallkitIncoming.requestFullIntentPermission();
       }
     }
   }
 
+  void _showSettingsHint(BuildContext context) {
+    final lang = LocaleController.language.value;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          tr(
+            lang,
+            'Bildirishnomalar bloklangan. Qo‘ng‘iroq va xabarlar uchun sozlamalardan yoqing.',
+            'Уведомления заблокированы. Включите их в настройках для звонков и сообщений.',
+            'Notifications are blocked. Enable them in Settings for calls and messages.',
+          ),
+        ),
+        action: SnackBarAction(
+          label: tr(lang, 'Sozlamalar', 'Настройки', 'Settings'),
+          onPressed: () => unawaited(Geolocator.openAppSettings()),
+        ),
+      ),
+    );
+  }
+
+  Future<void> syncForCurrentSession() {
+    if (!hasCallableSession || _unregistering || Firebase.apps.isEmpty) {
+      return Future.value();
+    }
+    return _tokenSync.sync();
+  }
+
+  Future<bool> _syncTokens() async {
+    if (!hasCallableSession || _unregistering) return true;
+    final epoch = _session.sessionEvents.value;
+    var ready = true;
+    // APNs can arrive later than Firebase initialization on a real iPhone.
+    // Register VoIP independently, even if the regular APNs token is not ready.
+    if (Platform.isIOS) {
+      try {
+        final voipToken = await FlutterCallkitIncoming.getDevicePushTokenVoIP();
+        if (voipToken != null && voipToken.isNotEmpty) {
+          ready = await _registerToken(
+            voipToken,
+            type: 'apns_voip',
+            epoch: epoch,
+          );
+        } else {
+          ready = false;
+        }
+      } on Object {
+        ready = false;
+      }
+      if (await FirebaseMessaging.instance.getAPNSToken() == null) return false;
+    }
+    final fcmToken = await FirebaseMessaging.instance.getToken();
+    if (fcmToken == null || fcmToken.isEmpty) return false;
+    final registered = await _registerToken(
+      fcmToken,
+      type: 'fcm',
+      epoch: epoch,
+    );
+    return ready && registered;
+  }
+
   Future<void> unregisterCurrentDevice() async {
+    _unregistering = true;
+    _tokenSync.reset();
     if (!hasCallableSession || Firebase.apps.isEmpty) return;
     final role = _session.role!.name;
-    final tokens = <String?>[
-      await FirebaseMessaging.instance.getToken(),
-      if (Platform.isIOS) await FlutterCallkitIncoming.getDevicePushTokenVoIP(),
-    ];
+    final tokens = <String?>[];
+    try {
+      if (!Platform.isIOS ||
+          await FirebaseMessaging.instance.getAPNSToken() != null) {
+        tokens.add(await FirebaseMessaging.instance.getToken());
+      }
+    } on Object {
+      debugPrint('FCM token unavailable during logout');
+    }
+    if (Platform.isIOS) {
+      try {
+        tokens.add(await FlutterCallkitIncoming.getDevicePushTokenVoIP());
+      } on Object {
+        debugPrint('VoIP token unavailable during logout');
+      }
+    }
     for (final token in tokens.whereType<String>().where(
       (value) => value.isNotEmpty,
     )) {
@@ -212,8 +459,8 @@ class NativeCallService {
         await ApiClient.instance.delete(
           '/${role}s/me/device-tokens/${Uri.encodeComponent(token)}',
         );
-      } on Object catch (error) {
-        debugPrint('Push token removal deferred: $error');
+      } on Object {
+        debugPrint('Push token removal deferred');
       }
     }
   }
@@ -234,6 +481,7 @@ class NativeCallService {
           conversationId: conversationId,
           callerKind: data['callerKind']?.toString() ?? 'client',
           callerName: data['callerName']?.toString() ?? 'Fixleo',
+          callerAvatarUrl: data['callerAvatarUrl']?.toString(),
         );
       case 'call_ended':
         final callUuid = data['callUuid']?.toString();
@@ -251,6 +499,7 @@ class NativeCallService {
     required int conversationId,
     required String callerKind,
     required String callerName,
+    String? callerAvatarUrl,
   }) async {
     if (!hasCallableSession) return;
     final active = await FlutterCallkitIncoming.activeCalls();
@@ -264,6 +513,7 @@ class NativeCallService {
         conversationId: conversationId,
         callerKind: callerKind,
         callerName: callerName,
+        callerAvatarUrl: callerAvatarUrl,
       ),
     );
     await _startAndroidVibrationFallback();
@@ -309,12 +559,15 @@ class NativeCallService {
     required int conversationId,
     required String callerKind,
     required String callerName,
+    String? callerAvatarUrl,
   }) {
     final lang = LocaleController.language.value;
+    final avatarUrl = ApiConfig.resolveMediaUrl(callerAvatarUrl);
     return CallKitParams(
       id: callUuid,
       nameCaller: callerName,
       appName: 'Fixleo',
+      avatar: avatarUrl ?? 'assets/icon/app_icon.png',
       handle: callerKind == 'master'
           ? tr(lang, 'Usta', 'Мастер', 'Master')
           : tr(lang, 'Mijoz', 'Клиент', 'Client'),
@@ -326,6 +579,7 @@ class NativeCallService {
         'conversationId': conversationId,
         'callerKind': callerKind,
         'callerName': callerName,
+        'callerAvatarUrl': ?avatarUrl,
       },
       missedCallNotification: NotificationParams(
         showNotification: true,
@@ -340,11 +594,10 @@ class NativeCallService {
       android: AndroidParams(
         isCustomNotification: true,
         isCustomSmallExNotification: true,
-        isShowLogo: true,
-        logoUrl: 'assets/icon/app_icon.png',
-        isShowCallID: false,
+        isShowLogo: false,
+        isShowCallID: true,
         ringtonePath: 'system_ringtone_default',
-        backgroundColor: '#152343',
+        backgroundColor: '#071327',
         actionColor: '#0D87F5',
         textColor: '#FFFFFF',
         incomingCallNotificationChannelName: 'Fixleo qo‘ng‘iroqlari',
@@ -443,6 +696,7 @@ class NativeCallService {
               extra['callerName']?.toString() ??
               payload['nameCaller']?.toString() ??
               'Fixleo',
+          callerAvatarUrl: extra['callerAvatarUrl']?.toString(),
           onShowUi: _presentCallUi,
         );
       case 'decline':
@@ -475,8 +729,17 @@ class NativeCallService {
     }
   }
 
-  Future<void> _registerToken(String token, {required String type}) async {
-    if (!hasCallableSession || token.isEmpty) return;
+  Future<bool> _registerToken(
+    String token, {
+    required String type,
+    required int epoch,
+  }) async {
+    if (!hasCallableSession ||
+        _unregistering ||
+        token.isEmpty ||
+        epoch != _session.sessionEvents.value) {
+      return true;
+    }
     try {
       await ApiClient.instance.post(
         '/${_session.role!.name}s/me/device-tokens',
@@ -486,8 +749,11 @@ class NativeCallService {
           'type': type,
         },
       );
-    } on Object catch (error) {
-      debugPrint('Push token registration deferred: $error');
+      return true;
+    } on Object {
+      // Never log request bodies: they contain device push tokens.
+      debugPrint('Push token registration deferred ($type)');
+      return false;
     }
   }
 
@@ -501,6 +767,13 @@ class NativeCallService {
   }
 
   void _onSessionChanged() {
+    _unregistering = false;
+    _tokenSync.reset();
+    _deliveryPolicy.clear();
+    _pendingOpenedNotification = null;
+    _activeConversationId = null;
+    _permissionPromptHandled = false;
+    _permissionsRequested = false;
     unawaited(syncForCurrentSession());
   }
 

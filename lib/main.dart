@@ -12,6 +12,7 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/core/network/auth_session.dart';
 import 'package:fixleo/core/notifications/native_call_service.dart';
 import 'package:fixleo/core/location/google_maps_bootstrap.dart';
+import 'package:fixleo/core/network/installation_identity.dart';
 
 Future<void> main() async {
   // socket_io_client's WebSocketTransport.doClose() calls `_ws?.close()`
@@ -41,6 +42,7 @@ Future<void> main() async {
       await AuthSession.instance.load();
       // Restore the last chosen language before the first frame is built.
       await LocaleController.load();
+      await InstallationIdentity.load();
       await NativeCallService.instance.initialize();
       runApp(const FixleoApp());
       WidgetsBinding.instance.addPostFrameCallback((_) {

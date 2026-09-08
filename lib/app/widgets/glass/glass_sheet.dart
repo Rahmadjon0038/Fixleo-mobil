@@ -1,6 +1,5 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
+import 'glass_platform.dart';
 
 /// Shows a modal bottom sheet wrapped in a frosted glass surface (blurred
 /// scrim + translucent sheet body with a rounded top and a bright top
@@ -23,16 +22,19 @@ Future<T?> showGlassModalBottomSheet<T>({
     barrierColor: Colors.black.withValues(alpha: 0.25),
     builder: (ctx) => ClipRRect(
       borderRadius: BorderRadius.vertical(top: Radius.circular(topRadius)),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+      child: GlassBackdrop(
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.white.withValues(alpha: 0.88),
-                Colors.white.withValues(alpha: 0.78),
+                Colors.white.withValues(
+                  alpha: usesGlassMaterial(ctx) ? 0.88 : 1,
+                ),
+                Colors.white.withValues(
+                  alpha: usesGlassMaterial(ctx) ? 0.78 : 1,
+                ),
               ],
             ),
             border: Border(
@@ -76,16 +78,19 @@ class GlassAlertDialog extends StatelessWidget {
       insetPadding: const EdgeInsets.symmetric(horizontal: 32),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: GlassBackdrop(
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.white.withValues(alpha: 0.88),
-                  Colors.white.withValues(alpha: 0.78),
+                  Colors.white.withValues(
+                    alpha: usesGlassMaterial(context) ? 0.88 : 1,
+                  ),
+                  Colors.white.withValues(
+                    alpha: usesGlassMaterial(context) ? 0.78 : 1,
+                  ),
                 ],
               ),
               border: Border.all(

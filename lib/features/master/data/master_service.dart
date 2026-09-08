@@ -6,6 +6,7 @@ import 'package:fixleo/core/network/auth_tokens.dart';
 import 'package:fixleo/core/notifications/native_call_service.dart';
 import 'package:fixleo/features/master/data/master_document_model.dart';
 import 'package:fixleo/features/master/data/master_model.dart';
+import 'package:fixleo/features/master/data/master_service_price.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 
 /// Result of master `verify-otp`: tokens + profile, plus whether this call
@@ -136,6 +137,32 @@ class MasterService {
   }
 
   /// `PUT /masters/me/categories` — replaces the whole selection.
+  Future<List<MasterServicePrice>> servicePricing() async {
+    final data =
+        await _client.get('/masters/me/service-pricing')
+            as Map<String, dynamic>;
+    return (data['items'] as List)
+        .map(
+          (item) => MasterServicePrice.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  Future<void> saveServicePricing(
+    List<int> categoryIds,
+    Map<int, int?> prices,
+  ) async {
+    await _client.put(
+      '/masters/me/categories',
+      body: {
+        'categoryIds': categoryIds,
+        'prices': prices.entries
+            .map((entry) => {'categoryId': entry.key, 'price': entry.value})
+            .toList(),
+      },
+    );
+  }
+
   Future<Master> setCategories(List<int> categoryIds) async {
     final data = await _client.put(
       '/masters/me/categories',

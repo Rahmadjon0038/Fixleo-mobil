@@ -6,6 +6,7 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/core/network/api_config.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/core/network/auth_session.dart';
+import 'package:fixleo/core/network/installation_identity.dart';
 
 /// Thin wrapper around [Dio] that knows how to talk to the Fixleo backend.
 ///
@@ -31,6 +32,10 @@ class ApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           options.headers['Accept-Language'] = _acceptLanguage;
+          final installationId = InstallationIdentity.value;
+          if (installationId != null) {
+            options.headers['X-Fixleo-Installation-Id'] = installationId;
+          }
 
           // Refresh just before JWT expiry. Besides avoiding a visible 401,
           // this also makes multipart requests safe: streamed upload bodies

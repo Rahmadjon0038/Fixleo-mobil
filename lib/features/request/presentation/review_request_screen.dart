@@ -72,6 +72,8 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
         slot: d.slot,
         budgetMax: d.budgetMax,
         photoKeys: d.photoKeys,
+        questionVersion: d.questionVersion,
+        questionAnswers: d.questionAnswers,
       );
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
@@ -110,6 +112,40 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _summaryCard(),
+                    if (widget.draft.questionSummary.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                tr(
+                                  lang,
+                                  'Savollarga javoblar',
+                                  'Ответы на вопросы',
+                                  'Your answers',
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                widget.draft.questionSummary,
+                                style: const TextStyle(height: 1.6),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 11),
                     _hintCard(),
                   ],

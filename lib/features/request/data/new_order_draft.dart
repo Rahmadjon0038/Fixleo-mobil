@@ -8,6 +8,9 @@ class NewOrderDraft {
   String? categoryName;
 
   String description = '';
+  int? questionVersion;
+  List<Map<String, dynamic>> questionAnswers = [];
+  String questionSummary = '';
   List<String> photoKeys = [];
   List<String> photoPaths = [];
 

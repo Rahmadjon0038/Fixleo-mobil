@@ -13,6 +13,7 @@ import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/location/device_location_service.dart';
 import 'package:fixleo/core/location/reverse_geocoder.dart';
 import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/core/notifications/native_call_service.dart';
 import 'package:fixleo/core/realtime/app_presence_service.dart';
 import 'package:fixleo/core/realtime/call_service.dart';
 import 'package:fixleo/core/realtime/chat_socket.dart';
@@ -23,6 +24,7 @@ import 'package:fixleo/features/request/presentation/attach_photos_sheet.dart';
 import 'package:fixleo/features/request/presentation/client_info_screen.dart';
 import 'package:fixleo/features/request/presentation/master_profile_screen.dart';
 import 'package:fixleo/features/request/presentation/widgets/chat_media_message.dart';
+import 'package:fixleo/features/request/presentation/widgets/chat_message_surface.dart';
 import 'package:fixleo/features/request/presentation/widgets/chat_peer_avatar.dart';
 import 'package:fixleo/features/request/presentation/widgets/chat_presence_text.dart';
 
@@ -43,6 +45,7 @@ class ChatMessage {
     this.latitude,
     this.longitude,
     this.locationLabel,
+    this.createdAt,
   });
 
   final int id;
@@ -57,6 +60,7 @@ class ChatMessage {
   final double? latitude;
   final double? longitude;
   final String? locationLabel;
+  final DateTime? createdAt;
 
   ChatMessage copyWith({bool? isRead}) {
     return ChatMessage(
@@ -72,11 +76,31 @@ class ChatMessage {
       latitude: latitude,
       longitude: longitude,
       locationLabel: locationLabel,
+      createdAt: createdAt,
     );
   }
 }
 
 enum _ImageUploadStatus { uploading, failed }
+
+/// REST snapshots and socket events can arrive in either order. Keep IDs unique
+/// and read state monotonic, including a receipt arriving before send returns.
+List<ChatMessage> mergeChatMessages(
+  Iterable<ChatMessage> current,
+  Iterable<ChatMessage> incoming, {
+  int readUpTo = 0,
+}) {
+  final byId = {for (final message in current) message.id: message};
+  for (final message in incoming) {
+    byId[message.id] = message.copyWith(
+      isRead:
+          message.isRead ||
+          byId[message.id]?.isRead == true ||
+          (message.isMine && message.id <= readUpTo),
+    );
+  }
+  return byId.values.toList()..sort((a, b) => a.id.compareTo(b.id));
+}
 
 class _ImageUpload {
   _ImageUpload(this.file);
@@ -107,10 +131,9 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   static const _bubbleText = Color(0xFF23232E);
   static const _incomingTime = Color(0xFF9494A3);
-  static const _outgoingTime = Color(0xFFEBE8FA);
   static const _slate500 = Color(0xFF64748B);
 
   late final api_chat.ChatService _service = api_chat.ChatService(
@@ -128,10 +151,19 @@ class _ChatScreenState extends State<ChatScreen> {
   final _reverseGeocoder = ReverseGeocoder();
 
   final List<ChatMessage> _messages = [];
+  final Set<int> _enteringMessages = {};
   final List<_ImageUpload> _imageUploads = [];
   bool _loading = true;
   bool _sending = false;
   bool _hasText = false;
+  int _readUpTo = 0;
+  int _acknowledgedIncomingId = 0;
+  bool _reading = false;
+  bool _loadingMessages = false;
+  bool _reloadRequested = false;
+  bool _foreground = true;
+  Timer? _readRetry;
+  int _readRetries = 0;
   bool _recording = false;
   bool _startingRecording = false;
   bool _finishingRecording = false;
@@ -153,8 +185,11 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _scrollController.addListener(_onChatScroll);
     _peerName = widget.peerName;
     _peerAvatarUrl = widget.peerAvatarUrl;
+    NativeCallService.instance.setActiveConversation(widget.conversationId);
     _controller.addListener(_onTextChanged);
     _load();
     _loadPresence();
@@ -169,12 +204,18 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     // Live incoming messages — append the peer's messages as they arrive so the
     // thread updates without a reopen. (Own messages are shown locally on send.)
-    _chatSocket.connect((m) {
-      if (!mounted || m.sender == widget.kind) return;
-      setState(() => _messages.add(_toBubble(m)));
-      _scrollToBottom();
-      unawaited(_service.markRead(widget.conversationId).catchError((_) {}));
-    }, onRead: _markOutgoingMessagesRead);
+    _chatSocket.connect(
+      (m) {
+        if (!mounted) return;
+        final follow = _atBottom;
+        setState(() => _merge([_toBubble(m)]));
+        if (follow) _scrollToBottom();
+        _readRetries = 0;
+        _scheduleRead();
+      },
+      onRead: _markOutgoingMessagesRead,
+      onConnected: () => unawaited(_load()),
+    );
     // Voice-call signalling: ensure connected (home already connects it app-wide).
     CallService.instance.connect(widget.kind);
     CallService.instance.state.addListener(_onCallStateChanged);
@@ -198,7 +239,11 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _startCall() async {
     if (!await _ensureMicrophonePermission()) return;
     final call = CallService.instance;
-    await call.startCall(widget.conversationId, displayName: _peerName);
+    await call.startCall(
+      widget.conversationId,
+      displayName: _peerName,
+      avatarUrl: _peerAvatarUrl,
+    );
     if (mounted && call.isBusy) _openCallScreen();
   }
 
@@ -206,16 +251,16 @@ class _ChatScreenState extends State<ChatScreen> {
   /// master profile (rating, bio, reviews, work photos) for clients, or a
   /// lighter client-info screen for masters (clients don't have that kind of
   /// public profile) — instead of just a zoomable photo.
-  void _openPeerProfile() {
+  Future<void> _openPeerProfile() async {
     if (widget.kind == 'client') {
       if (_peerId == null) return;
-      Navigator.of(context).push(
+      await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => MasterProfileScreen(masterId: _peerId!),
         ),
       );
     } else {
-      Navigator.of(context).push(
+      await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => ClientInfoScreen(
             name: _peerName ?? tr(_lang, 'Mijoz', 'Клиент', 'Client'),
@@ -227,6 +272,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       );
     }
+    if (mounted) unawaited(_load());
   }
 
   AppLanguage get _lang => LocaleController.language.value;
@@ -250,19 +296,97 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _load() async {
+    if (_loadingMessages) {
+      _reloadRequested = true;
+      return;
+    }
+    _loadingMessages = true;
+    final follow = _loading || _atBottom;
     try {
       final msgs = await _service.messages(widget.conversationId, limit: 50);
-      unawaited(_service.markRead(widget.conversationId).catchError((_) {}));
       if (!mounted) return;
       setState(() {
-        _messages
-          ..clear()
-          ..addAll(msgs.map(_toBubble));
+        _merge(msgs.map(_toBubble));
         _loading = false;
       });
-      _scrollToBottom();
+      if (follow) _scrollToBottom(immediate: true);
+      _scheduleRead();
     } on ApiException {
       if (mounted) setState(() => _loading = false);
+    } finally {
+      _loadingMessages = false;
+      if (_reloadRequested && mounted) {
+        _reloadRequested = false;
+        unawaited(_load());
+      }
+    }
+  }
+
+  void _merge(Iterable<ChatMessage> incoming) {
+    if (!_loading) {
+      final existing = _messages.map((m) => m.id).toSet();
+      _enteringMessages.addAll(
+        incoming.where((m) => !existing.contains(m.id)).map((m) => m.id),
+      );
+    }
+    final merged = mergeChatMessages(_messages, incoming, readUpTo: _readUpTo);
+    _messages
+      ..clear()
+      ..addAll(merged);
+  }
+
+  bool get _atBottom =>
+      !_scrollController.hasClients || _scrollController.offset <= 48;
+  bool get _canRead =>
+      mounted &&
+      _foreground &&
+      ModalRoute.of(context)?.isCurrent == true &&
+      _atBottom;
+
+  void _onChatScroll() {
+    if (_atBottom) _scheduleRead();
+  }
+
+  void _scheduleRead() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_canRead) unawaited(_acknowledgeRead());
+    });
+  }
+
+  Future<void> _acknowledgeRead() async {
+    if (!_canRead || _reading) return;
+    final incoming = _messages.where((m) => !m.isMine);
+    if (incoming.isEmpty) return;
+    final target = incoming.last.id;
+    if (target <= _acknowledgedIncomingId) return;
+    _reading = true;
+    var succeeded = false;
+    try {
+      await _service.markRead(widget.conversationId, upToMessageId: target);
+      _acknowledgedIncomingId = target;
+      _readRetries = 0;
+      succeeded = true;
+    } catch (_) {
+      if (mounted && _readRetries++ < 3) {
+        _readRetry?.cancel();
+        _readRetry = Timer(
+          const Duration(seconds: 2),
+          () => unawaited(_acknowledgeRead()),
+        );
+      }
+    } finally {
+      _reading = false;
+    }
+    if (succeeded && mounted) unawaited(_acknowledgeRead());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (_foreground) {
+      _readRetries = 0;
+      unawaited(_load());
+      unawaited(_loadPresence());
     }
   }
 
@@ -287,15 +411,19 @@ class _ChatScreenState extends State<ChatScreen> {
       isRead: m.readAt != null,
       imageUrl: m.imageUrl,
       audioUrl: m.audioUrl,
-      durationSec: m.voiceDurationSec,
+      durationSec: m.type == 'call' ? m.callDurationSec : m.voiceDurationSec,
       latitude: m.latitude,
       longitude: m.longitude,
       locationLabel: m.locationLabel,
+      createdAt: m.createdAt,
     );
   }
 
   void _markOutgoingMessagesRead(int? upToMessageId) {
     if (!mounted) return;
+    final watermark =
+        upToMessageId ?? (_messages.isEmpty ? 0 : _messages.last.id);
+    if (watermark > _readUpTo) _readUpTo = watermark;
     var changed = false;
     final updated = _messages
         .map((message) {
@@ -319,6 +447,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _readRetry?.cancel();
+    _scrollController.removeListener(_onChatScroll);
+    NativeCallService.instance.clearActiveConversation(widget.conversationId);
     CallService.instance.state.removeListener(_onCallStateChanged);
     unawaited(_presenceSubscription?.cancel());
     _chatSocket.disconnect();
@@ -333,16 +465,25 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+  void _scrollToBottom({bool immediate = false}) {
+    unawaited(_settleAtBottom(immediate: immediate));
+  }
+
+  /// A reversed timeline anchors new/media messages at offset zero. No delayed
+  /// jumps compete with the user's drag or with another incoming message.
+  Future<void> _settleAtBottom({required bool immediate}) async {
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || !_scrollController.hasClients) return;
+    if (immediate || MediaQuery.disableAnimationsOf(context)) {
+      _scrollController.jumpTo(0);
+    } else {
+      await _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+      );
+    }
+    _scheduleRead();
   }
 
   Future<void> _send() async {
@@ -354,12 +495,13 @@ class _ChatScreenState extends State<ChatScreen> {
       final sent = await _service.sendText(widget.conversationId, text);
       if (!mounted) return;
       setState(() {
-        _messages.add(_toBubble(sent));
+        _merge([_toBubble(sent)]);
         _sending = false;
       });
       _scrollToBottom();
     } on ApiException catch (e) {
       if (!mounted) return;
+      if (_controller.text.isEmpty) _controller.text = text;
       setState(() => _sending = false);
       ScaffoldMessenger.of(
         context,
@@ -496,7 +638,7 @@ class _ChatScreenState extends State<ChatScreen> {
       );
       if (!mounted) return;
       setState(() {
-        _messages.add(_toBubble(sent));
+        _merge([_toBubble(sent)]);
         _sending = false;
       });
       _scrollToBottom();
@@ -593,7 +735,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!mounted) return false;
       setState(() {
         _imageUploads.remove(upload);
-        _messages.add(_toBubble(sent));
+        _merge([_toBubble(sent)]);
       });
       _scrollToBottom();
       return true;
@@ -758,7 +900,7 @@ class _ChatScreenState extends State<ChatScreen> {
       );
       if (!mounted) return;
       setState(() {
-        _messages.add(_toBubble(sent));
+        _merge([_toBubble(sent)]);
         _sending = false;
       });
       _scrollToBottom();
@@ -802,8 +944,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final lang = LocaleController.language.value;
     return Scaffold(
       backgroundColor: AppColors.background,
-      // Not wrapped in BrandedScaffold — this custom Scaffold needs the
-      // ambient glass wash added directly so bubbles have depth to blur.
+      // Keep the original header/background; repeated message bubbles remain flat.
       body: GlassBackground(
         child: SafeArea(
           child: Column(
@@ -814,24 +955,87 @@ class _ChatScreenState extends State<ChatScreen> {
                     ? const Center(child: CircularProgressIndicator())
                     : _messages.isEmpty
                     ? Center(
-                        child: Text(
-                          tr(
-                            lang,
-                            'Xabarlar yoʻq',
-                            'Сообщений нет',
-                            'No messages',
+                        child: Padding(
+                          padding: const EdgeInsets.all(28),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.waving_hand_outlined,
+                                size: 36,
+                                color: AppColors.blue,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                tr(
+                                  lang,
+                                  'Suhbatni boshlang',
+                                  'Начните беседу',
+                                  'Start a conversation',
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.navy,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                tr(
+                                  lang,
+                                  'Tafsilotlarni kelishib oling, rasm yoki joylashuv yuboring.',
+                                  'Обсудите детали, отправьте фото или местоположение.',
+                                  'Discuss the details, share a photo or a location.',
+                                ),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: _slate500,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ],
                           ),
-                          style: const TextStyle(color: _slate500),
                         ),
                       )
-                    : ListView.separated(
+                    : ListView.builder(
+                        reverse: true,
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
                         controller: _scrollController,
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 3),
                         itemCount: _messages.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 10),
-                        itemBuilder: (context, index) =>
-                            _bubble(_messages[index]),
+                        findChildIndexCallback: (key) {
+                          if (key is! ValueKey<int>) return null;
+                          final index = _messages.indexWhere(
+                            (m) => m.id == key.value,
+                          );
+                          return index < 0
+                              ? null
+                              : _messages.length - 1 - index;
+                        },
+                        itemBuilder: (context, index) {
+                          final messageIndex = _messages.length - 1 - index;
+                          final id = _messages[messageIndex].id;
+                          return TweenAnimationBuilder<double>(
+                            key: ValueKey<int>(id),
+                            tween: Tween(
+                              begin: _enteringMessages.contains(id) ? 0 : 1,
+                              end: 1,
+                            ),
+                            duration: MediaQuery.disableAnimationsOf(context)
+                                ? Duration.zero
+                                : const Duration(milliseconds: 160),
+                            onEnd: () => _enteringMessages.remove(id),
+                            child: _messageItem(messageIndex),
+                            builder: (_, value, child) => Opacity(
+                              opacity: value,
+                              child: Transform.translate(
+                                offset: Offset(0, 6 * (1 - value)),
+                                child: child,
+                              ),
+                            ),
+                          );
+                        },
                       ),
               ),
               if (_imageUploads.isNotEmpty) _imageUploadStrip(lang),
@@ -843,7 +1047,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  /// Top header: identity, live online/offline state and persistent last seen.
   Widget _header(BuildContext context, AppLanguage lang) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -943,70 +1146,86 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  /// One message bubble, aligned left (incoming) or right (mine).
-  Widget _bubble(ChatMessage m) {
-    final bubble = ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 260),
-      // Bubbles repeat dozens of times per scrolling thread — use the
-      // blur-less glass variant so long conversations don't jank.
-      child: GlassContainer.lite(
-        padding: m.type == 'image' || m.type == 'location'
-            ? const EdgeInsets.fromLTRB(3, 3, 3, 6)
-            : const EdgeInsets.fromLTRB(14, 10, 14, 8),
-        borderRadius: 16,
-        tint: m.isMine ? AppColors.blue : Colors.white,
-        tintOpacityTop: m.isMine ? 0.90 : 0.85,
-        tintOpacityBottom: m.isMine ? 0.76 : 0.70,
-        borderOpacity: m.isMine ? 0.45 : 0.75,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _messageBody(m),
-            const SizedBox(height: 3),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    m.time,
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 16 / 12,
-                      letterSpacing: -0.12,
-                      color: m.isMine ? _outgoingTime : _incomingTime,
-                    ),
-                  ),
-                  // Delivery ticks — only on the user's own messages.
-                  if (m.isMine) ...[
-                    const SizedBox(width: 3),
-                    Icon(
-                      m.isRead ? Icons.done_all : Icons.done,
-                      size: 13,
-                      color: m.isRead ? Colors.white : _outgoingTime,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
+  Widget _messageItem(int index) {
+    final m = _messages[index];
+    final previous = index > 0 ? _messages[index - 1] : null;
+    final next = index + 1 < _messages.length ? _messages[index + 1] : null;
+    final startsDay =
+        m.createdAt != null &&
+        (previous?.createdAt == null ||
+            !DateUtils.isSameDay(
+              m.createdAt!.toLocal(),
+              previous!.createdAt!.toLocal(),
+            ));
+    final grouped =
+        next != null &&
+        next.isMine == m.isMine &&
+        DateUtils.isSameDay(next.createdAt?.toLocal(), m.createdAt?.toLocal());
+    return Padding(
+      key: ValueKey(m.id),
+      padding: EdgeInsets.only(bottom: grouped ? 3 : 7),
+      child: Column(
+        children: [
+          if (startsDay) ChatDateDivider(date: m.createdAt!),
+          ChatMessageSurface(
+            isMine: m.isMine,
+            isRead: m.isRead,
+            time: m.time,
+            isMedia: m.type == 'image' || m.type == 'location',
+            grouped: grouped,
+            child: _messageBody(m),
+          ),
+        ],
       ),
-    );
-    if (m.isMine) {
-      return Align(alignment: Alignment.centerRight, child: bubble);
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        ChatPeerAvatar(imageUrl: _peerAvatarUrl, size: 30),
-        const SizedBox(width: 6),
-        Flexible(child: bubble),
-      ],
     );
   }
 
   Widget _messageBody(ChatMessage message) {
+    if (message.type == 'call') {
+      final lang = LocaleController.language.value;
+      final foreground = message.isMine ? Colors.white : AppColors.navy;
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: foreground.withValues(alpha: .10),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.phone_in_talk_outlined,
+              size: 21,
+              color: foreground,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr(lang, 'Qo‘ng‘iroq', 'Звонок', 'Voice call'),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: foreground,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  formatChatDuration(message.durationSec ?? 0),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: foreground.withValues(alpha: .75),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
     if (message.type == 'image') {
       final url = message.imageUrl;
       if (url != null) {
@@ -1074,8 +1293,8 @@ class _ChatScreenState extends State<ChatScreen> {
     return Text(
       message.text,
       style: TextStyle(
-        fontSize: 14,
-        height: 20 / 14,
+        fontSize: 15,
+        height: 1.4,
         color: message.isMine ? Colors.white : _bubbleText,
       ),
     );
@@ -1085,33 +1304,64 @@ class _ChatScreenState extends State<ChatScreen> {
   /// on the page background like the Figma design.
   Widget _inputBar(AppLanguage lang) {
     if (_recording) return _recordingBar(lang);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+    return GlassContainer(
+      borderRadius: 30,
+      shadow: false,
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.fromLTRB(8, 4, 10, 5),
       child: Row(
         children: [
-          GlassIconButton(
-            size: 44,
-            semanticLabel: tr(lang, 'Biriktirish', 'Прикрепить', 'Attach'),
-            onTap: _sending || _startingRecording
+          IconButton(
+            tooltip: tr(lang, 'Biriktirish', 'Прикрепить', 'Attach'),
+            onPressed: _sending || _startingRecording
                 ? null
                 : _pickAndSendAttachment,
-            child: Icon(Icons.attach_file_rounded, size: 22, color: _slate500),
+            icon: const Icon(Icons.add_rounded, size: 26, color: _slate500),
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: GlassTextField(
+            child: TextField(
               controller: _controller,
               onSubmitted: (_) => _send(),
               textInputAction: TextInputAction.send,
               minLines: 1,
-              maxLines: 4,
-              height: null,
-              hintText: tr(lang, 'Xabar…', 'Сообщение…', 'Message…'),
-              textStyle: const TextStyle(
-                fontSize: 14,
-                height: 20 / 14,
-                letterSpacing: -0.16,
+              maxLines: 5,
+              style: const TextStyle(
+                fontSize: 15,
+                height: 1.4,
                 color: _bubbleText,
+              ),
+              decoration: InputDecoration(
+                hintText: tr(
+                  lang,
+                  'Xabar yozing…',
+                  'Напишите сообщение…',
+                  'Write a message…',
+                ),
+                hintStyle: const TextStyle(
+                  color: Color(0xFF7C8B9D),
+                  fontSize: 14,
+                ),
+                filled: true,
+                fillColor: usesGlassMaterial(context)
+                    ? Colors.white.withValues(alpha: .5)
+                    : const Color(0xFFF2F5F8),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 13,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: const BorderSide(color: Color(0xFFB6D8FC)),
+                ),
               ),
             ),
           ),
@@ -1335,9 +1585,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-/// Round brand-blue glass send/record button used in the composer and the
-/// recording bar — [GlassIconButton] only offers the neutral white tint, so
-/// this mirrors its structure with [GlassContainer.tinted] instead.
+/// Accessible brand-blue send/record action with a 48-point touch target.
 class _SendButton extends StatelessWidget {
   const _SendButton({required this.child, this.onTap, this.tooltip});
 
@@ -1347,30 +1595,18 @@ class _SendButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glass = GlassContainer.tinted(
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      shadow: onTap != null,
-      alignment: Alignment.center,
-      child: child,
-    );
-    final button = Semantics(
-      button: true,
-      enabled: onTap != null,
-      label: tooltip,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: ExcludeSemantics(child: glass),
+    return SizedBox.square(
+      dimension: 48,
+      child: IconButton.filled(
+        tooltip: tooltip,
+        onPressed: onTap,
+        style: IconButton.styleFrom(
+          backgroundColor: AppColors.blue,
+          disabledBackgroundColor: const Color(0xFFB8D8F6),
+          foregroundColor: Colors.white,
+        ),
+        icon: child,
       ),
-    );
-    return SizedBox(
-      width: 40,
-      height: 40,
-      child: tooltip == null
-          ? button
-          : Tooltip(message: tooltip!, child: button),
     );
   }
 }

@@ -15,7 +15,8 @@ import 'package:fixleo/features/welcome/presentation/intro_screen.dart';
 ///     approved yet);
 ///   * otherwise → the onboarding intro (first-run flow).
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({super.key, this.onReady});
+  final VoidCallback? onReady;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -37,9 +38,11 @@ class _SplashScreenState extends State<SplashScreen> {
     final session = AuthSession.instance;
     final next = await _destination(session);
     if (!mounted) return;
+    final onReady = widget.onReady;
     Navigator.of(
       context,
     ).pushReplacement(MaterialPageRoute(builder: (_) => next));
+    WidgetsBinding.instance.addPostFrameCallback((_) => onReady?.call());
   }
 
   Future<Widget> _destination(AuthSession session) async {

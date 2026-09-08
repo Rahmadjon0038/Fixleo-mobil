@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
 import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 
@@ -14,10 +15,17 @@ Future<void> initializeGoogleMapsRenderer() async {
   final implementation = GoogleMapsFlutterPlatform.instance;
   if (implementation is! GoogleMapsFlutterAndroid) return;
 
-  // Texture Layer Hybrid Composition is the plugin's recommended mode. It is
-  // substantially smoother than the backwards-compatible AndroidViewSurface
-  // path and continues to compose correctly beneath the Flutter controls.
-  implementation.useAndroidViewSurface = false;
+  // Texture composition is faster on emulators, but a number of physical
+  // Xiaomi/Redmi/POCO GPU stacks leave the Google Maps platform texture blank
+  // while Flutter overlays still render. Hybrid composition is slightly more
+  // expensive but is the reliable path on real devices.
+  var isPhysicalDevice = true;
+  try {
+    isPhysicalDevice = (await DeviceInfoPlugin().androidInfo).isPhysicalDevice;
+  } on Object {
+    // Reliability is the safer fallback when device inspection is unavailable.
+  }
+  implementation.useAndroidViewSurface = isPhysicalDevice;
   try {
     await implementation.initializeWithRenderer(AndroidMapRenderer.latest);
   } on PlatformException catch (error) {

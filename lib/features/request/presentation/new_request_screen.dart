@@ -21,10 +21,22 @@ import 'package:fixleo/features/request/presentation/address_screen.dart';
 /// 6 problem photos. "Next" uploads the photos and carries a [NewOrderDraft]
 /// on to the location-picking map.
 class NewRequestScreen extends StatefulWidget {
-  const NewRequestScreen({super.key, this.categoryId, this.categoryName});
+  const NewRequestScreen({
+    super.key,
+    this.categoryId,
+    this.categoryName,
+    this.questionVersion,
+    this.questionAnswers = const [],
+    this.questionSummary = '',
+    this.initialDescription = '',
+  });
 
   final int? categoryId;
   final String? categoryName;
+  final int? questionVersion;
+  final List<Map<String, dynamic>> questionAnswers;
+  final String questionSummary;
+  final String initialDescription;
 
   @override
   State<NewRequestScreen> createState() => _NewRequestScreenState();
@@ -50,6 +62,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     super.initState();
     _categoryId = widget.categoryId;
     _categoryName = widget.categoryName;
+    _description.text = widget.initialDescription;
     if (_categoryId == null) _loadCategories();
   }
 
@@ -148,10 +161,12 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       return;
     }
     setState(() => _submitting = true);
-    final draft = NewOrderDraft(
-      categoryId: _categoryId,
-      categoryName: _categoryName,
-    )..description = desc;
+    final draft =
+        NewOrderDraft(categoryId: _categoryId, categoryName: _categoryName)
+          ..description = desc
+          ..questionVersion = widget.questionVersion
+          ..questionAnswers = widget.questionAnswers
+          ..questionSummary = widget.questionSummary;
     try {
       for (final p in _photos) {
         if (p != null) {

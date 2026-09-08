@@ -221,6 +221,9 @@ class ChatService {
     return ChatMessage.fromJson(data as Map<String, dynamic>);
   }
 
-  Future<void> markRead(int conversationId) =>
-      _client.post('$_base/$conversationId/read');
+  Future<void> markRead(int conversationId, {int? upToMessageId}) =>
+      _client.post(
+        '$_base/$conversationId/read',
+        body: {'upToMessageId': ?upToMessageId},
+      );
 }

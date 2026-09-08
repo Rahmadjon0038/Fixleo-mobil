@@ -10,14 +10,20 @@ import 'package:fixleo/features/master/data/master_marketplace_models.dart';
 import 'package:fixleo/features/master/data/master_marketplace_service.dart';
 import 'package:fixleo/features/master/presentation/master_offer_screen.dart';
 import 'package:fixleo/features/request/data/order_timing_label.dart';
+import 'request_answers_section.dart';
 
 /// Detail of a single nearby request — full description, photos, address,
 /// client and time, with respond / decline actions. Live data from
 /// `GET /masters/me/feed/:id` (previously showed hardcoded mock data).
 class MasterRequestDetailScreen extends StatefulWidget {
-  const MasterRequestDetailScreen({super.key, required this.orderId});
+  const MasterRequestDetailScreen({
+    super.key,
+    required this.orderId,
+    this.service,
+  });
 
   final int orderId;
+  final MasterMarketplaceService? service;
 
   @override
   State<MasterRequestDetailScreen> createState() =>
@@ -25,7 +31,8 @@ class MasterRequestDetailScreen extends StatefulWidget {
 }
 
 class _MasterRequestDetailScreenState extends State<MasterRequestDetailScreen> {
-  final MasterMarketplaceService _market = MasterMarketplaceService();
+  late final MasterMarketplaceService _market =
+      widget.service ?? MasterMarketplaceService();
   FeedDetail? _detail;
   bool _loading = true;
   String? _error;
@@ -102,133 +109,158 @@ class _MasterRequestDetailScreenState extends State<MasterRequestDetailScreen> {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GlassCard(
-                    radius: 30,
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Category chip (real category name).
-                        GlassContainer(
-                          tint: const Color(0xFFF0F9FF),
-                          tintOpacityTop: 0.85,
-                          tintOpacityBottom: 0.7,
-                          borderRadius: 999,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.water_drop_outlined,
-                                size: 18,
-                                color: AppColors.blue,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                d.categoryName,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.blue,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          d.description,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            height: 20 / 14,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.navy,
-                          ),
-                        ),
-                        if (d.photos.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          // Real photo thumbnails (presigned URLs).
-                          Row(
-                            children: [
-                              for (
-                                var i = 0;
-                                i < d.photos.length && i < 4;
-                                i++
-                              ) ...[
-                                if (i != 0) const SizedBox(width: 8),
-                                GestureDetector(
-                                  onTap: () => showFullScreenPhotoGallery(
-                                    context,
-                                    photos: d.photos,
-                                    initialIndex: i,
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GlassCard(
+                            radius: 30,
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Category chip (real category name).
+                                GlassContainer(
+                                  tint: const Color(0xFFF0F9FF),
+                                  tintOpacityTop: 0.85,
+                                  tintOpacityBottom: 0.7,
+                                  borderRadius: 999,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
                                   ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.network(
-                                      d.photos[i],
-                                      width: 64,
-                                      height: 64,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, _, _) => Container(
-                                        width: 64,
-                                        height: 64,
-                                        color: const Color(0xFFE2E8F0),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.water_drop_outlined,
+                                        size: 18,
+                                        color: AppColors.blue,
                                       ),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          d.categoryName,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.blue,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (d.summary.isNotEmpty) ...[
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    d.summary,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      height: 20 / 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.navy,
                                     ),
                                   ),
+                                ],
+                                if (d.photos.isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  // Real photo thumbnails (presigned URLs).
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      for (
+                                        var i = 0;
+                                        i < d.photos.length && i < 4;
+                                        i++
+                                      ) ...[
+                                        GestureDetector(
+                                          onTap: () =>
+                                              showFullScreenPhotoGallery(
+                                                context,
+                                                photos: d.photos,
+                                                initialIndex: i,
+                                              ),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            child: Image.network(
+                                              d.photos[i],
+                                              width: 64,
+                                              height: 64,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, _, _) =>
+                                                  Container(
+                                                    width: 64,
+                                                    height: 64,
+                                                    color: const Color(
+                                                      0xFFE2E8F0,
+                                                    ),
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ],
+                                const SizedBox(height: 12),
+                                _InfoRow(
+                                  icon: Icons.location_on_outlined,
+                                  text: [d.district, d.addressText]
+                                      .where((s) => s != null && s.isNotEmpty)
+                                      .join(', '),
                                 ),
+                                if (d.clientName != null &&
+                                    d.clientName!.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  _InfoRow(
+                                    icon: Icons.person_outline,
+                                    text:
+                                        '${tr(lang, 'Mijoz', 'Клиент', 'Client')} — ${d.clientName}',
+                                  ),
+                                ],
+                                const SizedBox(height: 6),
+                                _InfoRow(
+                                  icon: Icons.near_me_outlined,
+                                  text:
+                                      '${d.distanceKm.toStringAsFixed(1)} ${tr(lang, 'km', 'км', 'km')}',
+                                ),
+                                const SizedBox(height: 6),
+                                _InfoRow(
+                                  icon: Icons.schedule,
+                                  text: orderTimingLabel(
+                                    lang,
+                                    timing: d.timing,
+                                    scheduledDate: d.scheduledDate,
+                                    slotLabel: d.slotLabel,
+                                  ),
+                                ),
+                                if (d.budgetMax != null) ...[
+                                  const SizedBox(height: 6),
+                                  _InfoRow(
+                                    icon: Icons.payments_outlined,
+                                    text:
+                                        '${tr(lang, 'Byudjet', 'Бюджет', 'Budget')}: '
+                                        '${d.budgetMax} ${tr(lang, 'soʻm', 'сум', 'sum')}',
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
+                          if (d.answers.isNotEmpty) ...[
+                            const SizedBox(height: 24),
+                            RequestAnswersSection(answers: d.answers),
+                          ],
                         ],
-                        const SizedBox(height: 12),
-                        _InfoRow(
-                          icon: Icons.location_on_outlined,
-                          text: [
-                            d.district,
-                            d.addressText,
-                          ].where((s) => s != null && s.isNotEmpty).join(', '),
-                        ),
-                        if (d.clientName != null &&
-                            d.clientName!.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          _InfoRow(
-                            icon: Icons.person_outline,
-                            text:
-                                '${tr(lang, 'Mijoz', 'Клиент', 'Client')} — ${d.clientName}',
-                          ),
-                        ],
-                        const SizedBox(height: 6),
-                        _InfoRow(
-                          icon: Icons.near_me_outlined,
-                          text: '${d.distanceKm} ${tr(lang, 'km', 'км', 'km')}',
-                        ),
-                        const SizedBox(height: 6),
-                        _InfoRow(
-                          icon: Icons.schedule,
-                          text: orderTimingLabel(
-                            lang,
-                            timing: d.timing,
-                            scheduledDate: d.scheduledDate,
-                            slotLabel: d.slotLabel,
-                          ),
-                        ),
-                        if (d.budgetMax != null) ...[
-                          const SizedBox(height: 6),
-                          _InfoRow(
-                            icon: Icons.payments_outlined,
-                            text:
-                                '${tr(lang, 'Byudjet', 'Бюджет', 'Budget')}: '
-                                '${d.budgetMax} ${tr(lang, 'soʻm', 'сум', 'sum')}',
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(height: 12),
                   PrimaryButton(
                     label: d.hasOffer
                         ? tr(

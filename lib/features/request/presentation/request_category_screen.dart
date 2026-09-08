@@ -7,18 +7,21 @@ import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/features/categories/data/category_model.dart';
 import 'package:fixleo/features/categories/data/category_service.dart';
+import 'package:fixleo/features/categories/data/service_question.dart';
 import 'package:fixleo/features/categories/presentation/category_image.dart';
-import 'package:fixleo/features/request/presentation/new_request_screen.dart';
+import 'package:fixleo/features/request/presentation/service_questions_screen.dart';
 
 /// First request step: search and choose a service from localized visual groups.
 class RequestCategoryScreen extends StatefulWidget {
   const RequestCategoryScreen({
     super.key,
     this.service,
+    this.questionService,
     this.autofocusSearch = false,
   });
 
   final CategoryService? service;
+  final ServiceQuestionService? questionService;
   final bool autofocusSearch;
 
   static String searchHint(AppLanguage language) => tr(
@@ -99,7 +102,8 @@ class _RequestCategoryScreenState extends State<RequestCategoryScreen> {
     final language = LocaleController.language.value;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => NewRequestScreen(
+        builder: (_) => ServiceQuestionsScreen(
+          service: widget.questionService,
           categoryId: selected.id,
           categoryName: selected.localizedName(language),
         ),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
@@ -26,12 +27,15 @@ class _CallScreenState extends State<CallScreen> {
   Duration _elapsed = Duration.zero;
   Duration _elapsedAtTimerStart = Duration.zero;
   bool _closing = false;
+  AudioPlayer? _tonePlayer;
+  int _toneRevision = 0;
 
   @override
   void initState() {
     super.initState();
     _call.state.addListener(_onState);
     _syncDurationTimer();
+    unawaited(_syncCallTone());
   }
 
   void _onState() {
@@ -52,7 +56,31 @@ class _CallScreenState extends State<CallScreen> {
       return;
     }
     _syncDurationTimer();
+    unawaited(_syncCallTone());
     setState(() {});
+  }
+
+  Future<void> _syncCallTone() async {
+    final revision = ++_toneRevision;
+    final current = _call.state.value;
+    try {
+      await _tonePlayer?.stop();
+      if (revision != _toneRevision) return;
+      final asset = switch (current) {
+        CallState.ringing => 'audio/ringback.wav',
+        CallState.calling || CallState.connecting => 'audio/connecting.wav',
+        _ => null,
+      };
+      if (asset == null) return;
+      final player = _tonePlayer ??= AudioPlayer();
+      await player.setReleaseMode(ReleaseMode.loop);
+      await player.play(
+        AssetSource(asset),
+        volume: current == CallState.ringing ? 0.32 : 0.18,
+      );
+    } on Object {
+      // A routing/audio-focus error must never interrupt the actual WebRTC call.
+    }
   }
 
   void _syncDurationTimer() {
@@ -88,18 +116,17 @@ class _CallScreenState extends State<CallScreen> {
 
   @override
   void dispose() {
+    _toneRevision++;
+    final tonePlayer = _tonePlayer;
+    if (tonePlayer != null) unawaited(tonePlayer.dispose());
     _durationTimer?.cancel();
     _call.state.removeListener(_onState);
     super.dispose();
   }
 
   String _stateLabel(AppLanguage lang, CallState state) => switch (state) {
-    CallState.calling => tr(
-      lang,
-      'Javob kutilmoqda…',
-      'Ожидаем ответа…',
-      'Waiting for answer…',
-    ),
+    CallState.calling => tr(lang, 'Ulanmoqda…', 'Подключение…', 'Connecting…'),
+    CallState.ringing => tr(lang, 'Jiringlamoqda…', 'Идёт вызов…', 'Ringing…'),
     CallState.incoming => tr(
       lang,
       'Kiruvchi ovozli qoʻngʻiroq',
@@ -120,7 +147,27 @@ class _CallScreenState extends State<CallScreen> {
     ),
     CallState.busy =>
       _call.statusMessage.value ??
-          tr(lang, 'Liniya band', 'Линия занята', 'Line busy'),
+          tr(lang, 'Abonent band', 'Абонент занят', 'Line busy'),
+    CallState.rejected => tr(
+      lang,
+      'Qo‘ng‘iroq rad etildi',
+      'Вызов отклонён',
+      'Call declined',
+    ),
+    CallState.unavailable =>
+      _call.statusMessage.value ??
+          tr(
+            lang,
+            'Abonent internetga ulanmagan',
+            'Абонент не в сети',
+            'Recipient is offline',
+          ),
+    CallState.noAnswer => tr(
+      lang,
+      'Abonent javob bermadi',
+      'Абонент не ответил',
+      'No answer',
+    ),
     _ => tr(lang, 'Qoʻngʻiroq tugadi', 'Звонок завершён', 'Call ended'),
   };
 
@@ -175,10 +222,14 @@ class _CallScreenState extends State<CallScreen> {
                                     'Пользователь',
                                     'User',
                                   );
-                            return _PeerIdentity(
-                              name: visibleName,
-                              stateLabel: _stateLabel(lang, state),
-                              active: active,
+                            return ValueListenableBuilder<String?>(
+                              valueListenable: _call.peerAvatarUrl,
+                              builder: (context, avatarUrl, _) => _PeerIdentity(
+                                name: visibleName,
+                                avatarUrl: avatarUrl,
+                                stateLabel: _stateLabel(lang, state),
+                                active: active,
+                              ),
                             );
                           },
                         ),
@@ -207,6 +258,7 @@ class _CallScreenState extends State<CallScreen> {
                             },
                           )
                         else if (state == CallState.calling ||
+                            state == CallState.ringing ||
                             state == CallState.connecting ||
                             state == CallState.active)
                           _ActiveActions(
@@ -325,7 +377,7 @@ class _TopCallStatus extends StatelessWidget {
           duration: const Duration(milliseconds: 250),
           child: Text(
             active ? formatCallDuration(duration) : waitingLabel,
-            key: ValueKey(active),
+            key: ValueKey(active ? 'active' : waitingLabel),
             style: TextStyle(
               color: Colors.white,
               fontSize: active ? 28 : 15,
@@ -342,11 +394,13 @@ class _TopCallStatus extends StatelessWidget {
 class _PeerIdentity extends StatelessWidget {
   const _PeerIdentity({
     required this.name,
+    required this.avatarUrl,
     required this.stateLabel,
     required this.active,
   });
 
   final String name;
+  final String? avatarUrl;
   final String stateLabel;
   final bool active;
 
@@ -384,14 +438,17 @@ class _PeerIdentity extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: Text(
-              _initials(name),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 42,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            child: avatarUrl?.trim().isNotEmpty == true
+                ? ClipOval(
+                    child: Image.network(
+                      avatarUrl!,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => _InitialsAvatar(name: name),
+                    ),
+                  )
+                : _InitialsAvatar(name: name),
           ),
         ),
         const SizedBox(height: 24),
@@ -458,6 +515,26 @@ class _PeerIdentity extends StatelessWidget {
         .toList();
     if (words.isEmpty) return 'F';
     return words.map((word) => word.characters.first.toUpperCase()).join();
+  }
+}
+
+class _InitialsAvatar extends StatelessWidget {
+  const _InitialsAvatar({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        _PeerIdentity._initials(name),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 42,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
   }
 }
 

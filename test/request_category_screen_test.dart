@@ -5,6 +5,7 @@ import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/widgets/primary_button.dart';
 import 'package:fixleo/features/categories/data/category_model.dart';
 import 'package:fixleo/features/categories/data/category_service.dart';
+import 'package:fixleo/features/categories/data/service_question.dart';
 import 'package:fixleo/features/request/presentation/new_request_screen.dart';
 import 'package:fixleo/features/request/presentation/request_category_screen.dart';
 
@@ -26,6 +27,12 @@ class _FakeCategoryService extends CategoryService {
       ],
     ),
   ];
+}
+
+class _NoQuestions extends ServiceQuestionService {
+  @override
+  Future<ServiceQuestionnaire> load(int categoryId) async =>
+      const ServiceQuestionnaire(version: 0, questions: []);
 }
 
 void main() {
@@ -59,7 +66,12 @@ void main() {
     });
 
     await tester.pumpWidget(
-      MaterialApp(home: RequestCategoryScreen(service: _FakeCategoryService())),
+      MaterialApp(
+        home: RequestCategoryScreen(
+          service: _FakeCategoryService(),
+          questionService: _NoQuestions(),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 

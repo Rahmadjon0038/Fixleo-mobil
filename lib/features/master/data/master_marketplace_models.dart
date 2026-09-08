@@ -1,5 +1,6 @@
 // Master-side marketplace models — field names mirror the backend DTOs
 // (see docs/v3/Orders.md, Payments.md).
+import 'request_answers.dart';
 
 int _int(dynamic v) => (v as num?)?.toInt() ?? 0;
 int? _intN(dynamic v) => (v as num?)?.toInt();
@@ -19,6 +20,7 @@ class FeedItem {
     this.scheduledDate,
     this.budgetMax,
     this.createdAt,
+    this.answers = const [],
   });
 
   final int id;
@@ -31,6 +33,8 @@ class FeedItem {
   final String? scheduledDate;
   final int? budgetMax;
   final DateTime? createdAt;
+  final List<RequestAnswer> answers;
+  String get summary => requestDescription(description, answers);
 
   factory FeedItem.fromJson(Map<String, dynamic> j) {
     final cat = j['category'] as Map<String, dynamic>?;
@@ -38,6 +42,7 @@ class FeedItem {
       id: _int(j['id']),
       categoryName: cat?['name'] as String? ?? '',
       description: j['description'] as String? ?? '',
+      answers: RequestAnswer.parse(j['questionAnswers']),
       district: j['district'] as String?,
       distanceKm: _dbl(j['distanceKm']),
       timing: j['timing'] as String? ?? '',
@@ -66,6 +71,7 @@ class FeedDetail {
     this.myOfferId,
     this.myOfferStatus,
     this.createdAt,
+    this.answers = const [],
   });
 
   final int id;
@@ -83,6 +89,8 @@ class FeedDetail {
   final int? myOfferId;
   final String? myOfferStatus;
   final DateTime? createdAt;
+  final List<RequestAnswer> answers;
+  String get summary => requestDescription(description, answers);
 
   bool get hasOffer => myOfferId != null;
 
@@ -93,6 +101,7 @@ class FeedDetail {
       id: _int(j['id']),
       categoryName: cat?['name'] as String? ?? '',
       description: j['description'] as String? ?? '',
+      answers: RequestAnswer.parse(j['questionAnswers']),
       addressText: j['addressText'] as String? ?? '',
       district: j['district'] as String?,
       distanceKm: _dbl(j['distanceKm']),

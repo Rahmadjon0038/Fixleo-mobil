@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/branded_scaffold.dart';
-import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/core/network/api_exception.dart';
 import 'package:fixleo/core/realtime/app_presence_service.dart';
 import 'package:fixleo/features/request/data/chat_service.dart' as api_chat;
@@ -41,6 +40,7 @@ class _LiveChatsScreenState extends State<LiveChatsScreen> {
   List<Conversation> _items = const [];
   bool _loading = true;
   String? _error;
+  String _query = '';
   StreamSubscription<PresenceUpdate>? _presenceSubscription;
   StreamSubscription<int>? _conversationSubscription;
 
@@ -94,6 +94,7 @@ class _LiveChatsScreenState extends State<LiveChatsScreen> {
       setState(() {
         _items = convs.map(_toRow).toList();
         _loading = false;
+        _error = null;
       });
       widget.onUnreadChanged?.call(
         convs.fold(0, (total, item) => total + item.unreadCount),
@@ -149,40 +150,141 @@ class _LiveChatsScreenState extends State<LiveChatsScreen> {
   @override
   Widget build(BuildContext context) {
     final lang = LocaleController.language.value;
+    final query = _query.trim().toLowerCase();
+    final visible = _items
+        .where(
+          (item) =>
+              item.name.toLowerCase().contains(query) ||
+              item.last.toLowerCase().contains(query),
+        )
+        .toList();
     final body = _loading
         ? const Center(child: CircularProgressIndicator())
-        : _error != null
-        ? Center(
-            child: Text(
-              _error!,
-              style: const TextStyle(color: Color(0xFF8D96A4)),
-            ),
-          )
-        : _items.isEmpty
-        ? Center(
-            child: Text(
-              tr(lang, 'Suhbatlar yoʻq', 'Чатов нет', 'No chats yet'),
-              style: const TextStyle(color: Color(0xFF8D96A4)),
-            ),
-          )
         : RefreshIndicator(
             onRefresh: _load,
-            child: ChatsList(
-              conversations: _items,
-              onConversationClosed: () => _load(showLoading: false),
-              padding: EdgeInsets.fromLTRB(
-                16,
-                4,
-                16,
-                widget.showBack ? 20 : 100,
+            child: _error != null || visible.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      const SizedBox(height: 64),
+                      Icon(
+                        _error != null
+                            ? Icons.cloud_off_rounded
+                            : Icons.chat_bubble_outline_rounded,
+                        size: 48,
+                        color: AppColors.blue,
+                      ),
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          _error ??
+                              (query.isNotEmpty
+                                  ? tr(
+                                      lang,
+                                      'Suhbat topilmadi',
+                                      'Чат не найден',
+                                      'No conversations found',
+                                    )
+                                  : tr(
+                                      lang,
+                                      'Suhbatlar shu yerda boshlanadi',
+                                      'Здесь начинаются беседы',
+                                      'Your conversations start here',
+                                    )),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.navy,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (_error != null)
+                        Center(
+                          child: TextButton.icon(
+                            onPressed: _load,
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: Text(
+                              tr(
+                                lang,
+                                'Qayta urinish',
+                                'Повторить',
+                                'Try again',
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (_error == null && query.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: Text(
+                            tr(
+                              lang,
+                              'Buyurtma bo‘yicha xabarlar va kelishuvlar bir joyda.',
+                              'Сообщения и договорённости по заказам в одном месте.',
+                              'Messages and arrangements for your orders, all in one place.',
+                            ),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
+                    ],
+                  )
+                : ChatsList(
+                    conversations: visible,
+                    onConversationClosed: () => _load(showLoading: false),
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      4,
+                      16,
+                      widget.showBack ? 20 : 100,
+                    ),
+                  ),
+          );
+    final content = Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: TextField(
+            onChanged: (value) => setState(() => _query = value),
+            decoration: InputDecoration(
+              hintText: tr(
+                lang,
+                'Suhbatni qidirish',
+                'Поиск чатов',
+                'Search conversations',
+              ),
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+                color: Color(0xFF7C8B9D),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
               ),
             ),
-          );
-    if (!widget.showTitle && !widget.showBack) return body;
+          ),
+        ),
+        Expanded(child: body),
+      ],
+    );
+    if (!widget.showTitle && !widget.showBack) return content;
     return BrandedScaffold(
       title: widget.showTitle ? tr(lang, 'Chatlar', 'Чаты', 'Chats') : null,
       showBack: widget.showBack,
-      body: body,
+      body: content,
     );
   }
 }
@@ -255,36 +357,17 @@ class ChatsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: padding,
-      children: [
-        // Rows are divider-separated inside one card that scrolls with the
-        // list — use the blur-less variant so long conversation lists don't
-        // jank (see GlassContainer.lite dartdoc).
-        GlassContainer.lite(
-          padding: EdgeInsets.zero,
-          borderRadius: 24,
-          child: Column(
-            children: [
-              for (var i = 0; i < conversations.length; i++) ...[
-                if (i != 0)
-                  const Divider(
-                    height: 1,
-                    thickness: 1,
-                    indent: 78,
-                    color: Color(0xFFF1F5F9),
-                  ),
-                _ConversationTile(
-                  conversation: conversations[i],
-                  onTap: () {
-                    unawaited(_openConversation(context, conversations[i]));
-                  },
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
+      itemCount: conversations.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (context, index) => _ConversationTile(
+        conversation: conversations[index],
+        onTap: () =>
+            unawaited(_openConversation(context, conversations[index])),
+      ),
     );
   }
 
@@ -339,113 +422,137 @@ class _ConversationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = conversation;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            ChatPeerAvatar(imageUrl: c.avatarUrl),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return Material(
+      color: c.unread > 0 ? const Color(0xFFF9FCFF) : Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Stack(
                 children: [
-                  Text(
-                    c.name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      height: 22 / 16,
-                      letterSpacing: -0.18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.navy,
-                    ),
-                  ),
-                  if (c.presence != null) ...[
-                    const SizedBox(height: 1),
-                    Row(
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: c.online
-                                ? const Color(0xFF22C55E)
-                                : const Color(0xFF94A3B8),
-                            shape: BoxShape.circle,
-                          ),
+                  ChatPeerAvatar(imageUrl: c.avatarUrl, name: c.name, size: 52),
+                  if (c.online)
+                    Positioned(
+                      right: 1,
+                      bottom: 1,
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF16B887),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
                         ),
-                        const SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            c.presence!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11,
-                              height: 15 / 11,
-                              color: c.online ? AppColors.blue : _gray,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      c.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        height: 22 / 16,
+                        letterSpacing: -0.18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navy,
+                      ),
+                    ),
+                    if (c.presence != null) ...[
+                      const SizedBox(height: 1),
+                      Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: c.online
+                                  ? const Color(0xFF22C55E)
+                                  : const Color(0xFF94A3B8),
+                              shape: BoxShape.circle,
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              c.presence!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                height: 15 / 11,
+                                color: c.online ? AppColors.blue : _gray,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 2),
+                    Text(
+                      c.last,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        height: 20 / 14,
+                        letterSpacing: -0.16,
+                        color: _gray,
+                      ),
                     ),
                   ],
-                  const SizedBox(height: 2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
                   Text(
-                    c.last,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    c.time,
                     style: const TextStyle(
-                      fontSize: 14,
-                      height: 20 / 14,
-                      letterSpacing: -0.16,
+                      fontSize: 12,
+                      height: 16 / 12,
+                      letterSpacing: -0.12,
                       color: _gray,
                     ),
                   ),
+                  const SizedBox(height: 6),
+                  if (c.unread > 0)
+                    Container(
+                      constraints: const BoxConstraints(minWidth: 20),
+                      height: 20,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      decoration: const BoxDecoration(
+                        color: AppColors.blue,
+                        borderRadius: BorderRadius.all(Radius.circular(10)),
+                      ),
+                      child: Text(
+                        c.unread > 99 ? '99+' : '${c.unread}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          height: 1,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    )
+                  else
+                    const SizedBox(height: 20),
                 ],
               ),
-            ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  c.time,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    height: 16 / 12,
-                    letterSpacing: -0.12,
-                    color: _gray,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                if (c.unread > 0)
-                  Container(
-                    constraints: const BoxConstraints(minWidth: 20),
-                    height: 20,
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    decoration: const BoxDecoration(
-                      color: AppColors.blue,
-                      borderRadius: BorderRadius.all(Radius.circular(10)),
-                    ),
-                    child: Text(
-                      '${c.unread}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        height: 1,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  )
-                else
-                  const SizedBox(height: 20),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

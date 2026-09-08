@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'glass_platform.dart';
 
 /// Soft ambient wash painted behind every screen so glass panels have
 /// something with visible depth to blur/refract — plain flat backgrounds
@@ -24,6 +25,9 @@ class GlassBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!usesGlassMaterial(context)) {
+      return ColoredBox(color: baseColor, child: child);
+    }
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -54,9 +58,7 @@ class GlassBackground extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [color, color.withValues(alpha: 0)],
-        ),
+        gradient: RadialGradient(colors: [color, color.withValues(alpha: 0)]),
       ),
     );
   }

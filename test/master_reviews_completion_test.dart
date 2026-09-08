@@ -8,6 +8,7 @@ import 'package:fixleo/features/master/data/master_marketplace_models.dart';
 import 'package:fixleo/features/master/data/master_marketplace_service.dart';
 import 'package:fixleo/features/master/data/master_model.dart';
 import 'package:fixleo/features/master/data/master_service.dart';
+import 'package:fixleo/features/master/data/master_service_price.dart';
 import 'package:fixleo/features/master/presentation/master_filters_screen.dart';
 import 'package:fixleo/features/master/presentation/master_home_screen.dart';
 import 'package:fixleo/features/master/presentation/master_order_completion_screen.dart';
@@ -76,6 +77,8 @@ class _FakeMasterNavigationService extends MasterMarketplaceService {
 }
 
 class _FakeMasterProfileService extends MasterService {
+  @override
+  Future<List<MasterServicePrice>> servicePricing() async => [];
   @override
   Future<Master> me() async => const Master(
     id: '#M-1',

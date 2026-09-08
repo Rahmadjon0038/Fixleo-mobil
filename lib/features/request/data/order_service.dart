@@ -91,6 +91,8 @@ class OrderService {
     int? budgetMax,
     List<String> photoKeys = const [],
     bool saveToAddressBook = false,
+    int? questionVersion,
+    List<Map<String, dynamic>> questionAnswers = const [],
   }) async {
     final body = <String, dynamic>{
       'categoryId': categoryId,
@@ -108,6 +110,8 @@ class OrderService {
       'budgetMax': ?budgetMax,
       if (photoKeys.isNotEmpty) 'photoKeys': photoKeys,
       'saveToAddressBook': saveToAddressBook,
+      'questionVersion': ?questionVersion,
+      if (questionAnswers.isNotEmpty) 'questionAnswers': questionAnswers,
     };
     final data = await _client.post('/clients/me/orders', body: body);
     return OrderDetail.fromJson(data as Map<String, dynamic>);

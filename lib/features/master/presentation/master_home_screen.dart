@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:fixleo/features/master/data/master_service_price.dart';
+import 'package:fixleo/features/master/presentation/master_service_pricing_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:fixleo/app/theme/app_colors.dart';
@@ -255,6 +257,7 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
   bool _feedLoading = true;
   String _query = '';
   Master? _masterProfile;
+  List<MasterServicePrice>? _servicePrices;
   MasterFeedFilters _feedFilters = const MasterFeedFilters();
   int _feedRequest = 0;
   int _unreadNotifications = 0;
@@ -292,12 +295,111 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
   }
 
   Future<void> _loadMasterProfile() async {
+    unawaited(_loadServicePrices());
     try {
       final profile = await _masterService.me();
       if (mounted) setState(() => _masterProfile = profile);
     } on Object {
       // Keep the fallback city visible when profile refresh fails.
     }
+  }
+
+  Future<void> _loadServicePrices() async {
+    try {
+      final prices = await _masterService.servicePricing();
+      if (mounted) setState(() => _servicePrices = prices);
+    } catch (_) {
+      /* A failed refresh must not hide the feed. */
+    }
+  }
+
+  Future<void> _editServicePrices() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MasterServicePricingScreen(service: _masterService),
+      ),
+    );
+    if (mounted) {
+      await Future.wait([_loadFeed(), _loadMasterProfile()]);
+    }
+  }
+
+  Widget _pricingPrompt() {
+    final lang = LocaleController.language.value;
+    final missing =
+        _servicePrices?.where((item) => item.price == null).length ?? 0;
+    return Semantics(
+      button: true,
+      hint: missing > 0
+          ? tr(
+              lang,
+              'Narxsiz xizmatlardan buyurtma kelmaydi',
+              'Без цены заказы по услуге недоступны',
+              'Services without prices cannot receive orders',
+            )
+          : null,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: _editServicePrices,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 2),
+            child: Row(
+              children: [
+                const Icon(Icons.tune_rounded, color: AppColors.blue, size: 17),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    tr(
+                      lang,
+                      'Xizmatlar va narxlar',
+                      'Услуги и цены',
+                      'Services & prices',
+                    ),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.navy,
+                    ),
+                  ),
+                ),
+                if (missing > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF4E4),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      tr(
+                        lang,
+                        '$missing ta narxsiz',
+                        '$missing без цены',
+                        '$missing unpriced',
+                      ),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFFAD741F),
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: AppColors.muted,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _changeWorkZone() async {
@@ -425,9 +527,15 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
       timeUz: _timeAgo(AppLanguage.uz, f.createdAt),
       timeRu: _timeAgo(AppLanguage.ru, f.createdAt),
       timeEn: _timeAgo(AppLanguage.en, f.createdAt),
-      textUz: f.description,
-      textRu: f.description,
-      textEn: f.description,
+      textUz: f.summary.isNotEmpty
+          ? f.summary
+          : '${f.answers.length} ta savolga javob berilgan',
+      textRu: f.summary.isNotEmpty
+          ? f.summary
+          : 'Ответов на вопросы: ${f.answers.length}',
+      textEn: f.summary.isNotEmpty
+          ? f.summary
+          : '${f.answers.length} questions answered',
       locationUz: loc('km'),
       locationRu: loc('км'),
       locationEn: loc('km'),
@@ -505,6 +613,7 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
       if (index == 1) _ordersRefreshSignal++;
     });
     if (index == 0) {
+      unawaited(_loadServicePrices());
       unawaited(_loadFeed());
       unawaited(_loadUnreadNotifications());
     }
@@ -837,7 +946,9 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
   Widget _feed() {
     final visible = _visibleFeedItems;
     return RefreshIndicator(
-      onRefresh: _loadFeed,
+      onRefresh: () async {
+        await Future.wait([_loadFeed(), _loadServicePrices()]);
+      },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
@@ -919,95 +1030,113 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
   Widget _greeting() {
     final lang = LocaleController.language.value;
     return GlassContainer(
-      borderRadius: 296,
-      padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
+      borderRadius: 24,
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 4),
       tintOpacityTop: 0.92,
       tintOpacityBottom: 0.72,
       borderOpacity: 0.8,
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ValueListenableBuilder<UserProfile?>(
-                  valueListenable: CurrentUser.instance.profile,
-                  builder: (context, profile, _) {
-                    final name = profile?.firstName;
-                    return Text(
-                      name == null
-                          ? tr(lang, 'Xayrli kun!', 'Добрый день!', 'Good day!')
-                          : tr(
-                              lang,
-                              'Xayrli kun, $name!',
-                              'Добрый день, $name!',
-                              'Good day, $name!',
-                            ),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.navy,
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 2),
-                Row(
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.location_on_outlined,
-                      size: 14,
-                      color: AppColors.navy,
+                    ValueListenableBuilder<UserProfile?>(
+                      valueListenable: CurrentUser.instance.profile,
+                      builder: (context, profile, _) {
+                        final name = profile?.firstName;
+                        return Text(
+                          name == null
+                              ? tr(
+                                  lang,
+                                  'Xayrli kun!',
+                                  'Добрый день!',
+                                  'Good day!',
+                                )
+                              : tr(
+                                  lang,
+                                  'Xayrli kun, $name!',
+                                  'Добрый день, $name!',
+                                  'Good day, $name!',
+                                ),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.navy,
+                          ),
+                        );
+                      },
                     ),
-                    const SizedBox(width: 2),
-                    Expanded(
-                      child: Text(
-                        [
-                          _masterProfile?.city ??
-                              tr(
-                                lang,
-                                'Lokatsiya tanlanmagan',
-                                'Локация не выбрана',
-                                'Location not selected',
-                              ),
-                          if (_masterProfile?.workRadiusKm != null)
-                            '${_masterProfile!.workRadiusKm} km',
-                        ].join(' · '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          size: 14,
                           color: AppColors.navy,
                         ),
-                      ),
+                        const SizedBox(width: 2),
+                        Expanded(
+                          child: Text(
+                            [
+                              _masterProfile?.city ??
+                                  tr(
+                                    lang,
+                                    'Lokatsiya tanlanmagan',
+                                    'Локация не выбрана',
+                                    'Location not selected',
+                                  ),
+                              if (_masterProfile?.workRadiusKm != null)
+                                '${_masterProfile!.workRadiusKm} km',
+                            ].join(' · '),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.navy,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: _changeWorkZone,
-            child: GlassContainer.tinted(
-              borderRadius: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Text(
-                tr(
-                  lang,
-                  'Lokatsiyani oʻzgartirish',
-                  'Изменить локацию',
-                  'Change location',
-                ),
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white,
+              ),
+              GestureDetector(
+                onTap: _changeWorkZone,
+                child: GlassContainer.tinted(
+                  borderRadius: 40,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Text(
+                    tr(
+                      lang,
+                      'Lokatsiyani oʻzgartirish',
+                      'Изменить локацию',
+                      'Change location',
+                    ),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
+          const Padding(
+            padding: EdgeInsets.only(top: 11),
+            child: Divider(height: 1, thickness: 1, color: Color(0xFFE9EDF3)),
+          ),
+          _pricingPrompt(),
         ],
       ),
     );
@@ -1031,29 +1160,35 @@ class _RequestCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0F9FF),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(request.icon, size: 18, color: AppColors.blue),
-                    const SizedBox(width: 6),
-                    Text(
-                      request.category(LocaleController.language.value),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.blue,
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F9FF),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(request.icon, size: 18, color: AppColors.blue),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          request.category(LocaleController.language.value),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.blue,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               const Spacer(),
@@ -1066,6 +1201,8 @@ class _RequestCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             request.text(LocaleController.language.value),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 16,
               height: 22 / 16,

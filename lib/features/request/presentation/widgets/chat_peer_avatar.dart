@@ -8,10 +8,16 @@ import 'package:fixleo/app/theme/app_colors.dart';
 /// [Image.network] follows that redirect; a missing/deleted object falls back
 /// to the person icon instead of leaving a broken-image frame.
 class ChatPeerAvatar extends StatelessWidget {
-  const ChatPeerAvatar({super.key, required this.imageUrl, this.size = 50});
+  const ChatPeerAvatar({
+    super.key,
+    required this.imageUrl,
+    this.size = 50,
+    this.name,
+  });
 
   final String? imageUrl;
   final double size;
+  final String? name;
 
   @override
   Widget build(BuildContext context) {
@@ -42,14 +48,29 @@ class ChatPeerAvatar extends StatelessWidget {
     width: size,
     height: size,
     decoration: const BoxDecoration(
-      color: AppColors.background,
+      color: Color(0xFFE6F1FF),
       shape: BoxShape.circle,
     ),
     alignment: Alignment.center,
-    child: Icon(
-      Icons.person_outline,
-      size: size * 0.54,
-      color: const Color(0xFF8D96A4),
-    ),
+    child: name?.trim().isNotEmpty == true
+        ? Text(
+            name!
+                .trim()
+                .split(RegExp(r'\s+'))
+                .take(2)
+                .map((word) => word.characters.first)
+                .join()
+                .toUpperCase(),
+            style: TextStyle(
+              fontSize: size * .32,
+              fontWeight: FontWeight.w700,
+              color: AppColors.blue,
+            ),
+          )
+        : Icon(
+            Icons.person_outline,
+            size: size * 0.54,
+            color: const Color(0xFF8D96A4),
+          ),
   );
 }

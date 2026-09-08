@@ -16,7 +16,19 @@ import 'package:fixleo/core/realtime/call_ice_config.dart';
 import 'package:fixleo/core/realtime/call_recording_retry_queue.dart';
 
 /// Lifecycle of a voice call as seen by the UI.
-enum CallState { idle, calling, incoming, connecting, active, busy, ended }
+enum CallState {
+  idle,
+  calling,
+  ringing,
+  incoming,
+  connecting,
+  active,
+  busy,
+  rejected,
+  unavailable,
+  noAnswer,
+  ended,
+}
 
 class IncomingCallSignal {
   const IncomingCallSignal({
@@ -25,6 +37,7 @@ class IncomingCallSignal {
     required this.conversationId,
     required this.from,
     required this.displayName,
+    this.avatarUrl,
   });
 
   final int callId;
@@ -32,6 +45,7 @@ class IncomingCallSignal {
   final int conversationId;
   final String from;
   final String displayName;
+  final String? avatarUrl;
 }
 
 /// A live client↔master voice call over WebRTC, signalled through the backend
@@ -90,6 +104,9 @@ class CallService {
 
   /// Who is on the other end (for the incoming/outgoing UI). Set by the caller.
   final ValueNotifier<String?> peerName = ValueNotifier(null);
+
+  /// Public profile image of the other participant, when one is available.
+  final ValueNotifier<String?> peerAvatarUrl = ValueNotifier(null);
 
   /// The instant the peer-to-peer audio connection actually became active.
   /// Call UI uses this as the single source of truth for its duration timer.
@@ -181,7 +198,7 @@ class CallService {
       ..on('call:answered', _handleAnswered)
       ..on('call:ice', _handleRemoteIce)
       ..on('call:ended', (_) => _teardown(CallState.ended))
-      ..on('call:rejected', (_) => _teardown(CallState.ended))
+      ..on('call:rejected', (_) => _teardown(CallState.rejected))
       ..on('token_expired', refreshAndReconnect)
       ..on('unauthorized', refreshAndReconnect)
       ..onConnect((_) => unawaited(retryPendingRecordings()));
@@ -208,15 +225,33 @@ class CallService {
   // ------------------------------------------------------------------ outgoing
 
   /// Place a call to the peer on [conversationId].
-  Future<void> startCall(int conversationId, {String? displayName}) async {
-    if (_socket == null || isBusy) return;
+  Future<void> startCall(
+    int conversationId, {
+    String? displayName,
+    String? avatarUrl,
+  }) async {
+    if (isBusy) return;
     peerName.value = displayName;
+    peerAvatarUrl.value = avatarUrl;
     statusMessage.value = null;
+    if (_socket?.connected != true) {
+      statusMessage.value = tr(
+        LocaleController.language.value,
+        'Internet aloqasini tekshiring',
+        'Проверьте подключение к интернету',
+        'Check your internet connection',
+      );
+      await _teardown(CallState.unavailable);
+      return;
+    }
     state.value = CallState.calling;
     _ringTimeoutTimer?.cancel();
     _ringTimeoutTimer = Timer(_ringTimeout, () {
       _ringTimeoutTimer = null;
-      if (state.value == CallState.calling) hangup();
+      if (state.value == CallState.calling ||
+          state.value == CallState.ringing) {
+        _endUnansweredCall();
+      }
     });
     try {
       await _createPeer();
@@ -229,10 +264,21 @@ class CallService {
           if (res is Map && res['callId'] != null) {
             _callId = (res['callId'] as num).toInt();
             _drainPendingLocalIce();
+            state.value = CallState.ringing;
           } else {
             final lineBusy = res is Map && res['code'] == 'line_busy';
+            final unavailable =
+                res is Map && res['code'] == 'recipient_unavailable';
             statusMessage.value = res is Map ? res['error'] as String? : null;
-            unawaited(_teardown(lineBusy ? CallState.busy : CallState.ended));
+            unawaited(
+              _teardown(
+                lineBusy
+                    ? CallState.busy
+                    : unavailable
+                    ? CallState.unavailable
+                    : CallState.ended,
+              ),
+            );
           }
         },
       );
@@ -272,6 +318,7 @@ class CallService {
     final sdp = data['sdp'];
     _pendingOffer = sdp is Map ? Map<String, dynamic>.from(sdp) : null;
     peerName.value = data['displayName'] as String? ?? data['from'] as String?;
+    peerAvatarUrl.value = ApiConfig.resolveMediaUrl(data['avatarUrl']);
     state.value = CallState.incoming;
     _onIncoming?.call(
       IncomingCallSignal(
@@ -280,6 +327,7 @@ class CallService {
         conversationId: conversationId,
         from: data['from']?.toString() ?? 'client',
         displayName: peerName.value ?? 'Fixleo',
+        avatarUrl: peerAvatarUrl.value,
       ),
     );
   }
@@ -290,12 +338,14 @@ class CallService {
     required int callId,
     required String callUuid,
     required String callerName,
+    String? callerAvatarUrl,
     required VoidCallback onShowUi,
   }) async {
     if (isBusy && _callId != callId) return;
     _callId = callId;
     _callUuid = callUuid;
     peerName.value = callerName;
+    peerAvatarUrl.value = ApiConfig.resolveMediaUrl(callerAvatarUrl);
     state.value = CallState.incoming;
     onShowUi();
     syncForCurrentSession(onIncoming: _onIncoming);
@@ -376,6 +426,13 @@ class CallService {
       });
     }
     _teardown(CallState.ended);
+  }
+
+  void _endUnansweredCall() {
+    if (_socket != null && _callId != null) {
+      _socket!.emit('call:end', {'callId': _callId});
+    }
+    _teardown(CallState.noAnswer);
   }
 
   bool _muted = false;
@@ -651,9 +708,13 @@ class CallService {
       return;
     }
     // Keep "Line busy" visible long enough to be understood, then close.
-    final resetDelay = finalState == CallState.busy
-        ? const Duration(seconds: 2)
-        : const Duration(milliseconds: 600);
+    final resetDelay = switch (finalState) {
+      CallState.busy ||
+      CallState.rejected ||
+      CallState.unavailable ||
+      CallState.noAnswer => const Duration(seconds: 2),
+      _ => const Duration(milliseconds: 600),
+    };
     Future.delayed(resetDelay, () {
       if (state.value == finalState) {
         state.value = CallState.idle;

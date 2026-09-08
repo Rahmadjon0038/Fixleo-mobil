@@ -33,13 +33,16 @@ class ChatSocket {
   void connect(
     void Function(ChatMessage message) onMessage, {
     void Function(int? upToMessageId)? onRead,
+    void Function()? onConnected,
   }) {
+    disconnect();
     final token = _session.accessToken;
     if (token == null) return;
 
     final socket = io.io(
       '$socketBase/$kind',
       io.OptionBuilder()
+          .enableForceNew()
           .setTransports(['websocket', 'polling'])
           .setAuth({'token': token})
           .disableAutoConnect()
@@ -67,6 +70,7 @@ class ChatSocket {
     }
 
     socket
+      ..onConnect((_) => onConnected?.call())
       ..on('chat_message', (data) {
         if (data is! Map) return;
         final convId = (data['conversationId'] as num?)?.toInt();

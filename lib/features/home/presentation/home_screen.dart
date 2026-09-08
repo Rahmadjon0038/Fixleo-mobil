@@ -27,7 +27,7 @@ import 'package:fixleo/features/request/presentation/my_orders_screen.dart';
 import 'package:fixleo/features/request/presentation/order_tracking_screen.dart';
 import 'package:fixleo/features/request/presentation/request_category_screen.dart';
 import 'package:fixleo/features/wallet/presentation/wallet_screen.dart';
-import 'package:fixleo/features/request/presentation/new_request_screen.dart';
+import 'package:fixleo/features/request/presentation/service_questions_screen.dart';
 
 /// Main home feed shown after a successful login. A single scrollable page
 /// with a floating "liquid glass" bottom navigation bar.
@@ -948,7 +948,7 @@ class _CategoriesCardState extends State<_CategoriesCard> {
   void _openCategory(BuildContext context, Category category) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => NewRequestScreen(
+        builder: (_) => ServiceQuestionsScreen(
           categoryId: category.id,
           categoryName: category.localizedName(widget.lang),
         ),

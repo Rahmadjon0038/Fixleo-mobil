@@ -30,10 +30,18 @@ Future<T?> showGlassModalBottomSheet<T>({
               end: Alignment.bottomCenter,
               colors: [
                 Colors.white.withValues(
-                  alpha: usesGlassMaterial(ctx) ? 0.88 : 1,
+                  alpha: usesNativeLiquidGlass(ctx)
+                      ? 0
+                      : usesGlassMaterial(ctx)
+                      ? 0.80
+                      : 1,
                 ),
                 Colors.white.withValues(
-                  alpha: usesGlassMaterial(ctx) ? 0.78 : 1,
+                  alpha: usesNativeLiquidGlass(ctx)
+                      ? 0
+                      : usesGlassMaterial(ctx)
+                      ? 0.66
+                      : 1,
                 ),
               ],
             ),
@@ -47,7 +55,7 @@ Future<T?> showGlassModalBottomSheet<T>({
               top: Radius.circular(topRadius),
             ),
           ),
-          child: builder(ctx),
+          child: Material(color: Colors.transparent, child: builder(ctx)),
         ),
       ),
     ),
@@ -86,10 +94,18 @@ class GlassAlertDialog extends StatelessWidget {
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.white.withValues(
-                    alpha: usesGlassMaterial(context) ? 0.88 : 1,
+                    alpha: usesNativeLiquidGlass(context)
+                        ? 0
+                        : usesGlassMaterial(context)
+                        ? 0.80
+                        : 1,
                   ),
                   Colors.white.withValues(
-                    alpha: usesGlassMaterial(context) ? 0.78 : 1,
+                    alpha: usesNativeLiquidGlass(context)
+                        ? 0
+                        : usesGlassMaterial(context)
+                        ? 0.66
+                        : 1,
                   ),
                 ],
               ),
@@ -119,10 +135,7 @@ class GlassAlertDialog extends StatelessWidget {
                   ?content,
                   if (actions.isNotEmpty) ...[
                     const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: actions,
-                    ),
+                    Wrap(alignment: WrapAlignment.end, children: actions),
                   ],
                 ],
               ),

@@ -1,4 +1,10 @@
 import 'package:fixleo/core/network/api_client.dart';
+import 'package:fixleo/core/network/api_exception.dart';
+import 'package:fixleo/app/locale/app_locale.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fixleo/core/network/auth_session.dart';
+import 'package:fixleo/core/network/api_config.dart';
 
 int _int(dynamic v) => (v as num?)?.toInt() ?? 0;
 
@@ -53,6 +59,26 @@ class PaymentService {
 
   final String kind; // 'client' | 'master'
   final ApiClient _client;
+
+  Future<Map<String, dynamic>> bindCard(String number, String expiry) async =>
+      Map<String, dynamic>.from(
+        await _client.post(
+              '/${kind}s/me/cards/bind',
+              body: {'cardNumber': number, 'expiry': expiry},
+            )
+            as Map,
+      );
+
+  Future<SavedCard> confirmCard(String bindingId, String otp) async =>
+      SavedCard.fromJson(
+        Map<String, dynamic>.from(
+          await _client.post(
+                '/${kind}s/me/cards/confirm',
+                body: {'bindingId': bindingId, 'otp': otp},
+              )
+              as Map,
+        ),
+      );
 
   Future<List<SavedCard>> cards() async {
     final data = await _client.get('/${kind}s/me/cards');
@@ -115,12 +141,66 @@ class PaymentService {
   }
 
   /// `POST /clients/me/wallet/topup` → new balance.
-  Future<int> topup({required int cardId, required int amount}) async {
+  Future<int> topup({
+    required int cardId,
+    required int amount,
+    required String requestKey,
+  }) async {
+    // Preserve the same intent across closing/reopening the sheet or restarting the app.
+    final prefs = await SharedPreferences.getInstance();
+    final storageKey =
+        'atmos_topup_${ApiConfig.baseUrl}_${AuthSession.instance.subjectId}';
+    final previous = prefs.getString(storageKey);
+    if (previous != null) {
+      final pending = jsonDecode(previous) as Map<String, dynamic>;
+      if (pending['cardId'] != cardId || pending['amount'] != amount) {
+        throw ApiException(
+          message: tr(
+            LocaleController.language.value,
+            'Avvalgi to‘lov hali tekshirilmoqda. O‘sha karta va summani tanlang.',
+            'Предыдущий платёж проверяется. Выберите ту же карту и сумму.',
+            'A previous payment is pending. Select the same card and amount.',
+          ),
+        );
+      }
+      requestKey = pending['key'] as String;
+    } else {
+      await prefs.setString(
+        storageKey,
+        jsonEncode({'key': requestKey, 'cardId': cardId, 'amount': amount}),
+      );
+    }
     final data = await _client.post(
       '/clients/me/wallet/topup',
       body: {'cardId': cardId, 'amount': amount},
+      idempotencyKey: requestKey,
     );
-    return _int((data as Map<String, dynamic>)['balance']);
+    final status = (data as Map<String, dynamic>)['status'];
+    if (status == 'failed') {
+      // Only the backend may declare a safe terminal failure. Release the
+      // persisted intent so reopening the form can use a new card/request key.
+      await prefs.remove(storageKey);
+      throw ApiException(
+        message: tr(
+          LocaleController.language.value,
+          'To‘lov amalga oshmadi. Oynani yopib, boshqa karta bilan qayta urinishingiz mumkin.',
+          'Платёж не выполнен. Закройте окно и попробуйте снова с другой картой.',
+          'Payment failed. Close this form and try again with another card.',
+        ),
+      );
+    }
+    if (status != null && status != 'succeeded') {
+      throw ApiException(
+        message: tr(
+          LocaleController.language.value,
+          'To‘lov tekshirilmoqda. Qayta to‘lamang; balansni keyinroq yangilang.',
+          'Платёж проверяется. Не платите повторно; обновите баланс позже.',
+          'Payment is being checked. Do not pay again; refresh the balance later.',
+        ),
+      );
+    }
+    await prefs.remove(storageKey);
+    return _int(data['balance']);
   }
 }
 

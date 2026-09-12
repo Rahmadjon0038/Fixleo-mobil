@@ -67,7 +67,7 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
             ? const Center(child: CircularProgressIndicator())
             : _p == null
             ? Center(
-                child: TextButton(
+                child: LiquidActionButton.text(
                   onPressed: () {
                     setState(() => _loading = true);
                     _load();
@@ -119,7 +119,7 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
         children: [
           Row(
             children: [
-              Container(
+              LiquidSurface(
                 width: 61,
                 height: 61,
                 decoration: BoxDecoration(
@@ -356,7 +356,7 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
 
   /// One 6px histogram track with a blue [fraction]-wide fill.
   Widget _ratingBar(double fraction) {
-    return Container(
+    return LiquidSurface(
       height: 6,
       decoration: BoxDecoration(
         color: _slate200,
@@ -365,7 +365,7 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
       alignment: Alignment.centerLeft,
       child: FractionallySizedBox(
         widthFactor: fraction,
-        child: Container(
+        child: LiquidSurface(
           height: 6,
           decoration: BoxDecoration(
             color: AppColors.blue,

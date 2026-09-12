@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'glass_container.dart';
+import 'glass_platform.dart';
+import 'glass_tap_target.dart';
+import 'package:real_liquid_glass/real_liquid_glass.dart' as native;
 
 /// Visual weight of a [GlassButton].
 enum GlassButtonVariant {
@@ -88,12 +91,24 @@ class GlassButton extends StatelessWidget {
             ],
           );
 
+    if (usesNativeLiquidGlass(context)) {
+      return GlassTapTarget(
+        label: label,
+        onTap: onPressed,
+        child: native.LiquidGlassContainer(
+          shape: const native.LiquidGlassShape.capsule(),
+          tint: variant == GlassButtonVariant.secondary ? null : tint,
+          height: height,
+          width: expand ? double.infinity : null,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Center(child: body),
+        ),
+      );
+    }
     final glass = GlassContainer(
       tint: tint,
       tintOpacityTop: variant == GlassButtonVariant.secondary ? 0.75 : 0.90,
-      tintOpacityBottom: variant == GlassButtonVariant.secondary
-          ? 0.55
-          : 0.74,
+      tintOpacityBottom: variant == GlassButtonVariant.secondary ? 0.55 : 0.74,
       borderOpacity: variant == GlassButtonVariant.secondary ? 0.8 : 0.5,
       borderRadius: radius,
       height: height,

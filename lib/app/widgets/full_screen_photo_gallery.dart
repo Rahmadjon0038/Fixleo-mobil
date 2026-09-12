@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -112,7 +113,7 @@ class _FullScreenPhotoGalleryState extends State<_FullScreenPhotoGallery> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Material(
+                  LiquidMaterial(
                     color: Colors.black.withValues(alpha: 0.4),
                     shape: const CircleBorder(),
                     child: IconButton(
@@ -121,7 +122,7 @@ class _FullScreenPhotoGalleryState extends State<_FullScreenPhotoGallery> {
                     ),
                   ),
                   if (widget.photos.length > 1)
-                    Container(
+                    LiquidSurface(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 6,

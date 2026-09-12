@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -43,7 +44,7 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
     final lang = LocaleController.language.value;
     final d = widget.draft;
     if (!d.hasLocation || d.categoryId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppFeedback.of(context).showSnackBar(
         SnackBar(
           content: Text(
             tr(
@@ -85,7 +86,7 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _sending = false);
-      ScaffoldMessenger.of(
+      AppFeedback.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -115,7 +116,7 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
                     if (widget.draft.questionSummary.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 16),
-                        child: Container(
+                        child: LiquidSurface(
                           width: double.infinity,
                           padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
@@ -260,7 +261,7 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
                       width: 72,
                       height: 72,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Container(
+                      errorBuilder: (_, _, _) => LiquidSurface(
                         width: 72,
                         height: 72,
                         alignment: Alignment.center,

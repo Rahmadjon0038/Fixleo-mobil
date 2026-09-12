@@ -17,7 +17,7 @@ Future<bool> showAccountDeleteConfirmation({
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
+          LiquidSurface(
             width: 64,
             height: 64,
             decoration: const BoxDecoration(
@@ -65,7 +65,7 @@ Future<bool> showAccountDeleteConfirmation({
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(
+                child: LiquidActionButton.outlined(
                   onPressed: () => Navigator.of(dialogContext).pop(false),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
@@ -80,7 +80,7 @@ Future<bool> showAccountDeleteConfirmation({
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: FilledButton(
+                child: LiquidActionButton.filled(
                   onPressed: () => Navigator.of(dialogContext).pop(true),
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),

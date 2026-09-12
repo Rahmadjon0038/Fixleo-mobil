@@ -42,7 +42,7 @@ class OrderDeclinedScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
               child: Column(
                 children: [
-                  Container(
+                  LiquidSurface(
                     width: 64,
                     height: 64,
                     alignment: Alignment.center,
@@ -50,7 +50,7 @@ class OrderDeclinedScreen extends StatelessWidget {
                       color: _red100,
                       shape: BoxShape.circle,
                     ),
-                    child: Container(
+                    child: LiquidSurface(
                       width: 34,
                       height: 34,
                       decoration: const BoxDecoration(

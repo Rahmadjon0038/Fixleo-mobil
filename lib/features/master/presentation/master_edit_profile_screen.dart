@@ -225,7 +225,7 @@ class _MasterEditProfileScreenState extends State<MasterEditProfileScreen> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Container(
+          LiquidSurface(
             width: 104,
             height: 104,
             clipBehavior: Clip.antiAlias,
@@ -250,7 +250,7 @@ class _MasterEditProfileScreenState extends State<MasterEditProfileScreen> {
           Positioned(
             right: -5,
             bottom: -5,
-            child: Container(
+            child: LiquidSurface(
               width: 32,
               height: 32,
               decoration: const BoxDecoration(

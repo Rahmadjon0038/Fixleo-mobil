@@ -1,9 +1,8 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:fixleo/app/theme/app_colors.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 
 /// One tab in the [LiquidGlassNavBar].
 class LiquidGlassNavItem {
@@ -30,7 +29,7 @@ class LiquidGlassNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return LiquidSurface(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(36),
         boxShadow: [
@@ -50,25 +49,10 @@ class LiquidGlassNavBar extends StatelessWidget {
             children: [
               // Glass background layer — the blur lives here, with NO
               // interactive children (avoids the macOS mouse_tracker bug).
-              BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.white.withValues(alpha: 0.85),
-                        Colors.white.withValues(alpha: 0.65),
-                      ],
-                    ),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      width: 1,
-                    ),
-                    borderRadius: BorderRadius.circular(36),
-                  ),
-                ),
+              const GlassContainer(
+                borderRadius: 36,
+                shadow: false,
+                child: SizedBox.expand(),
               ),
               // Interactive layer — sits ON TOP of the blur, not inside it.
               Padding(
@@ -107,13 +91,15 @@ class LiquidGlassNavBar extends StatelessWidget {
                           // Sliding "liquid" highlight — flows from one tab to
                           // the next as the selection changes.
                           AnimatedAlign(
-                            duration: const Duration(milliseconds: 420),
+                            duration: MediaQuery.disableAnimationsOf(context)
+                                ? Duration.zero
+                                : const Duration(milliseconds: 320),
                             curve: Curves.easeOutCubic,
                             alignment: Alignment(alignX, 0),
                             child: FractionallySizedBox(
                               widthFactor: 1 / items.length,
                               heightFactor: 1,
-                              child: Container(
+                              child: LiquidSurface(
                                 margin: const EdgeInsets.all(2),
                                 decoration: BoxDecoration(
                                   color: const Color(
@@ -170,7 +156,9 @@ class _NavButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const duration = Duration(milliseconds: 300);
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 300);
     final color = active ? _activeColor : AppColors.navy;
     // Purely visual — tap/drag is handled by the parent gesture detector.
     return Column(
@@ -194,7 +182,7 @@ class _NavButton extends StatelessWidget {
               Positioned(
                 right: -12,
                 top: -9,
-                child: Container(
+                child: LiquidSurface(
                   constraints: const BoxConstraints(
                     minWidth: 18,
                     minHeight: 18,

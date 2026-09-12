@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -107,7 +108,7 @@ class _MasterOrderStatusScreenState extends State<MasterOrderStatusScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(
+      AppFeedback.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -358,7 +359,7 @@ class _StatusRow extends StatelessWidget {
               ),
             ),
             if (status.selected)
-              Container(
+              LiquidSurface(
                 width: 26,
                 height: 26,
                 decoration: const BoxDecoration(
@@ -368,7 +369,7 @@ class _StatusRow extends StatelessWidget {
                 child: const Icon(Icons.check, size: 16, color: Colors.white),
               )
             else
-              Container(
+              LiquidSurface(
                 width: 26,
                 height: 26,
                 decoration: BoxDecoration(

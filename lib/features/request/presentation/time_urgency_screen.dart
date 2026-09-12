@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -172,7 +173,7 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
+    AppFeedback.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
   }
@@ -313,7 +314,7 @@ class _TimeUrgencyScreenState extends State<TimeUrgencyScreen> {
     return GlassContainer(
       borderRadius: 20,
       padding: EdgeInsets.zero,
-      child: Material(
+      child: LiquidMaterial(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(20),
         child: InkWell(
@@ -475,7 +476,7 @@ class _OptionTile extends StatelessWidget {
         // Selection ring drawn as a plain border wrapper around the glass fill
         // — GlassContainer's own border is a fixed white/light edge, so the
         // blue selected-state outline is layered on top of it.
-        child: Container(
+        child: LiquidSurface(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(32),
             border: selected
@@ -536,7 +537,7 @@ class _Radio extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!selected) {
-      return Container(
+      return LiquidSurface(
         width: 22,
         height: 22,
         decoration: BoxDecoration(
@@ -545,7 +546,7 @@ class _Radio extends StatelessWidget {
         ),
       );
     }
-    return Container(
+    return LiquidSurface(
       width: 22,
       height: 22,
       decoration: const BoxDecoration(
@@ -553,7 +554,7 @@ class _Radio extends StatelessWidget {
         color: AppColors.blue,
       ),
       child: Center(
-        child: Container(
+        child: LiquidSurface(
           width: 7,
           height: 7,
           decoration: const BoxDecoration(

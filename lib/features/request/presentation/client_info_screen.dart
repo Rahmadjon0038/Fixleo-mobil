@@ -52,7 +52,7 @@ class ClientInfoScreen extends StatelessWidget {
                             avatarUrl!,
                             title: name,
                           ),
-                    child: Container(
+                    child: LiquidSurface(
                       width: 96,
                       height: 96,
                       decoration: BoxDecoration(

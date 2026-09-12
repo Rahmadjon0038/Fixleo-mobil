@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -167,7 +168,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _showAvatarError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
+    AppFeedback.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
   }
@@ -230,11 +231,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         actions: [
-          TextButton(
+          LiquidActionButton.text(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(tr(lang, 'Bekor qilish', 'Отмена', 'Cancel')),
           ),
-          TextButton(
+          LiquidActionButton.text(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(tr(lang, 'Chiqish', 'Выйти', 'Sign out')),
           ),
@@ -400,7 +401,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: _client?.avatarUrl != null
                     ? () => showFullScreenImage(context, _client!.avatarUrl!)
                     : _chooseAvatarSource,
-                child: Container(
+                child: LiquidSurface(
                   width: 66,
                   height: 66,
                   decoration: BoxDecoration(
@@ -427,7 +428,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 bottom: -5,
                 child: GestureDetector(
                   onTap: _chooseAvatarSource,
-                  child: Container(
+                  child: LiquidSurface(
                     width: 24,
                     height: 24,
                     decoration: const BoxDecoration(
@@ -506,7 +507,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         child: Row(
           children: [
-            Container(
+            LiquidSurface(
               width: 44,
               height: 44,
               decoration: const BoxDecoration(
@@ -544,7 +545,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         child: Row(
           children: [
-            Container(
+            LiquidSurface(
               width: 44,
               height: 44,
               decoration: const BoxDecoration(
@@ -599,7 +600,7 @@ class _MenuItem extends StatelessWidget {
         height: 60,
         child: Row(
           children: [
-            Container(
+            LiquidSurface(
               width: 44,
               height: 44,
               decoration: const BoxDecoration(

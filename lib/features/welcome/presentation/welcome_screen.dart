@@ -62,7 +62,7 @@ class WelcomeScreen extends StatelessWidget {
               },
             ),
             const SizedBox(height: 12),
-            TextButton(
+            LiquidActionButton.text(
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(

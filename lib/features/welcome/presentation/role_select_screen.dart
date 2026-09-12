@@ -113,7 +113,7 @@ class _RoleOption extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Container(
+      child: LiquidSurface(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: selected ? _slate100 : Colors.transparent,
@@ -121,7 +121,7 @@ class _RoleOption extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
+            LiquidSurface(
               width: 46,
               height: 46,
               decoration: BoxDecoration(
@@ -172,7 +172,7 @@ class _RadioDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return LiquidSurface(
       width: 22,
       height: 22,
       decoration: BoxDecoration(
@@ -184,7 +184,7 @@ class _RadioDot extends StatelessWidget {
       ),
       child: selected
           ? Center(
-              child: Container(
+              child: LiquidSurface(
                 width: 8,
                 height: 8,
                 decoration: const BoxDecoration(

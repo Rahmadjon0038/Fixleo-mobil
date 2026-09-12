@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'glass_platform.dart';
 
 /// Soft ambient wash painted behind every screen so glass panels have
@@ -28,28 +29,37 @@ class GlassBackground extends StatelessWidget {
     if (!usesGlassMaterial(context)) {
       return ColoredBox(color: baseColor, child: child);
     }
-    return Stack(
+    final background = Stack(
       fit: StackFit.expand,
       children: [
         ColoredBox(color: baseColor),
         Positioned(
           top: -90,
           right: -70,
-          child: _blob(260, _blue.withValues(alpha: 0.16)),
+          child: _blob(360, _blue.withValues(alpha: 0.22)),
         ),
         Positioned(
           top: 260,
           left: -110,
-          child: _blob(240, _navy.withValues(alpha: 0.09)),
+          child: _blob(320, _navy.withValues(alpha: 0.10)),
         ),
         Positioned(
           bottom: -120,
           right: -60,
-          child: _blob(300, _blue.withValues(alpha: 0.12)),
+          child: _blob(380, _blue.withValues(alpha: 0.17)),
         ),
         child,
       ],
     );
+    // UIKit glass views must not leave white status text over a light screen.
+    return usesNativeLiquidGlass(context)
+        ? AnnotatedRegion<SystemUiOverlayStyle>(
+            value: baseColor.computeLuminance() > .5
+                ? SystemUiOverlayStyle.dark
+                : SystemUiOverlayStyle.light,
+            child: background,
+          )
+        : background;
   }
 
   Widget _blob(double size, Color color) {

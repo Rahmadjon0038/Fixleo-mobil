@@ -142,7 +142,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         if (retry) ...[
           const SizedBox(height: 12),
           Center(
-            child: TextButton(
+            child: LiquidActionButton.text(
               onPressed: _load,
               child: Text(tr(lang, 'Qayta urinish', 'Повторить', 'Retry')),
             ),
@@ -220,7 +220,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   ),
                 ),
               )
-            : Container(
+            : LiquidSurface(
                 height: 35,
                 alignment: Alignment.center,
                 child: Text(
@@ -325,7 +325,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         : cancelled
         ? _red600
         : _teal600;
-    return Container(
+    return LiquidSurface(
       height: 26,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(

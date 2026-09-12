@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
 import 'package:fixleo/app/widgets/thousands_separator_input_formatter.dart';
 
@@ -51,7 +52,7 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
         if (CurrentUser.instance.isDemo) {
           price = 50000;
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
+          AppFeedback.of(context).showSnackBar(
             SnackBar(
               content: Text(
                 tr(lang, 'Narxni kiriting', 'Введите цену', 'Enter a price'),
@@ -77,7 +78,7 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(
+      AppFeedback.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
     }

@@ -1,3 +1,5 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -103,13 +105,13 @@ class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
       ).push(MaterialPageRoute(builder: (_) => const MasterWorkZoneScreen()));
     } on ApiException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
+      AppFeedback.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(error.message)));
     } on Object {
       if (!mounted) return;
       final language = LocaleController.language.value;
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppFeedback.of(context).showSnackBar(
         SnackBar(
           content: Text(
             tr(language, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'),
@@ -148,7 +150,7 @@ class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                LiquidSearchField(
                   controller: _searchController,
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
@@ -164,12 +166,14 @@ class _MasterCategoriesScreenState extends State<MasterCategoriesScreen> {
                     ),
                     suffixIcon: _searchController.text.isEmpty
                         ? null
-                        : IconButton(
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() {});
-                            },
-                            icon: const Icon(Icons.close_rounded),
+                        : LiquidIconControl(
+                            child: IconButton(
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {});
+                              },
+                              icon: const Icon(Icons.close_rounded),
+                            ),
                           ),
                     filled: true,
                     fillColor: Colors.white,
@@ -372,7 +376,7 @@ class _MasterServiceTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
-        child: AnimatedContainer(
+        child: LiquidAnimatedSurface(
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
@@ -450,7 +454,7 @@ class _ErrorState extends StatelessWidget {
               style: const TextStyle(fontSize: 15, color: AppColors.muted),
             ),
             const SizedBox(height: 12),
-            TextButton(
+            LiquidActionButton.text(
               onPressed: onRetry,
               child: Text(
                 tr(

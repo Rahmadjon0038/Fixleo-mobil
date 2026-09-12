@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -123,7 +124,7 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   void _snack(String message) {
-    ScaffoldMessenger.of(context)
+    AppFeedback.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
   }
@@ -372,7 +373,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       ),
                       style: TextStyle(fontSize: 13, color: AppColors.muted),
                     )
-                  : TextButton(
+                  : LiquidActionButton.text(
                       onPressed: _resend,
                       child: Text(
                         tr(
@@ -430,7 +431,8 @@ class _OtpBoxState extends State<_OtpBox> {
 
   @override
   Widget build(BuildContext context) {
-    final hasError = widget.state._error != null || widget.state._blockSeconds > 0;
+    final hasError =
+        widget.state._error != null || widget.state._blockSeconds > 0;
     final focused = widget.state._focusNodes[widget.index].hasFocus;
 
     // The colored border is drawn here, on a plain fixed-size box, instead
@@ -449,7 +451,7 @@ class _OtpBoxState extends State<_OtpBox> {
       // shadow smears across the gap into one glowing blob behind the row
       // instead of 4 distinct boxes.
       shadow: false,
-      child: Container(
+      child: LiquidSurface(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(

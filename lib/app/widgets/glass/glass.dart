@@ -7,6 +7,8 @@
 library;
 
 export 'glass_background.dart';
+export 'liquid_surface.dart';
+export 'liquid_action_button.dart';
 export 'glass_platform.dart';
 export 'glass_button.dart';
 export 'glass_card.dart';
@@ -14,3 +16,5 @@ export 'glass_container.dart';
 export 'glass_icon_button.dart';
 export 'glass_sheet.dart';
 export 'glass_text_field.dart';
+export 'liquid_chrome.dart';
+export 'liquid_form_controls.dart';

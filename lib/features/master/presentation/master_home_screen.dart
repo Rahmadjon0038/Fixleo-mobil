@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -338,7 +339,7 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
               'Services without prices cannot receive orders',
             )
           : null,
-      child: Material(
+      child: LiquidMaterial(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -365,7 +366,7 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
                   ),
                 ),
                 if (missing > 0)
-                  Container(
+                  LiquidSurface(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 4,
@@ -422,7 +423,7 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
     } on Object {
       if (!mounted) return;
       final lang = LocaleController.language.value;
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppFeedback.of(context).showSnackBar(
         SnackBar(
           content: Text(
             tr(
@@ -737,7 +738,7 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
           height: 44,
           child: Row(
             children: [
-              Container(
+              LiquidSurface(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 8,
@@ -818,7 +819,7 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Container(
+            LiquidSurface(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -875,7 +876,7 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
 
   /// Dark hero card — "Найдём клиентов под любую услугу" + search (FINAL).
   Widget _searchHero(AppLanguage lang) {
-    return Container(
+    return LiquidSurface(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -900,7 +901,7 @@ class _ApprovedMasterHomeScreenState extends State<_ApprovedMasterHomeScreen>
             ),
           ),
           const SizedBox(height: 14),
-          Container(
+          LiquidSurface(
             height: 50,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
@@ -1161,7 +1162,7 @@ class _RequestCard extends StatelessWidget {
           Row(
             children: [
               Flexible(
-                child: Container(
+                child: LiquidSurface(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 6,

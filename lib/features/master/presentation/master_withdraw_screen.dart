@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -53,7 +54,7 @@ class _MasterWithdrawScreenState extends State<MasterWithdrawScreen> {
     final lang = LocaleController.language.value;
     final amount = int.tryParse(_amount.text.replaceAll(RegExp(r'[^0-9]'), ''));
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppFeedback.of(context).showSnackBar(
         SnackBar(
           content: Text(
             tr(lang, 'Summani kiriting', 'Введите сумму', 'Enter an amount'),
@@ -64,9 +65,16 @@ class _MasterWithdrawScreenState extends State<MasterWithdrawScreen> {
     }
     setState(() => _busy = true);
     try {
-      var cards = await _payments.cards();
+      final cards = await _payments.cards();
       if (cards.isEmpty) {
-        cards = [await _payments.addCard(brand: 'humo', last4: '9876')];
+        throw ApiException(
+          message: tr(
+            lang,
+            'Avval kartani tasdiqlang',
+            'Сначала подтвердите карту',
+            'Verify a card first',
+          ),
+        );
       }
       final card = cards[_selectedCard.clamp(0, cards.length - 1)];
       await _market.withdraw(amount: amount, cardId: card.id, mode: 'standard');
@@ -126,7 +134,7 @@ class _MasterWithdrawScreenState extends State<MasterWithdrawScreen> {
 
   /// Dark "available to withdraw" card.
   Widget _balanceCard() {
-    return Container(
+    return LiquidSurface(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -327,7 +335,7 @@ class _Radio extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return LiquidSurface(
       width: 22,
       height: 22,
       decoration: BoxDecoration(
@@ -340,7 +348,7 @@ class _Radio extends StatelessWidget {
       ),
       child: selected
           ? Center(
-              child: Container(
+              child: LiquidSurface(
                 width: 7,
                 height: 7,
                 decoration: const BoxDecoration(

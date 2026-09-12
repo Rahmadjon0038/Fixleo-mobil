@@ -1,14 +1,10 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:fixleo/app/theme/app_colors.dart';
 import 'package:fixleo/app/widgets/glass/glass.dart';
 
-/// Small white pill used both for the brand badge and screen titles.
-/// Deliberately flat (not glass) — matches the FINAL Figma header, which
-/// keeps this element plain white against the glass content below it.
+/// Shared adaptive material for brand badges and screen titles.
 class _Pill extends StatelessWidget {
   const _Pill({required this.child});
 
@@ -16,7 +12,14 @@ class _Pill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    if (usesGlassMaterial(context)) {
+      return GlassContainer(
+        borderRadius: 22,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: child,
+      );
+    }
+    return LiquidSurface(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -85,50 +88,10 @@ class _BackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return GlassIconButton(
+      semanticLabel: MaterialLocalizations.of(context).backButtonTooltip,
       onTap: onTap ?? () => Navigator.of(context).maybePop(),
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: ClipOval(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.65),
-                    Colors.white.withValues(alpha: 0.30),
-                  ],
-                ),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  width: 1,
-                ),
-              ),
-              child: const Icon(
-                Icons.arrow_back,
-                size: 20,
-                color: AppColors.navy,
-              ),
-            ),
-          ),
-        ),
-      ),
+      child: const Icon(Icons.arrow_back, size: 20, color: AppColors.navy),
     );
   }
 }

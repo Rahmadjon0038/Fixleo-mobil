@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -270,7 +271,7 @@ class _AddressScreenState extends State<AddressScreen> {
       }
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
+      AppFeedback.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
@@ -434,7 +435,7 @@ class _CenterMarker extends StatelessWidget {
         AnimatedSlide(
           duration: const Duration(milliseconds: 150),
           offset: Offset(0, lifted ? -0.18 : 0),
-          child: Container(
+          child: LiquidSurface(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -456,7 +457,7 @@ class _CenterMarker extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         // Small dot marking the precise point on the ground.
-        Container(
+        LiquidSurface(
           width: 11,
           height: 11,
           decoration: BoxDecoration(
@@ -589,7 +590,7 @@ class _AddressSheet extends StatelessWidget {
                   tint: AppColors.background,
                   child: Row(
                     children: [
-                      Container(
+                      LiquidSurface(
                         width: 36,
                         height: 36,
                         decoration: const BoxDecoration(

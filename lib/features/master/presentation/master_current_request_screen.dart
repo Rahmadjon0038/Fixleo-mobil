@@ -105,7 +105,7 @@ class _MasterCurrentRequestScreenState
                   _Card(
                     child: Row(
                       children: [
-                        Container(
+                        LiquidSurface(
                           width: 9,
                           height: 9,
                           decoration: const BoxDecoration(
@@ -146,7 +146,7 @@ class _MasterCurrentRequestScreenState
                       children: [
                         Row(
                           children: [
-                            Container(
+                            LiquidSurface(
                               width: 50,
                               height: 50,
                               decoration: BoxDecoration(

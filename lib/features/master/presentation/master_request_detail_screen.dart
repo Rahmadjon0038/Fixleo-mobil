@@ -194,7 +194,7 @@ class _MasterRequestDetailScreenState extends State<MasterRequestDetailScreen> {
                                               height: 64,
                                               fit: BoxFit.cover,
                                               errorBuilder: (_, _, _) =>
-                                                  Container(
+                                                  LiquidSurface(
                                                     width: 64,
                                                     height: 64,
                                                     color: const Color(
@@ -335,7 +335,7 @@ class _DeclineSheetState extends State<_DeclineSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
+            LiquidSurface(
               width: 70,
               height: 5,
               decoration: BoxDecoration(
@@ -440,7 +440,7 @@ class _ReasonRow extends StatelessWidget {
                 style: const TextStyle(fontSize: 14, color: AppColors.navy),
               ),
             ),
-            Container(
+            LiquidSurface(
               width: 22,
               height: 22,
               decoration: BoxDecoration(
@@ -453,7 +453,7 @@ class _ReasonRow extends StatelessWidget {
               ),
               child: selected
                   ? Center(
-                      child: Container(
+                      child: LiquidSurface(
                         width: 7,
                         height: 7,
                         decoration: const BoxDecoration(

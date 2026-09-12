@@ -30,7 +30,7 @@ class MasterVerifiedScreen extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
+                      LiquidSurface(
                         width: 88,
                         height: 88,
                         decoration: BoxDecoration(

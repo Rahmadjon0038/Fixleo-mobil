@@ -217,7 +217,7 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
         children: [
           GestureDetector(
             onTap: _editProfile,
-            child: Container(
+            child: LiquidSurface(
               width: 66,
               height: 66,
               decoration: BoxDecoration(
@@ -336,11 +336,11 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
           ),
         ),
         actions: [
-          TextButton(
+          LiquidActionButton.text(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(tr(lang, 'Bekor qilish', 'Отмена', 'Cancel')),
           ),
-          TextButton(
+          LiquidActionButton.text(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(tr(lang, 'Chiqish', 'Выйти', 'Sign out')),
           ),
@@ -382,7 +382,7 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         child: Row(
           children: [
-            Container(
+            LiquidSurface(
               width: 44,
               height: 44,
               decoration: const BoxDecoration(
@@ -421,7 +421,7 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         child: Row(
           children: [
-            Container(
+            LiquidSurface(
               width: 44,
               height: 44,
               decoration: const BoxDecoration(
@@ -475,7 +475,7 @@ class _LangOption extends StatelessWidget {
       label: title,
       child: GestureDetector(
         onTap: onTap,
-        child: Container(
+        child: LiquidSurface(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           decoration: BoxDecoration(
             color: selected ? const Color(0xFFF0F9FF) : const Color(0xFFF8FAFC),
@@ -495,7 +495,7 @@ class _LangOption extends StatelessWidget {
                   ),
                 ),
               ),
-              Container(
+              LiquidSurface(
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
@@ -508,7 +508,7 @@ class _LangOption extends StatelessWidget {
                 ),
                 child: selected
                     ? Center(
-                        child: Container(
+                        child: LiquidSurface(
                           width: 8,
                           height: 8,
                           decoration: const BoxDecoration(
@@ -548,7 +548,7 @@ class _MenuItem extends StatelessWidget {
         height: 60,
         child: Row(
           children: [
-            Container(
+            LiquidSurface(
               width: 44,
               height: 44,
               decoration: const BoxDecoration(

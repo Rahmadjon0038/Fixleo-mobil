@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/features/master/data/request_answers.dart';
 
 class RequestAnswersSection extends StatelessWidget {
@@ -28,21 +29,17 @@ class RequestAnswersSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         for (var i = 0; i < answers.length; i++) ...[
-          Container(
+          GlassContainer.lite(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFE4EAF2)),
-            ),
+            borderRadius: 18,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
+                    LiquidSurface(
                       width: 24,
                       height: 24,
                       alignment: Alignment.center,
@@ -79,7 +76,7 @@ class RequestAnswersSection extends StatelessWidget {
                     runSpacing: 8,
                     children: [
                       for (final value in answers[i].value as List)
-                        Container(
+                        LiquidSurface(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
                             vertical: 7,

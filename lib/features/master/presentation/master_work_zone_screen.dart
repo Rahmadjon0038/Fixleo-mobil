@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -278,13 +279,13 @@ class _MasterWorkZoneScreenState extends State<MasterWorkZoneScreen> {
       }
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
+      AppFeedback.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       final lang = LocaleController.language.value;
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppFeedback.of(context).showSnackBar(
         SnackBar(
           content: Text(
             tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'),
@@ -477,7 +478,7 @@ class _CenterMarker extends StatelessWidget {
         AnimatedSlide(
           duration: const Duration(milliseconds: 150),
           offset: Offset(0, lifted ? -0.18 : 0),
-          child: Container(
+          child: LiquidSurface(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -498,7 +499,7 @@ class _CenterMarker extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Container(
+        LiquidSurface(
           width: 11,
           height: 11,
           decoration: BoxDecoration(
@@ -634,7 +635,7 @@ class _WorkZoneSheet extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: Row(
                       children: [
-                        Container(
+                        LiquidSurface(
                           width: 36,
                           height: 36,
                           decoration: const BoxDecoration(

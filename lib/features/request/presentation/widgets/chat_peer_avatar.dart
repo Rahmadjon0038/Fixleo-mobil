@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/theme/app_colors.dart';
@@ -44,7 +45,7 @@ class ChatPeerAvatar extends StatelessWidget {
     );
   }
 
-  Widget _fallback() => Container(
+  Widget _fallback() => LiquidSurface(
     width: size,
     height: size,
     decoration: const BoxDecoration(

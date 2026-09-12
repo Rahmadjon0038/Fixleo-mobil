@@ -83,7 +83,7 @@ class ApiClient {
         InterceptorsWrapper(
           onRequest: (options, handler) {
             debugPrint('➡️  ${options.method} ${options.uri}');
-            if (options.data != null) {
+            if (options.data != null && !_sensitivePath(options.path)) {
               if (options.data is FormData) {
                 final formData = options.data as FormData;
                 debugPrint('    form fields: ${formData.fields}');
@@ -100,7 +100,9 @@ class ApiClient {
             debugPrint(
               '⬅️  ${response.statusCode} ${response.requestOptions.uri}',
             );
-            if (response.statusCode != null && response.statusCode! >= 400) {
+            if (response.statusCode != null &&
+                response.statusCode! >= 400 &&
+                !_sensitivePath(response.requestOptions.path)) {
               debugPrint('    response body: ${response.data}');
             }
             handler.next(response);
@@ -109,7 +111,8 @@ class ApiClient {
             debugPrint(
               '❌  ${e.response?.statusCode ?? '—'} ${e.requestOptions.uri}  ${e.message}',
             );
-            if (e.response?.data != null) {
+            if (e.response?.data != null &&
+                !_sensitivePath(e.requestOptions.path)) {
               debugPrint('    error body: ${e.response?.data}');
             }
             handler.next(e);
@@ -148,8 +151,19 @@ class ApiClient {
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) =>
       _send(() => _dio.get(path, queryParameters: query));
 
-  Future<dynamic> post(String path, {Object? body}) =>
-      _send(() => _dio.post(path, data: body));
+  static bool _sensitivePath(String path) =>
+      path.contains('/cards') ||
+      path.contains('/auth/') ||
+      path.contains('/payments');
+
+  Future<dynamic> post(String path, {Object? body, String? idempotencyKey}) =>
+      _send(
+        () => _dio.post(
+          path,
+          data: body,
+          options: Options(headers: {'Idempotency-Key': ?idempotencyKey}),
+        ),
+      );
 
   Future<dynamic> patch(String path, {Object? body}) =>
       _send(() => _dio.patch(path, data: body));

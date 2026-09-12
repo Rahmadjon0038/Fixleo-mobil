@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -102,7 +103,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   Future<void> _pickCategory() async {
     if (_categories.isEmpty) return;
     final lang = LocaleController.language.value;
-    final chosen = await showModalBottomSheet<Category>(
+    final chosen = await showGlassModalBottomSheet<Category>(
       context: context,
       builder: (ctx) => SafeArea(
         child: ListView(
@@ -200,7 +201,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   }
 
   void _snack(String msg) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      AppFeedback.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
   @override
   Widget build(BuildContext context) {
@@ -410,7 +411,7 @@ class _PhotoSlot extends StatelessWidget {
           top: 6,
           child: GestureDetector(
             onTap: onRemove,
-            child: Container(
+            child: LiquidSurface(
               width: 22,
               height: 22,
               decoration: BoxDecoration(

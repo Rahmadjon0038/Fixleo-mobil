@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -92,7 +93,7 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(
+      AppFeedback.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -104,7 +105,7 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
       await _load();
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        AppFeedback.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.message)));
       }
@@ -224,7 +225,7 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
                             if (_orderStatus != null &&
                                 _orderStatus != 'searching') ...[
                               const SizedBox(height: 12),
-                              TextButton(
+                              LiquidActionButton.text(
                                 onPressed: () =>
                                     Navigator.of(context).pushReplacement(
                                       MaterialPageRoute(
@@ -326,7 +327,7 @@ class _MasterCard extends StatelessWidget {
                         MasterProfileScreen(masterId: offer.masterId),
                   ),
                 ),
-                child: Container(
+                child: LiquidSurface(
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(

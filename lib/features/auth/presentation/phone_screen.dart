@@ -494,7 +494,7 @@ class _PhoneField extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Container(width: 1, height: 24, color: Colors.black12),
+          LiquidSurface(width: 1, height: 24, color: Colors.black12),
         ],
       ),
     );

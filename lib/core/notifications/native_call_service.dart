@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -373,7 +374,7 @@ class NativeCallService {
 
   void _showSettingsHint(BuildContext context) {
     final lang = LocaleController.language.value;
-    ScaffoldMessenger.of(context).showSnackBar(
+    AppFeedback.of(context).showSnackBar(
       SnackBar(
         content: Text(
           tr(

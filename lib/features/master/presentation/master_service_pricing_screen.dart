@@ -1,3 +1,5 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:flutter/material.dart';
 import 'package:fixleo/app/widgets/thousands_separator_input_formatter.dart';
 import 'package:fixleo/core/network/api_exception.dart';
@@ -119,11 +121,11 @@ class _MasterServicePricingScreenState
                   ),
                 ),
                 actions: [
-                  TextButton(
+                  LiquidActionButton.text(
                     onPressed: () => Navigator.pop(context, false),
                     child: Text(_t('Qolish', 'Остаться', 'Stay')),
                   ),
-                  TextButton(
+                  LiquidActionButton.text(
                     onPressed: () => Navigator.pop(context, true),
                     child: Text(_t('Chiqish', 'Выйти', 'Leave')),
                   ),
@@ -150,7 +152,7 @@ class _MasterServicePricingScreenState
         _missingOnly = false;
         _query = '';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppFeedback.of(context).showSnackBar(
         SnackBar(
           content: Text(
             _t(
@@ -177,7 +179,7 @@ class _MasterServicePricingScreenState
         _dirty = false;
         _saving = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppFeedback.of(context).showSnackBar(
         SnackBar(
           content: Text(
             _t(
@@ -212,7 +214,7 @@ class _MasterServicePricingScreenState
       if (!mounted) return;
       setState(() => _saving = false);
       // Keep entered values on a network failure or a newly acquired order lock.
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppFeedback.of(context).showSnackBar(
         SnackBar(
           content: Text(
             error is ApiException
@@ -259,7 +261,7 @@ class _MasterServicePricingScreenState
         },
         child: Scaffold(
           backgroundColor: AppColors.background,
-          appBar: AppBar(
+          appBar: LiquidAppBar(
             backgroundColor: AppColors.background,
             surfaceTintColor: Colors.transparent,
             foregroundColor: AppColors.navy,
@@ -268,9 +270,11 @@ class _MasterServicePricingScreenState
               _t('Xizmatlar va narxlar', 'Услуги и цены', 'Services & prices'),
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
-            leading: IconButton(
-              onPressed: _leave,
-              icon: const Icon(Icons.arrow_back_rounded),
+            leading: LiquidIconControl(
+              child: IconButton(
+                onPressed: _leave,
+                icon: const Icon(Icons.arrow_back_rounded),
+              ),
             ),
           ),
           body: _loading
@@ -279,7 +283,7 @@ class _MasterServicePricingScreenState
                 )
               : _failed
               ? Center(
-                  child: FilledButton(
+                  child: LiquidActionButton.filled(
                     onPressed: _load,
                     child: Text(_t('Qayta urinish', 'Повторить', 'Retry')),
                   ),
@@ -293,7 +297,7 @@ class _MasterServicePricingScreenState
                     children: [
                       _summary(ready),
                       const SizedBox(height: 18),
-                      Container(
+                      LiquidSurface(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           color: const Color(0xFFE7EBF1),
@@ -317,7 +321,7 @@ class _MasterServicePricingScreenState
                         ),
                       ),
                       const SizedBox(height: 14),
-                      TextField(
+                      LiquidSearchField(
                         key: ValueKey(_add),
                         onChanged: (v) => setState(() => _query = v),
                         style: const TextStyle(
@@ -353,7 +357,7 @@ class _MasterServicePricingScreenState
                           padding: const EdgeInsets.only(top: 8, bottom: 2),
                           child: Align(
                             alignment: Alignment.centerLeft,
-                            child: FilterChip(
+                            child: LiquidFilterChip(
                               label: Text(
                                 _t(
                                   'Narx kiritilmagan',
@@ -419,7 +423,7 @@ class _MasterServicePricingScreenState
                 ),
           bottomNavigationBar: _loading || _failed
               ? null
-              : Container(
+              : LiquidSurface(
                   decoration: const BoxDecoration(
                     color: Colors.white,
                     border: Border(top: BorderSide(color: Color(0xFFE8EDF3))),
@@ -434,7 +438,7 @@ class _MasterServicePricingScreenState
                       ),
                       child: SizedBox(
                         height: 52,
-                        child: FilledButton(
+                        child: LiquidActionButton.filled(
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.blue,
                             foregroundColor: Colors.white,
@@ -483,7 +487,7 @@ class _MasterServicePricingScreenState
     },
   );
 
-  Widget _summary(int ready) => Container(
+  Widget _summary(int ready) => LiquidSurface(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
       gradient: const LinearGradient(
@@ -561,7 +565,7 @@ class _MasterServicePricingScreenState
   Widget _tab(bool value, String label) => Expanded(
     child: Semantics(
       selected: _add == value,
-      child: Material(
+      child: LiquidMaterial(
         color: _add == value ? Colors.white : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
@@ -616,7 +620,7 @@ class _MasterServicePricingScreenState
         : priced
         ? const Color(0xFF22916A)
         : const Color(0xFFB97823);
-    return Container(
+    return LiquidSurface(
       key: ValueKey('service-${item.id}'),
       margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.all(14),
@@ -665,46 +669,48 @@ class _MasterServicePricingScreenState
                 ),
               ),
               const SizedBox(width: 4),
-              IconButton(
-                tooltip: _add
-                    ? _t('Qo‘shish', 'Добавить', 'Add')
-                    : _t('Olib tashlash', 'Удалить', 'Remove'),
-                onPressed: locked || _saving
-                    ? null
-                    : () {
-                        if (_add && _selected.length >= 50) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                _t(
-                                  'Ko‘pi bilan 50 ta xizmat tanlang',
-                                  'Выберите не более 50 услуг',
-                                  'Select up to 50 services',
+              LiquidIconControl(
+                child: IconButton(
+                  tooltip: _add
+                      ? _t('Qo‘shish', 'Добавить', 'Add')
+                      : _t('Olib tashlash', 'Удалить', 'Remove'),
+                  onPressed: locked || _saving
+                      ? null
+                      : () {
+                          if (_add && _selected.length >= 50) {
+                            AppFeedback.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  _t(
+                                    'Ko‘pi bilan 50 ta xizmat tanlang',
+                                    'Выберите не более 50 услуг',
+                                    'Select up to 50 services',
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                          return;
-                        }
-                        setState(() {
-                          _add
-                              ? _selected.add(item.id)
-                              : _selected.remove(item.id);
-                          _dirty = true;
-                        });
-                      },
-                icon: Icon(
-                  locked
-                      ? Icons.lock_outline_rounded
-                      : _add
-                      ? Icons.add_circle_rounded
-                      : Icons.remove_circle_outline_rounded,
-                  color: locked
-                      ? AppColors.muted
-                      : _add
-                      ? AppColors.blue
-                      : const Color(0xFFA6B2C3),
-                  size: 23,
+                            );
+                            return;
+                          }
+                          setState(() {
+                            _add
+                                ? _selected.add(item.id)
+                                : _selected.remove(item.id);
+                            _dirty = true;
+                          });
+                        },
+                  icon: Icon(
+                    locked
+                        ? Icons.lock_outline_rounded
+                        : _add
+                        ? Icons.add_circle_rounded
+                        : Icons.remove_circle_outline_rounded,
+                    color: locked
+                        ? AppColors.muted
+                        : _add
+                        ? AppColors.blue
+                        : const Color(0xFFA6B2C3),
+                    size: 23,
+                  ),
                 ),
               ),
             ],
@@ -829,7 +835,7 @@ class _MasterServicePricingScreenState
     );
   }
 
-  Widget _serviceIcon() => Container(
+  Widget _serviceIcon() => LiquidSurface(
     color: const Color(0xFFEDF4FD),
     child: const Icon(
       Icons.home_repair_service_outlined,

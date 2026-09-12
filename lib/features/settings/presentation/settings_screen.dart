@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -96,7 +97,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       await CurrentUser.instance.refresh();
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
+      AppFeedback.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(content: Text(tr(lang, 'Saqlandi', 'Сохранено', 'Saved'))),

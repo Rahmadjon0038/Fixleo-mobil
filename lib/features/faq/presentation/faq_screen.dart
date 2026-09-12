@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
@@ -140,7 +141,7 @@ class _FaqScreenState extends State<FaqScreen> {
                       else if (_error != null)
                         _message(
                           _error!,
-                          action: TextButton(
+                          action: LiquidActionButton.text(
                             onPressed: _load,
                             child: Text(
                               tr(
@@ -183,7 +184,7 @@ class _FaqScreenState extends State<FaqScreen> {
   }
 
   Widget _hero(AppLanguage language) {
-    return Container(
+    return LiquidSurface(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -202,7 +203,7 @@ class _FaqScreenState extends State<FaqScreen> {
       ),
       child: Row(
         children: [
-          Container(
+          LiquidSurface(
             width: 54,
             height: 54,
             decoration: BoxDecoration(
@@ -257,7 +258,7 @@ class _FaqScreenState extends State<FaqScreen> {
   }
 
   Widget _searchField(AppLanguage language) {
-    return TextField(
+    return LiquidSearchField(
       controller: _search,
       onChanged: (_) => setState(() {}),
       decoration: InputDecoration(
@@ -270,12 +271,14 @@ class _FaqScreenState extends State<FaqScreen> {
         prefixIcon: const Icon(Icons.search_rounded, color: AppColors.blue),
         suffixIcon: _search.text.isEmpty
             ? null
-            : IconButton(
-                onPressed: () {
-                  _search.clear();
-                  setState(() {});
-                },
-                icon: const Icon(Icons.close_rounded),
+            : LiquidIconControl(
+                child: IconButton(
+                  onPressed: () {
+                    _search.clear();
+                    setState(() {});
+                  },
+                  icon: const Icon(Icons.close_rounded),
+                ),
               ),
         filled: true,
         fillColor: Colors.white.withValues(alpha: .9),
@@ -296,7 +299,7 @@ class _FaqScreenState extends State<FaqScreen> {
     required bool selected,
     required VoidCallback onTap,
   }) {
-    return ChoiceChip(
+    return LiquidChoiceChip(
       selected: selected,
       onSelected: (_) => onTap(),
       label: Text(label),
@@ -316,7 +319,7 @@ class _FaqScreenState extends State<FaqScreen> {
   }
 
   Widget _faqCard(FaqItem item, AppLanguage language, int index) {
-    return Container(
+    return LiquidSurface(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: .9),
@@ -330,7 +333,7 @@ class _FaqScreenState extends State<FaqScreen> {
           ),
         ],
       ),
-      child: Material(
+      child: LiquidMaterial(
         color: Colors.transparent,
         child: Theme(
           data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -341,7 +344,7 @@ class _FaqScreenState extends State<FaqScreen> {
               vertical: 5,
             ),
             childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-            leading: Container(
+            leading: LiquidSurface(
               width: 38,
               height: 38,
               decoration: BoxDecoration(
@@ -396,7 +399,7 @@ class _FaqScreenState extends State<FaqScreen> {
   }
 
   Widget _message(String text, {Widget? action}) {
-    return Container(
+    return LiquidSurface(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 44),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: .75),

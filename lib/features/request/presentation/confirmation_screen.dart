@@ -68,7 +68,7 @@ class ConfirmationScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
+              LiquidSurface(
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(

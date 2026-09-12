@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -503,7 +504,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       if (_controller.text.isEmpty) _controller.text = text;
       setState(() => _sending = false);
-      ScaffoldMessenger.of(
+      AppFeedback.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -701,7 +702,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         'Could not determine the current location.',
       ),
     };
-    ScaffoldMessenger.of(context).showSnackBar(
+    AppFeedback.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         action: needsAppSettings || needsLocationSettings
@@ -934,7 +935,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   void _showError(String message) {
     if (!mounted) return;
     if (_sending) setState(() => _sending = false);
-    ScaffoldMessenger.of(
+    AppFeedback.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
   }
@@ -1187,7 +1188,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
+          LiquidSurface(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: foreground.withValues(alpha: .10),
@@ -1311,12 +1312,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       padding: const EdgeInsets.fromLTRB(8, 4, 10, 5),
       child: Row(
         children: [
-          IconButton(
-            tooltip: tr(lang, 'Biriktirish', 'Прикрепить', 'Attach'),
-            onPressed: _sending || _startingRecording
-                ? null
-                : _pickAndSendAttachment,
-            icon: const Icon(Icons.add_rounded, size: 26, color: _slate500),
+          LiquidIconControl(
+            child: IconButton(
+              tooltip: tr(lang, 'Biriktirish', 'Прикрепить', 'Attach'),
+              onPressed: _sending || _startingRecording
+                  ? null
+                  : _pickAndSendAttachment,
+              icon: const Icon(Icons.add_rounded, size: 26, color: _slate500),
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -1401,7 +1404,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   Widget _imageUploadStrip(AppLanguage lang) {
-    return Container(
+    return LiquidSurface(
       width: double.infinity,
       color: AppColors.background,
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
@@ -1445,7 +1448,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                           fit: BoxFit.cover,
                         ),
                       ),
-                      DecoratedBox(
+                      LiquidDecoratedBox(
                         decoration: BoxDecoration(
                           color: Colors.black.withValues(alpha: 0.48),
                           borderRadius: BorderRadius.circular(16),
@@ -1486,22 +1489,24 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                         Positioned(
                           right: 3,
                           top: 3,
-                          child: IconButton(
-                            tooltip: tr(
-                              lang,
-                              'Olib tashlash',
-                              'Удалить',
-                              'Remove',
+                          child: LiquidIconControl(
+                            child: IconButton(
+                              tooltip: tr(
+                                lang,
+                                'Olib tashlash',
+                                'Удалить',
+                                'Remove',
+                              ),
+                              onPressed: () => _removeFailedUpload(upload),
+                              style: IconButton.styleFrom(
+                                minimumSize: const Size(26, 26),
+                                maximumSize: const Size(26, 26),
+                                padding: EdgeInsets.zero,
+                                backgroundColor: Colors.black54,
+                                foregroundColor: Colors.white,
+                              ),
+                              icon: const Icon(Icons.close, size: 15),
                             ),
-                            onPressed: () => _removeFailedUpload(upload),
-                            style: IconButton.styleFrom(
-                              minimumSize: const Size(26, 26),
-                              maximumSize: const Size(26, 26),
-                              padding: EdgeInsets.zero,
-                              backgroundColor: Colors.black54,
-                              foregroundColor: Colors.white,
-                            ),
-                            icon: const Icon(Icons.close, size: 15),
                           ),
                         ),
                     ],
@@ -1524,15 +1529,20 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         borderRadius: 22,
         child: Row(
           children: [
-            IconButton(
-              tooltip: tr(lang, 'Bekor qilish', 'Отменить', 'Cancel'),
-              onPressed: _finishingRecording
-                  ? null
-                  : () => _finishRecording(send: false),
-              icon: const Icon(Icons.delete_outline, color: Color(0xFFE5484D)),
+            LiquidIconControl(
+              child: IconButton(
+                tooltip: tr(lang, 'Bekor qilish', 'Отменить', 'Cancel'),
+                onPressed: _finishingRecording
+                    ? null
+                    : () => _finishRecording(send: false),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: Color(0xFFE5484D),
+                ),
+              ),
             ),
             const SizedBox(width: 2),
-            Container(
+            LiquidSurface(
               width: 9,
               height: 9,
               decoration: const BoxDecoration(
@@ -1597,15 +1607,17 @@ class _SendButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox.square(
       dimension: 48,
-      child: IconButton.filled(
-        tooltip: tooltip,
-        onPressed: onTap,
-        style: IconButton.styleFrom(
-          backgroundColor: AppColors.blue,
-          disabledBackgroundColor: const Color(0xFFB8D8F6),
-          foregroundColor: Colors.white,
+      child: LiquidIconControl(
+        child: IconButton.filled(
+          tooltip: tooltip,
+          onPressed: onTap,
+          style: IconButton.styleFrom(
+            backgroundColor: AppColors.blue,
+            disabledBackgroundColor: const Color(0xFFB8D8F6),
+            foregroundColor: Colors.white,
+          ),
+          icon: child,
         ),
-        icon: child,
       ),
     );
   }

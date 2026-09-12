@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:flutter/material.dart';
 
 /// Opens a full-screen, pinch-to-zoom viewer for a network image (avatar,
@@ -82,7 +83,7 @@ class _FullScreenImageViewer extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               child: Align(
                 alignment: Alignment.topLeft,
-                child: Material(
+                child: LiquidMaterial(
                   color: Colors.black.withValues(alpha: 0.4),
                   shape: const CircleBorder(),
                   child: IconButton(
@@ -99,7 +100,7 @@ class _FullScreenImageViewer extends StatelessWidget {
               right: 0,
               bottom: 0,
               child: SafeArea(
-                child: Container(
+                child: LiquidSurface(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
                   decoration: const BoxDecoration(

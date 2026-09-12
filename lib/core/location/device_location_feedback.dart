@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -47,7 +48,7 @@ void showDeviceLocationFailure(
       error.failure == DeviceLocationFailure.serviceDisabled ||
       error.failure == DeviceLocationFailure.permissionDeniedForever;
 
-  ScaffoldMessenger.of(context)
+  AppFeedback.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(
       SnackBar(

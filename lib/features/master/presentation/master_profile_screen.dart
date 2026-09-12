@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -47,7 +48,7 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
     if (_loading) return;
     if (_photo == null) {
       final lang = LocaleController.language.value;
-      ScaffoldMessenger.of(context)
+      AppFeedback.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
@@ -76,13 +77,13 @@ class _MasterProfileScreenState extends State<MasterProfileScreen> {
       ).push(MaterialPageRoute(builder: (_) => const MasterCategoriesScreen()));
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
+      AppFeedback.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       final lang = LocaleController.language.value;
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppFeedback.of(context).showSnackBar(
         SnackBar(
           content: Text(
             tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'),
@@ -163,7 +164,7 @@ class _PhotoCard extends StatelessWidget {
           children: [
             // Placeholder tile grows into a bigger preview once a photo is
             // picked (matches the two states in the design).
-            Container(
+            LiquidSurface(
               width: file != null ? 100 : 66,
               height: file != null ? 100 : 66,
               decoration: BoxDecoration(

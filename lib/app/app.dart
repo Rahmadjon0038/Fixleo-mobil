@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_theme.dart';
 import 'package:fixleo/app/widgets/push_notification_banner.dart';
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:fixleo/core/network/auth_session.dart';
 import 'package:fixleo/core/notifications/native_call_service.dart';
 import 'package:fixleo/core/notifications/push_delivery_policy.dart';
@@ -206,6 +207,8 @@ class _FixleoAppState extends State<FixleoApp> with WidgetsBindingObserver {
           title: 'Fixleo',
           theme: AppTheme.light(),
           navigatorKey: fixleoNavigatorKey,
+          builder: (context, child) =>
+              AppFeedbackHost(child: child ?? const SizedBox.shrink()),
           locale: Locale(lang.name),
           supportedLocales: const [Locale('uz'), Locale('ru'), Locale('en')],
           localizationsDelegates: const [

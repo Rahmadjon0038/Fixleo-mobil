@@ -27,8 +27,8 @@ class GlassContainer extends StatelessWidget {
     this.width,
     this.height,
     this.tint = Colors.white,
-    this.tintOpacityTop = 0.72,
-    this.tintOpacityBottom = 0.50,
+    this.tintOpacityTop = 0.64,
+    this.tintOpacityBottom = 0.34,
     this.borderOpacity = 0.75,
     this.borderWidth = 1,
     this.shadow = true,
@@ -46,8 +46,8 @@ class GlassContainer extends StatelessWidget {
     this.width,
     this.height,
     this.tint = Colors.white,
-    this.tintOpacityTop = 0.85,
-    this.tintOpacityBottom = 0.70,
+    this.tintOpacityTop = 0.76,
+    this.tintOpacityBottom = 0.54,
     this.borderOpacity = 0.75,
     this.borderWidth = 1,
     // Off by default: `.lite` items are almost always packed edge-to-edge
@@ -172,11 +172,14 @@ class GlassContainer extends StatelessWidget {
         gradient: !glass
             ? null
             : LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                stops: const [0, .45, .8, 1],
                 colors: [
                   tint.withValues(alpha: tintOpacityTop),
                   tint.withValues(alpha: tintOpacityBottom),
+                  tint.withValues(alpha: tintOpacityBottom),
+                  tint.withValues(alpha: (tintOpacityBottom + .12).clamp(0, 1)),
                 ],
               ),
         border: Border.all(
@@ -184,8 +187,6 @@ class GlassContainer extends StatelessWidget {
               ? (isDark
                     ? Color.lerp(tint, Colors.white, .16)!
                     : const Color(0xFFE3E9F0))
-              : isDark
-              ? Colors.white.withValues(alpha: borderOpacity)
               : Colors.white.withValues(alpha: borderOpacity),
           width: borderWidth,
         ),
@@ -199,15 +200,23 @@ class GlassContainer extends StatelessWidget {
     final radius = BorderRadius.circular(borderRadius);
     final glass = usesGlassMaterial(context);
 
-    final surface = ClipRRect(
-      borderRadius: radius,
-      child: blur && glass
-          ? BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-              child: _fill(radius, glass: glass),
-            )
-          : _fill(radius, glass: glass),
-    );
+    final surface = usesNativeLiquidGlass(context)
+        ? NativeLiquidSurface(
+            radius: borderRadius,
+            tint: tint == Colors.white ? null : tint.withValues(alpha: .65),
+          )
+        : ClipRRect(
+            borderRadius: radius,
+            child: blur && glass
+                ? BackdropFilter(
+                    filter: ImageFilter.blur(
+                      sigmaX: blurSigma,
+                      sigmaY: blurSigma,
+                    ),
+                    child: _fill(radius, glass: glass),
+                  )
+                : _fill(radius, glass: glass),
+          );
 
     final content = Padding(
       padding: padding ?? EdgeInsets.zero,
@@ -249,6 +258,10 @@ class GlassContainer extends StatelessWidget {
         fit: StackFit.passthrough,
         children: [
           Positioned.fill(child: surface),
+          // Restore the decorated Container's full hit area on iOS. The native
+          // backing ignores pointers; otherwise only the text/icon is hittable.
+          if (usesNativeLiquidGlass(context))
+            const Positioned.fill(child: ColoredBox(color: Colors.transparent)),
           content,
         ],
       ),

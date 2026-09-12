@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:flutter/material.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
@@ -98,11 +99,11 @@ class _ServiceQuestionsScreenState extends State<ServiceQuestionsScreen> {
                   ),
                 ),
                 actions: [
-                  TextButton(
+                  LiquidActionButton.text(
                     onPressed: () => Navigator.pop(ctx, false),
                     child: Text(_t('Davom etish', 'Продолжить', 'Keep going')),
                   ),
-                  TextButton(
+                  LiquidActionButton.text(
                     onPressed: () => Navigator.pop(ctx, true),
                     child: Text(_t('Chiqish', 'Выйти', 'Leave')),
                   ),
@@ -208,14 +209,16 @@ class _ServiceQuestionsScreenState extends State<ServiceQuestionsScreen> {
       },
       child: Scaffold(
         backgroundColor: Colors.white,
-        appBar: AppBar(
+        appBar: LiquidAppBar(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.white,
-          leading: IconButton(
-            key: const ValueKey('question-back'),
-            onPressed: _back,
-            tooltip: _t('Orqaga', 'Назад', 'Back'),
-            icon: const Icon(Icons.arrow_back_rounded),
+          leading: LiquidIconControl(
+            child: IconButton(
+              key: const ValueKey('question-back'),
+              onPressed: _back,
+              tooltip: _t('Orqaga', 'Назад', 'Back'),
+              icon: const Icon(Icons.arrow_back_rounded),
+            ),
           ),
           title: Text(
             widget.categoryName,
@@ -224,11 +227,13 @@ class _ServiceQuestionsScreenState extends State<ServiceQuestionsScreen> {
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           actions: [
-            IconButton(
-              key: const ValueKey('question-close'),
-              onPressed: _exit,
-              tooltip: _t('To‘xtatish', 'Закрыть', 'Close'),
-              icon: const Icon(Icons.close_rounded),
+            LiquidIconControl(
+              child: IconButton(
+                key: const ValueKey('question-close'),
+                onPressed: _exit,
+                tooltip: _t('To‘xtatish', 'Закрыть', 'Close'),
+                icon: const Icon(Icons.close_rounded),
+              ),
             ),
             const SizedBox(width: 6),
           ],
@@ -252,7 +257,7 @@ class _ServiceQuestionsScreenState extends State<ServiceQuestionsScreen> {
                         const SizedBox(height: 16),
                         Text(_error!, textAlign: TextAlign.center),
                         const SizedBox(height: 20),
-                        FilledButton(
+                        LiquidActionButton.filled(
                           onPressed: _load,
                           child: Text(
                             _t('Qayta urinish', 'Повторить', 'Retry'),
@@ -391,7 +396,7 @@ class _ServiceQuestionsScreenState extends State<ServiceQuestionsScreen> {
                         ),
                       ),
                     ),
-                    Container(
+                    LiquidSurface(
                       padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
                       decoration: const BoxDecoration(
                         border: Border(
@@ -401,7 +406,7 @@ class _ServiceQuestionsScreenState extends State<ServiceQuestionsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          FilledButton(
+                          LiquidActionButton.filled(
                             key: const ValueKey('question-next'),
                             style: FilledButton.styleFrom(
                               backgroundColor: AppColors.blue,
@@ -440,7 +445,7 @@ class _ServiceQuestionsScreenState extends State<ServiceQuestionsScreen> {
                             ),
                           ),
                           if (!q.required)
-                            TextButton(
+                            LiquidActionButton.text(
                               onPressed: () => _next(skip: true),
                               child: Text(
                                 _t(
@@ -495,13 +500,13 @@ class _ServiceQuestionsScreenState extends State<ServiceQuestionsScreen> {
     bool multiple = false,
   }) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
-    child: Material(
+    child: LiquidMaterial(
       color: selected ? const Color(0xFFF0F7FF) : Colors.white,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: Container(
+        child: LiquidSurface(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
@@ -625,7 +630,7 @@ class _ServiceQuestionsScreenState extends State<ServiceQuestionsScreen> {
               () => _answer(q, value != true),
               multiple: true,
             ),
-            TextButton(
+            LiquidActionButton.text(
               onPressed: () => _answer(q, false),
               child: Text(
                 value == false
@@ -647,7 +652,7 @@ class _ServiceQuestionsScreenState extends State<ServiceQuestionsScreen> {
                 ),
                 title: Text(value['addressText'] as String),
               ),
-              TextButton(
+              LiquidActionButton.text(
                 onPressed: () => setState(() => _answers.remove(q.id)),
                 child: Text(
                   _t(
@@ -675,7 +680,7 @@ class _ServiceQuestionsScreenState extends State<ServiceQuestionsScreen> {
         final date = value is String
             ? DateTime.tryParse(value)?.toLocal()
             : null;
-        return OutlinedButton.icon(
+        return LiquidActionButton.outlinedIcon(
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.all(20),
             shape: RoundedRectangleBorder(

@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -96,7 +97,7 @@ class _OrderDoneScreenState extends State<OrderDoneScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(
+      AppFeedback.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -133,7 +134,7 @@ class _OrderDoneScreenState extends State<OrderDoneScreen> {
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: OrderDoneScreen._gray),
                     ),
-                    TextButton(
+                    LiquidActionButton.text(
                       onPressed: _load,
                       child: Text(
                         tr(lang, 'Qayta urinish', 'Повторить', 'Retry'),
@@ -171,7 +172,7 @@ class _OrderDoneScreenState extends State<OrderDoneScreen> {
       padding: const EdgeInsets.symmetric(vertical: 20),
       child: Column(
         children: [
-          Container(
+          LiquidSurface(
             width: 64,
             height: 64,
             decoration: BoxDecoration(
@@ -268,7 +269,7 @@ class _OrderDoneScreenState extends State<OrderDoneScreen> {
                     width: 72,
                     height: 72,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Container(
+                    errorBuilder: (_, _, _) => LiquidSurface(
                       width: 72,
                       height: 72,
                       color: const Color(0xFFE2E8F0),

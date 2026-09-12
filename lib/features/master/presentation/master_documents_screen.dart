@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -77,14 +78,14 @@ class _MasterDocumentsScreenState extends State<MasterDocumentsScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => doc.uploading = false);
-      ScaffoldMessenger.of(context)
+      AppFeedback.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       setState(() => doc.uploading = false);
       final lang = LocaleController.language.value;
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppFeedback.of(context).showSnackBar(
         SnackBar(
           content: Text(
             tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'),
@@ -168,7 +169,7 @@ class _DocRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
         children: [
-          Container(
+          LiquidSurface(
             width: 42,
             height: 42,
             decoration: BoxDecoration(

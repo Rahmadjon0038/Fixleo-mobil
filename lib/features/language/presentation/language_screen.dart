@@ -139,7 +139,7 @@ class _RadioDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return LiquidSurface(
       width: 24,
       height: 24,
       decoration: BoxDecoration(
@@ -152,7 +152,7 @@ class _RadioDot extends StatelessWidget {
       ),
       child: selected
           ? Center(
-              child: Container(
+              child: LiquidSurface(
                 width: 8,
                 height: 8,
                 decoration: const BoxDecoration(

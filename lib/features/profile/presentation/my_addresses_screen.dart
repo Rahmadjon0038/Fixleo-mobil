@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -100,14 +101,14 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
       Navigator.of(context).pop(saved);
     } on ApiException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      AppFeedback.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error.message)));
       setState(() => _selectingAddressId = null);
     } on Object {
       if (!mounted) return;
       final lang = LocaleController.language.value;
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppFeedback.of(context).showSnackBar(
         SnackBar(
           content: Text(
             tr(
@@ -157,7 +158,7 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(_error!, textAlign: TextAlign.center),
-            TextButton(
+            LiquidActionButton.text(
               onPressed: _load,
               child: Text(tr(lang, 'Qayta urinish', 'Повторить', 'Retry')),
             ),
@@ -205,7 +206,7 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Container(
+                    LiquidSurface(
                       width: 44,
                       height: 44,
                       decoration: const BoxDecoration(

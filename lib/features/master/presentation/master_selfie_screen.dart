@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -86,7 +87,10 @@ class _MasterSelfieScreenState extends State<MasterSelfieScreen> {
     if (_uploading) return;
     XFile? file;
     if (preferGallery) {
-      file = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+      file = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
     } else {
       try {
         file = await _picker.pickImage(
@@ -116,14 +120,14 @@ class _MasterSelfieScreenState extends State<MasterSelfieScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _uploading = false);
-      ScaffoldMessenger.of(context)
+      AppFeedback.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       setState(() => _uploading = false);
       final lang = LocaleController.language.value;
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppFeedback.of(context).showSnackBar(
         SnackBar(
           content: Text(
             tr(lang, 'Tarmoq xatosi', 'Ошибка сети', 'Network error'),
@@ -161,7 +165,7 @@ class _MasterSelfieScreenState extends State<MasterSelfieScreen> {
                 onTap: _takeSelfie,
                 child: CustomPaint(
                   painter: _DashedCirclePainter(color: AppColors.blue),
-                  child: Container(
+                  child: LiquidSurface(
                     width: 240,
                     height: 240,
                     alignment: Alignment.center,

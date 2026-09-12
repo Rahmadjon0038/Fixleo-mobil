@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
@@ -52,13 +53,15 @@ class ChatImageMessage extends StatelessWidget {
                 Positioned(
                   top: 8,
                   left: 8,
-                  child: IconButton.filled(
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.black45,
-                      foregroundColor: Colors.white,
+                  child: LiquidIconControl(
+                    child: IconButton.filled(
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.black45,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      icon: const Icon(Icons.close),
                     ),
-                    onPressed: () => Navigator.of(dialogContext).pop(),
-                    icon: const Icon(Icons.close),
                   ),
                 ),
               ],
@@ -80,7 +83,7 @@ class ChatImageMessage extends StatelessWidget {
             fit: BoxFit.cover,
             loadingBuilder: (context, child, progress) {
               if (progress == null) return child;
-              return Container(
+              return LiquidSurface(
                 width: 220,
                 height: 180,
                 color: isMine
@@ -93,7 +96,7 @@ class ChatImageMessage extends StatelessWidget {
                 ),
               );
             },
-            errorBuilder: (_, _, _) => Container(
+            errorBuilder: (_, _, _) => LiquidSurface(
               width: 220,
               height: 150,
               color: isMine
@@ -190,7 +193,7 @@ class ChatLocationMessage extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(8, 9, 8, 4),
                 child: Row(
                   children: [
-                    Container(
+                    LiquidSurface(
                       width: 34,
                       height: 34,
                       decoration: BoxDecoration(
@@ -266,7 +269,7 @@ class _ChatLocationViewer extends StatelessWidget {
     final lang = LocaleController.language.value;
     return Scaffold(
       backgroundColor: const Color(0xFFF3F5F8),
-      appBar: AppBar(
+      appBar: LiquidAppBar(
         backgroundColor: Colors.white,
         foregroundColor: AppColors.navy,
         elevation: 0,
@@ -303,7 +306,7 @@ class _ChatLocationViewer extends StatelessWidget {
             bottom: 20,
             child: SafeArea(
               top: false,
-              child: Material(
+              child: LiquidMaterial(
                 elevation: 8,
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(18),
@@ -486,29 +489,33 @@ class _ChatVoiceMessageState extends State<ChatVoiceMessage> {
           SizedBox(
             width: 42,
             height: 42,
-            child: IconButton(
-              tooltip: _playing ? widget.pauseLabel : widget.playLabel,
-              style: IconButton.styleFrom(
-                backgroundColor: widget.isMine
-                    ? Colors.white.withValues(alpha: 0.18)
-                    : AppColors.blue.withValues(alpha: 0.10),
-                foregroundColor: foreground,
-                padding: EdgeInsets.zero,
-              ),
-              onPressed: _loading ? null : _toggle,
-              icon: _loading
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: foreground,
+            child: LiquidIconControl(
+              child: IconButton(
+                tooltip: _playing ? widget.pauseLabel : widget.playLabel,
+                style: IconButton.styleFrom(
+                  backgroundColor: widget.isMine
+                      ? Colors.white.withValues(alpha: 0.18)
+                      : AppColors.blue.withValues(alpha: 0.10),
+                  foregroundColor: foreground,
+                  padding: EdgeInsets.zero,
+                ),
+                onPressed: _loading ? null : _toggle,
+                icon: _loading
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: foreground,
+                        ),
+                      )
+                    : Icon(
+                        _playing
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        size: 27,
                       ),
-                    )
-                  : Icon(
-                      _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                      size: 27,
-                    ),
+              ),
             ),
           ),
           const SizedBox(width: 7),

@@ -333,7 +333,7 @@ class _Chip extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: LiquidSurface(
         alignment: fullWidth ? Alignment.center : null,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
@@ -369,7 +369,7 @@ class _SortRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: LiquidSurface(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFFF1F5F9) : const Color(0xFFF8FAFC),
@@ -399,7 +399,7 @@ class _RadioDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return LiquidSurface(
       width: 22,
       height: 22,
       decoration: BoxDecoration(
@@ -412,7 +412,7 @@ class _RadioDot extends StatelessWidget {
       ),
       child: selected
           ? Center(
-              child: Container(
+              child: LiquidSurface(
                 width: 7,
                 height: 7,
                 decoration: const BoxDecoration(

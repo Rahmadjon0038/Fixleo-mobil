@@ -21,7 +21,7 @@ Future<ChatAttachmentAction?> showChatAttachmentSheet(BuildContext context) {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
+            LiquidSurface(
               width: 38,
               height: 5,
               decoration: BoxDecoration(
@@ -122,7 +122,7 @@ class _AttachmentAction extends StatelessWidget {
         tint: const Color(0xFFF5F7FA),
         borderRadius: 18,
         padding: EdgeInsets.zero,
-        child: Material(
+        child: LiquidMaterial(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(18),
           child: InkWell(
@@ -132,7 +132,7 @@ class _AttachmentAction extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  Container(
+                  LiquidSurface(
                     width: 46,
                     height: 46,
                     decoration: BoxDecoration(

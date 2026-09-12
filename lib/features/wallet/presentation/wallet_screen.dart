@@ -1,4 +1,5 @@
-import 'dart:ui';
+import 'package:fixleo/app/widgets/app_feedback.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -121,11 +122,11 @@ class _WalletScreenState extends State<WalletScreen> {
           ),
         ),
         actions: [
-          TextButton(
+          LiquidActionButton.text(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(tr(lang, 'Bekor qilish', 'Отмена', 'Cancel')),
           ),
-          TextButton(
+          LiquidActionButton.text(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
               tr(lang, 'Oʻchirish', 'Удалить', 'Delete'),
@@ -141,7 +142,7 @@ class _WalletScreenState extends State<WalletScreen> {
       if (mounted) _load();
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      AppFeedback.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -161,7 +162,7 @@ class _WalletScreenState extends State<WalletScreen> {
   Future<void> _openTopupSheet() async {
     final lang = LocaleController.language.value;
     if (_cards.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppFeedback.of(context).showSnackBar(
         SnackBar(
           content: Text(
             tr(
@@ -215,7 +216,7 @@ class _WalletScreenState extends State<WalletScreen> {
   /// Dark card — «Баланс карты» + amount + [Пополнить][История] (FINAL).
   /// Flat, not glass — matches the FINAL Figma wallet page exactly.
   Widget _balanceCard(AppLanguage lang) {
-    return Container(
+    return LiquidSurface(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -263,7 +264,7 @@ class _WalletScreenState extends State<WalletScreen> {
               Expanded(
                 child: SizedBox(
                   height: 44,
-                  child: FilledButton(
+                  child: LiquidActionButton.filled(
                     onPressed: _openTopupSheet,
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.white,
@@ -286,7 +287,7 @@ class _WalletScreenState extends State<WalletScreen> {
               Expanded(
                 child: SizedBox(
                   height: 44,
-                  child: FilledButton(
+                  child: LiquidActionButton.filled(
                     onPressed: _scrollToOperations,
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFF39414E),
@@ -544,9 +545,11 @@ class _WalletScreenState extends State<WalletScreen> {
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, size: 22, color: _gray),
-            onPressed: () => _deleteCard(card),
+          LiquidIconControl(
+            child: IconButton(
+              icon: const Icon(Icons.delete_outline, size: 22, color: _gray),
+              onPressed: () => _deleteCard(card),
+            ),
           ),
         ],
       ),
@@ -566,6 +569,7 @@ class _TopupSheet extends StatefulWidget {
 }
 
 class _TopupSheetState extends State<_TopupSheet> {
+  final String _requestKey = const Uuid().v4();
   final _amountController = TextEditingController();
   late int _cardId = widget.cards
       .firstWhere((c) => c.isDefault, orElse: () => widget.cards.first)
@@ -582,7 +586,7 @@ class _TopupSheetState extends State<_TopupSheet> {
     final lang = LocaleController.language.value;
     final amount = int.tryParse(_amountController.text.replaceAll(' ', ''));
     if (amount == null || amount < 1000) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppFeedback.of(context).showSnackBar(
         SnackBar(
           content: Text(
             tr(
@@ -598,12 +602,16 @@ class _TopupSheetState extends State<_TopupSheet> {
     }
     setState(() => _busy = true);
     try {
-      await widget.payments.topup(cardId: _cardId, amount: amount);
+      await widget.payments.topup(
+        cardId: _cardId,
+        amount: amount,
+        requestKey: _requestKey,
+      );
       if (mounted) Navigator.of(context).pop(true);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(
+      AppFeedback.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -619,21 +627,32 @@ class _TopupSheetState extends State<_TopupSheet> {
     // while a bottom sheet needs only the top corners rounded, and the
     // caller here (WalletScreen._openTopupSheet) already passes
     // backgroundColor: Colors.transparent into a plain showModalBottomSheet.
-    return Container(
+    return LiquidSurface(
       margin: EdgeInsets.only(bottom: bottom),
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-          child: Container(
+        child: GlassBackdrop(
+          child: LiquidSurface(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.white.withValues(alpha: 0.88),
-                  Colors.white.withValues(alpha: 0.78),
+                  Colors.white.withValues(
+                    alpha: usesNativeLiquidGlass(context)
+                        ? 0
+                        : usesGlassMaterial(context)
+                        ? .80
+                        : 1,
+                  ),
+                  Colors.white.withValues(
+                    alpha: usesNativeLiquidGlass(context)
+                        ? 0
+                        : usesGlassMaterial(context)
+                        ? .66
+                        : 1,
+                  ),
                 ],
               ),
               border: Border(
@@ -651,7 +670,7 @@ class _TopupSheetState extends State<_TopupSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Center(
-                  child: Container(
+                  child: LiquidSurface(
                     width: 44,
                     height: 4,
                     decoration: BoxDecoration(

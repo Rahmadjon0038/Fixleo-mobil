@@ -64,7 +64,7 @@ class MasterWithdrawResultScreen extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
+                  LiquidSurface(
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(

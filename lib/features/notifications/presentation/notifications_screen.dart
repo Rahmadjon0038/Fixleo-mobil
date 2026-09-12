@@ -174,7 +174,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           if (retry) ...[
             const SizedBox(height: 12),
             Center(
-              child: TextButton(
+              child: LiquidActionButton.text(
                 onPressed: _load,
                 child: Text(tr(lang, 'Qayta urinish', 'Повторить', 'Retry')),
               ),
@@ -231,7 +231,7 @@ class _NotificationCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
+                LiquidSurface(
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
@@ -261,7 +261,7 @@ class _NotificationCard extends StatelessWidget {
                           ),
                           if (!notification.isRead) ...[
                             const SizedBox(width: 8),
-                            Container(
+                            LiquidSurface(
                               width: 8,
                               height: 8,
                               margin: const EdgeInsets.only(top: 6),

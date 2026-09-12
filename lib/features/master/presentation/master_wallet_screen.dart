@@ -116,7 +116,7 @@ class _MasterWalletScreenState extends State<MasterWalletScreen> {
   /// Dark balance card with the withdraw button.
   Widget _balanceCard(BuildContext context) {
     final lang = LocaleController.language.value;
-    return Container(
+    return LiquidSurface(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
@@ -161,7 +161,7 @@ class _MasterWalletScreenState extends State<MasterWalletScreen> {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const MasterWithdrawScreen()),
             ),
-            child: Container(
+            child: LiquidSurface(
               width: double.infinity,
               height: 44,
               alignment: Alignment.center,

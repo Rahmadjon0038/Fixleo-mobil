@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -9,6 +10,7 @@ import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/presentation/rate_master_screen.dart';
 import 'package:fixleo/features/wallet/data/payment_service.dart';
+import 'package:fixleo/features/wallet/presentation/add_card_screen.dart';
 
 /// Shared payment screen for:
 /// - order payment in the client flow;
@@ -98,14 +100,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Future<void> _loadCards() async {
     try {
-      var cards = await _payments.cards();
-      if (cards.isEmpty) {
-        // Auto-provision a test card so the flow works end-to-end (mock provider).
-        cards = [await _payments.addCard(brand: 'uzcard', last4: '4242')];
-      }
+      final cards = await _payments.cards();
       if (mounted) setState(() => _realCards = cards);
     } on ApiException {
-      // fall back to the mock card list for display
+      // Keep the list empty; never invent a payment card.
     }
   }
 
@@ -125,14 +123,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
         if (!mounted) return;
         setState(() => _busy = false);
         if (status != 'succeeded') {
-          ScaffoldMessenger.of(context).showSnackBar(
+          AppFeedback.of(context).showSnackBar(
             SnackBar(
               content: Text(
                 tr(
                   lang,
-                  'Toʻlov amalga oshmadi',
-                  'Оплата не прошла',
-                  'Payment failed',
+                  'To‘lov tekshirilmoqda. Qayta to‘lamang.',
+                  'Платёж проверяется. Не платите повторно.',
+                  'Payment is being checked. Do not pay again.',
                 ),
               ),
             ),
@@ -142,7 +140,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       } on ApiException catch (e) {
         if (!mounted) return;
         setState(() => _busy = false);
-        ScaffoldMessenger.of(
+        AppFeedback.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.message)));
         return;
@@ -150,7 +148,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
+    AppFeedback.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
@@ -323,11 +321,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
           const SizedBox(height: 8),
           if (_realCards.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: CircularProgressIndicator(),
+            LiquidActionButton.textIcon(
+              icon: const Icon(Icons.add_card),
+              label: Text(
+                tr(lang, 'Karta qo‘shish', 'Добавить карту', 'Add card'),
               ),
+              onPressed: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AddCardScreen()),
+                );
+                if (mounted) await _loadCards();
+              },
             ),
           for (var i = 0; i < _realCards.length; i++) ...[
             if (i != 0) const SizedBox(height: 8),
@@ -400,7 +404,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Widget _radio(bool selected) {
-    return Container(
+    return LiquidSurface(
       width: 22,
       height: 22,
       decoration: BoxDecoration(

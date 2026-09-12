@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -203,7 +204,7 @@ class _LiveChatsScreenState extends State<LiveChatsScreen> {
                       const SizedBox(height: 8),
                       if (_error != null)
                         Center(
-                          child: TextButton.icon(
+                          child: LiquidActionButton.textIcon(
                             onPressed: _load,
                             icon: const Icon(Icons.refresh_rounded),
                             label: Text(
@@ -250,7 +251,7 @@ class _LiveChatsScreenState extends State<LiveChatsScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: TextField(
+          child: LiquidSearchField(
             onChanged: (value) => setState(() => _query = value),
             decoration: InputDecoration(
               hintText: tr(
@@ -422,7 +423,7 @@ class _ConversationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = conversation;
-    return Material(
+    return LiquidMaterial(
       color: c.unread > 0 ? const Color(0xFFF9FCFF) : Colors.white,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
@@ -439,7 +440,7 @@ class _ConversationTile extends StatelessWidget {
                     Positioned(
                       right: 1,
                       bottom: 1,
-                      child: Container(
+                      child: LiquidSurface(
                         width: 12,
                         height: 12,
                         decoration: BoxDecoration(
@@ -472,7 +473,7 @@ class _ConversationTile extends StatelessWidget {
                       const SizedBox(height: 1),
                       Row(
                         children: [
-                          Container(
+                          LiquidSurface(
                             width: 6,
                             height: 6,
                             decoration: BoxDecoration(
@@ -528,7 +529,7 @@ class _ConversationTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   if (c.unread > 0)
-                    Container(
+                    LiquidSurface(
                       constraints: const BoxConstraints(minWidth: 20),
                       height: 20,
                       alignment: Alignment.center,

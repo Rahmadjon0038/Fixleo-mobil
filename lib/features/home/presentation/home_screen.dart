@@ -562,7 +562,7 @@ class _GreetingCard extends StatelessWidget {
           const SizedBox(width: 8),
           GestureDetector(
             onTap: onChangeLocation,
-            child: Container(
+            child: LiquidSurface(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: AppColors.blue,
@@ -617,12 +617,12 @@ class _SearchHero extends StatelessWidget {
     return Semantics(
       button: true,
       label: label,
-      child: Material(
+      child: LiquidMaterial(
         color: Colors.transparent,
         child: InkWell(
           onTap: () => _openSearch(context),
           borderRadius: BorderRadius.circular(20),
-          child: Ink(
+          child: LiquidInk(
             height: 60,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
@@ -696,7 +696,7 @@ class _StickySearchDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    return DecoratedBox(
+    return LiquidDecoratedBox(
       decoration: BoxDecoration(
         color: overlapsContent
             ? AppColors.background.withValues(alpha: 0.96)
@@ -758,7 +758,7 @@ class _ActiveOrdersBanner extends StatelessWidget {
       radius: 24,
       child: Row(
         children: [
-          Container(
+          LiquidSurface(
             width: 44,
             height: 44,
             decoration: const BoxDecoration(
@@ -1059,7 +1059,7 @@ class _HomeServiceCard extends StatelessWidget {
       label: service.localizedName(language),
       child: SizedBox(
         width: width,
-        child: Material(
+        child: LiquidMaterial(
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
@@ -1070,7 +1070,7 @@ class _HomeServiceCard extends StatelessWidget {
                 SizedBox(
                   width: width,
                   height: 86,
-                  child: DecoratedBox(
+                  child: LiquidDecoratedBox(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: const Color(0xFFE0E6EE)),
@@ -1286,7 +1286,7 @@ class _ActiveOrderCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Container(
+                LiquidSurface(
                   width: 9,
                   height: 9,
                   decoration: const BoxDecoration(

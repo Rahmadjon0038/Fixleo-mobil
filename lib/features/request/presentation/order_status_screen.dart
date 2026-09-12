@@ -297,7 +297,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
           children: [
             _marker(step.state),
             if (!isLast)
-              Container(
+              LiquidSurface(
                 width: 3,
                 height: 30,
                 color: step.state == _StepState.done
@@ -341,7 +341,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
   Widget _marker(_StepState state) {
     switch (state) {
       case _StepState.done:
-        return Container(
+        return LiquidSurface(
           width: 26,
           height: 26,
           decoration: BoxDecoration(
@@ -351,7 +351,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
           child: const Icon(Icons.check, size: 16, color: Colors.white),
         );
       case _StepState.current:
-        return Container(
+        return LiquidSurface(
           width: 26,
           height: 26,
           decoration: BoxDecoration(
@@ -359,7 +359,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
             borderRadius: BorderRadius.circular(13),
           ),
           child: Center(
-            child: Container(
+            child: LiquidSurface(
               width: 12,
               height: 12,
               decoration: const BoxDecoration(
@@ -370,7 +370,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
           ),
         );
       case _StepState.pending:
-        return Container(
+        return LiquidSurface(
           width: 26,
           height: 26,
           decoration: BoxDecoration(

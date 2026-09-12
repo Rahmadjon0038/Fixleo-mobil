@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -85,7 +86,7 @@ class _MasterOrderCompletionScreenState
   }
 
   void _snack(String message) {
-    ScaffoldMessenger.of(
+    AppFeedback.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
   }
@@ -131,7 +132,7 @@ class _MasterOrderCompletionScreenState
       if (isDemo) {
         // A SnackBar would be cut off by pushAndRemoveUntil below (it tears
         // down this screen's Scaffold), so hold briefly before navigating.
-        ScaffoldMessenger.of(context).showSnackBar(
+        AppFeedback.of(context).showSnackBar(
           SnackBar(
             duration: const Duration(milliseconds: 1400),
             content: Text(
@@ -154,7 +155,7 @@ class _MasterOrderCompletionScreenState
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(
+      AppFeedback.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
     } on Object {
@@ -186,7 +187,7 @@ class _MasterOrderCompletionScreenState
           ? const Center(child: CircularProgressIndicator())
           : _order == null
           ? Center(
-              child: TextButton(
+              child: LiquidActionButton.text(
                 onPressed: () {
                   setState(() => _loading = true);
                   _load();
@@ -483,14 +484,16 @@ class _PhotoCell extends StatelessWidget {
         if (onRemove != null)
           Align(
             alignment: Alignment.topRight,
-            child: IconButton.filled(
-              onPressed: onRemove,
-              icon: const Icon(Icons.close, size: 16),
-              style: IconButton.styleFrom(
-                backgroundColor: const Color(0xAA0F172A),
-                foregroundColor: Colors.white,
-                minimumSize: const Size(30, 30),
-                padding: EdgeInsets.zero,
+            child: LiquidIconControl(
+              child: IconButton.filled(
+                onPressed: onRemove,
+                icon: const Icon(Icons.close, size: 16),
+                style: IconButton.styleFrom(
+                  backgroundColor: const Color(0xAA0F172A),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(30, 30),
+                  padding: EdgeInsets.zero,
+                ),
               ),
             ),
           ),

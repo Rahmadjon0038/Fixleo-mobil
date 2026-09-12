@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -61,13 +62,13 @@ class _MasterVerificationRejectedScreenState
       );
     } on ApiException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
+      AppFeedback.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) return;
       final language = LocaleController.language.value;
-      ScaffoldMessenger.of(context)
+      AppFeedback.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
@@ -101,7 +102,7 @@ class _MasterVerificationRejectedScreenState
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
               child: Column(
                 children: [
-                  Container(
+                  LiquidSurface(
                     width: 64,
                     height: 64,
                     alignment: Alignment.center,
@@ -109,7 +110,7 @@ class _MasterVerificationRejectedScreenState
                       color: _red100,
                       shape: BoxShape.circle,
                     ),
-                    child: Container(
+                    child: LiquidSurface(
                       width: 32,
                       height: 32,
                       decoration: const BoxDecoration(

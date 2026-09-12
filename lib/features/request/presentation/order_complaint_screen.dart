@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -44,7 +45,7 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
     final desc = _controller.text.trim();
     if (widget.orderId != null) {
       if (desc.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        AppFeedback.of(context).showSnackBar(
           SnackBar(
             content: Text(
               tr(
@@ -68,14 +69,14 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
       } on ApiException catch (e) {
         if (!mounted) return;
         setState(() => _busy = false);
-        ScaffoldMessenger.of(
+        AppFeedback.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.message)));
         return;
       }
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
+    AppFeedback.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
@@ -211,7 +212,7 @@ class _OrderComplaintScreenState extends State<OrderComplaintScreen> {
   }
 
   Widget _radio(bool selected) {
-    return Container(
+    return LiquidSurface(
       width: 22,
       height: 22,
       decoration: BoxDecoration(

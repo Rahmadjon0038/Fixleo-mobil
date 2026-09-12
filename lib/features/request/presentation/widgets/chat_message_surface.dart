@@ -1,8 +1,8 @@
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
 import 'package:fixleo/app/theme/app_colors.dart';
-import 'package:fixleo/app/widgets/glass/glass_platform.dart';
 
 /// Flat, inexpensive surfaces keep long conversations smooth on Android.
 class ChatMessageSurface extends StatelessWidget {
@@ -33,7 +33,7 @@ class ChatMessageSurface extends StatelessWidget {
         constraints: BoxConstraints(
           maxWidth: (MediaQuery.sizeOf(context).width * .82).clamp(0, 380),
         ),
-        child: DecoratedBox(
+        child: LiquidDecoratedBox(
           decoration: BoxDecoration(
             color: glass ? null : (isMine ? AppColors.blue : Colors.white),
             gradient: glass
@@ -126,7 +126,7 @@ class ChatDateDivider extends StatelessWidget {
   Widget build(BuildContext context) => Center(
     child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
-      child: DecoratedBox(
+      child: LiquidDecoratedBox(
         decoration: BoxDecoration(
           color: const Color(0xFFE5ECF3),
           borderRadius: BorderRadius.circular(12),

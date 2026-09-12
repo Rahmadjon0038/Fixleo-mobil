@@ -191,7 +191,7 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _segment = index),
-        child: Container(
+        child: LiquidSurface(
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: active ? const Color(0xFFEDEDED) : Colors.transparent,
@@ -351,7 +351,7 @@ class _ActiveOrderCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                Container(
+                LiquidSurface(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 4,
@@ -539,10 +539,10 @@ class _DistributionRow extends StatelessWidget {
             borderRadius: BorderRadius.circular(3),
             child: Stack(
               children: [
-                Container(height: 6, color: const Color(0xFFE2E8F0)),
+                LiquidSurface(height: 6, color: const Color(0xFFE2E8F0)),
                 FractionallySizedBox(
                   widthFactor: fraction,
-                  child: Container(height: 6, color: AppColors.blue),
+                  child: LiquidSurface(height: 6, color: AppColors.blue),
                 ),
               ],
             ),
@@ -775,7 +775,7 @@ class _StatusPill extends StatelessWidget {
         'Expired',
       ),
     };
-    return Container(
+    return LiquidSurface(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: done ? const Color(0xFFF0F9FF) : const Color(0xFFE2E8F0),

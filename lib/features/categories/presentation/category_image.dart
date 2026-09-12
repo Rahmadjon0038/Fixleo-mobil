@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/theme/app_colors.dart';
@@ -51,7 +52,7 @@ class CategoryImage extends StatelessWidget {
     );
   }
 
-  Widget _loadingPlaceholder() => Container(
+  Widget _loadingPlaceholder() => LiquidSurface(
     color: const Color(0xFFF1F5F9),
     alignment: Alignment.center,
     child: const SizedBox(
@@ -61,7 +62,7 @@ class CategoryImage extends StatelessWidget {
     ),
   );
 
-  Widget _fallback() => Container(
+  Widget _fallback() => LiquidSurface(
     color: const Color(0xFFEAF3FE),
     alignment: Alignment.center,
     child: Icon(

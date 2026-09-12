@@ -143,7 +143,7 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
       padding: const EdgeInsets.symmetric(vertical: 28),
       child: Column(
         children: [
-          Container(
+          LiquidSurface(
             width: 64,
             height: 64,
             decoration: BoxDecoration(
@@ -201,7 +201,7 @@ class _WaitingResponsesScreenState extends State<WaitingResponsesScreen> {
       child: Row(
         children: [
           // Avatar placeholder.
-          Container(
+          LiquidSurface(
             width: 44,
             height: 44,
             decoration: const BoxDecoration(
@@ -232,7 +232,7 @@ class _Bar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return LiquidSurface(
       width: width,
       height: 10,
       decoration: BoxDecoration(

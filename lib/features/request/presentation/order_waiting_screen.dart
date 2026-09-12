@@ -82,7 +82,7 @@ class _OrderWaitingScreenState extends State<OrderWaitingScreen> {
                 padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
                 child: Column(
                   children: [
-                    Container(
+                    LiquidSurface(
                       width: 64,
                       height: 64,
                       decoration: const BoxDecoration(

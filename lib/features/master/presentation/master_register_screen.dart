@@ -219,7 +219,7 @@ class _MasterRegisterScreenState extends State<MasterRegisterScreen> {
             ),
             const SizedBox(height: 4),
             Center(
-              child: TextButton(
+              child: LiquidActionButton.text(
                 onPressed: _logout,
                 child: Text(
                   tr(

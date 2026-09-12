@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -99,14 +100,14 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
       } on ApiException catch (e) {
         if (!mounted) return;
         setState(() => _busy = false);
-        ScaffoldMessenger.of(
+        AppFeedback.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.message)));
         return;
       }
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
+    AppFeedback.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
@@ -146,7 +147,12 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
             ),
             const SizedBox(height: 16),
             GlassButton(
-              label: tr(lang, 'Sharh yuborish', 'Отправить отзыв', 'Submit review'),
+              label: tr(
+                lang,
+                'Sharh yuborish',
+                'Отправить отзыв',
+                'Submit review',
+              ),
               height: 52,
               onPressed: _busy ? null : _submit,
             ),
@@ -187,7 +193,7 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(20),
-            child: Container(
+            child: LiquidSurface(
               width: 61,
               height: 61,
               color: AppColors.background,
@@ -289,10 +295,7 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
       child: selected
           ? GlassContainer.tinted(
               borderRadius: 999,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 8,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               child: Text(
                 tag,
                 style: const TextStyle(
@@ -304,10 +307,7 @@ class _RateMasterScreenState extends State<RateMasterScreen> {
             )
           : GlassContainer(
               borderRadius: 999,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 8,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               child: Text(
                 tag,
                 style: const TextStyle(

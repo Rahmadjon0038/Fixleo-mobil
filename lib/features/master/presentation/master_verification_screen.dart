@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -48,7 +49,7 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
       await _service.submitVerification();
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
+      AppFeedback.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
@@ -105,7 +106,7 @@ class _MasterVerificationScreenState extends State<MasterVerificationScreen> {
               padding: const EdgeInsets.symmetric(vertical: 20),
               child: Column(
                 children: [
-                  Container(
+                  LiquidSurface(
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(

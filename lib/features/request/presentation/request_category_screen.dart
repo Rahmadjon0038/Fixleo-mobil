@@ -1,3 +1,4 @@
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
@@ -151,7 +152,7 @@ class _RequestCategoryScreenState extends State<RequestCategoryScreen> {
     if (_error != null) {
       return _MessageState(
         message: _error!,
-        action: TextButton(
+        action: LiquidActionButton.text(
           onPressed: _load,
           child: Text(tr(language, 'Qayta urinish', 'Повторить', 'Retry')),
         ),
@@ -231,7 +232,7 @@ class _SearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return LiquidSearchField(
       controller: controller,
       autofocus: autofocus,
       onChanged: onChanged,
@@ -242,12 +243,14 @@ class _SearchField extends StatelessWidget {
         prefixIcon: const Icon(Icons.search_rounded, color: AppColors.blue),
         suffixIcon: controller.text.isEmpty
             ? null
-            : IconButton(
-                onPressed: () {
-                  controller.clear();
-                  onChanged('');
-                },
-                icon: const Icon(Icons.close_rounded),
+            : LiquidIconControl(
+                child: IconButton(
+                  onPressed: () {
+                    controller.clear();
+                    onChanged('');
+                  },
+                  icon: const Icon(Icons.close_rounded),
+                ),
               ),
         filled: true,
         fillColor: Colors.white,
@@ -365,7 +368,7 @@ class _ServiceCard extends StatelessWidget {
         key: ValueKey('request-category-${service.id}'),
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
-        child: AnimatedContainer(
+        child: LiquidAnimatedSurface(
           duration: const Duration(milliseconds: 180),
           width: 172,
           padding: const EdgeInsets.all(4),
@@ -406,7 +409,7 @@ class _ServiceCard extends StatelessWidget {
                       const Positioned(
                         left: 8,
                         top: 8,
-                        child: DecoratedBox(
+                        child: LiquidDecoratedBox(
                           decoration: BoxDecoration(
                             color: Color(0xEFFFFFFF),
                             shape: BoxShape.circle,

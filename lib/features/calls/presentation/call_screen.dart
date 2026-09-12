@@ -178,7 +178,7 @@ class _CallScreenState extends State<CallScreen> {
     final active = state == CallState.active;
     return Scaffold(
       backgroundColor: const Color(0xFF071327),
-      body: DecoratedBox(
+      body: LiquidDecoratedBox(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -408,7 +408,7 @@ class _PeerIdentity extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Container(
+        LiquidSurface(
           width: 142,
           height: 142,
           padding: const EdgeInsets.all(5),
@@ -432,7 +432,7 @@ class _PeerIdentity extends StatelessWidget {
               ),
             ],
           ),
-          child: Container(
+          child: LiquidSurface(
             decoration: const BoxDecoration(
               color: Color(0xFF1E3458),
               shape: BoxShape.circle,
@@ -474,7 +474,7 @@ class _PeerIdentity extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
+                LiquidSurface(
                   width: 7,
                   height: 7,
                   decoration: BoxDecoration(
@@ -666,7 +666,7 @@ class _CallAction extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Material(
+          LiquidMaterial(
             color: color,
             shape: const CircleBorder(),
             clipBehavior: Clip.antiAlias,

@@ -245,7 +245,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: _gray),
                     ),
-                    TextButton(
+                    LiquidActionButton.text(
                       onPressed: _load,
                       child: Text(
                         tr(lang, 'Qayta urinish', 'Повторить', 'Retry'),
@@ -370,7 +370,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
     if (!validCoordinates) {
       final lang = LocaleController.language.value;
-      return Container(
+      return LiquidSurface(
         height: 140,
         width: double.infinity,
         alignment: Alignment.center,
@@ -398,7 +398,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     }
 
     final center = gmap.LatLng(latitude, longitude);
-    return Container(
+    return LiquidSurface(
       height: 140,
       width: double.infinity,
       clipBehavior: Clip.antiAlias,
@@ -446,7 +446,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   }
 
   Widget _stepNode({required bool done, String? label}) {
-    return Container(
+    return LiquidSurface(
       width: 24,
       height: 24,
       decoration: BoxDecoration(
@@ -470,7 +470,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   Widget _connector({required bool blue}) {
     return Expanded(
-      child: Container(height: 3, color: blue ? AppColors.blue : _slate200),
+      child: LiquidSurface(height: 3, color: blue ? AppColors.blue : _slate200),
     );
   }
 
@@ -504,7 +504,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Container(
+            LiquidSurface(
               width: 50,
               height: 50,
               decoration: BoxDecoration(
@@ -543,7 +543,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             ),
             const SizedBox(width: 8),
             if (conversationId != null)
-              Container(
+              LiquidSurface(
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
@@ -611,7 +611,7 @@ class _Dot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return LiquidSurface(
       width: 9,
       height: 9,
       decoration: const BoxDecoration(

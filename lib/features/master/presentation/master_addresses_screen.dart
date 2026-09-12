@@ -125,7 +125,7 @@ class _MasterAddressesScreenState extends State<MasterAddressesScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(_error!, textAlign: TextAlign.center),
-            TextButton(
+            LiquidActionButton.text(
               onPressed: _load,
               child: Text(tr(lang, 'Qayta urinish', 'Повторить', 'Retry')),
             ),
@@ -163,7 +163,7 @@ class _MasterAddressesScreenState extends State<MasterAddressesScreen> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Container(
+                  LiquidSurface(
                     width: 44,
                     height: 44,
                     decoration: const BoxDecoration(

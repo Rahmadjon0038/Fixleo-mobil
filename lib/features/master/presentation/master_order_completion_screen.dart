@@ -86,9 +86,7 @@ class _MasterOrderCompletionScreenState
   }
 
   void _snack(String message) {
-    AppFeedback.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    AppFeedback.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _complete() async {
@@ -155,9 +153,7 @@ class _MasterOrderCompletionScreenState
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      AppFeedback.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
+      AppFeedback.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } on Object {
       if (!mounted) return;
       setState(() => _busy = false);

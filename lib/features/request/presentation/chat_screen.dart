@@ -172,6 +172,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   DateTime? _recordingStartedAt;
   Timer? _recordingTimer;
   StreamSubscription<PresenceUpdate>? _presenceSubscription;
+  StreamSubscription<ClientOrderRealtimeEvent>? _orderSubscription;
+  bool _writable = true;
+  bool _canCall = true;
+  int? _orderId;
 
   /// Peer presence from the conversation endpoint; null until loaded.
   bool? _peerOnline;
@@ -202,6 +206,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         _peerOnline = update.online;
         _peerLastSeenAt = update.lastSeenAt;
       });
+    });
+    _orderSubscription = AppPresenceService.instance.orderUpdates.listen((
+      event,
+    ) {
+      if (!mounted || event.orderId != _orderId) return;
+      unawaited(_loadPresence());
     });
     // Live incoming messages — append the peer's messages as they arrive so the
     // thread updates without a reopen. (Own messages are shown locally on send.)
@@ -238,6 +248,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _startCall() async {
+    if (!_canCall) return;
     if (!await _ensureMicrophonePermission()) return;
     final call = CallService.instance;
     await call.startCall(
@@ -287,8 +298,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           _peerLastSeenAt = conv.peerLastSeenAt;
           _peerName = conv.peerName ?? _peerName;
           _peerAvatarUrl = conv.peerAvatarUrl ?? _peerAvatarUrl;
-          _peerPhone = conv.peerPhone ?? _peerPhone;
+          _peerPhone = conv.peerPhone;
           _peerId = conv.peerId ?? _peerId;
+          _orderId = conv.orderId;
+          _writable = conv.writable;
+          _canCall = conv.canCall;
         });
       }
     } on ApiException {
@@ -454,6 +468,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     NativeCallService.instance.clearActiveConversation(widget.conversationId);
     CallService.instance.state.removeListener(_onCallStateChanged);
     unawaited(_presenceSubscription?.cancel());
+    unawaited(_orderSubscription?.cancel());
     _chatSocket.disconnect();
     _recordingTimer?.cancel();
     if (_recording) {
@@ -504,9 +519,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       if (_controller.text.isEmpty) _controller.text = text;
       setState(() => _sending = false);
-      AppFeedback.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
+      AppFeedback.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -935,9 +948,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   void _showError(String message) {
     if (!mounted) return;
     if (_sending) setState(() => _sending = false);
-    AppFeedback.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    AppFeedback.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -1040,7 +1051,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                       ),
               ),
               if (_imageUploads.isNotEmpty) _imageUploadStrip(lang),
-              _inputBar(lang),
+              if (_writable) _inputBar(lang) else _closedChatBanner(lang),
             ],
           ),
         ),
@@ -1134,12 +1145,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             ),
           ),
           GlassIconButton(
-            onTap: _startCall,
+            onTap: _canCall ? _startCall : null,
             semanticLabel: tr(lang, 'Qoʻngʻiroq', 'Позвонить', 'Call'),
-            child: const Icon(
+            child: Icon(
               Icons.phone_outlined,
               size: 20,
-              color: AppColors.navy,
+              color: _canCall ? AppColors.navy : const Color(0xFF9AA7B7),
             ),
           ),
         ],
@@ -1399,6 +1410,40 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _closedChatBanner(AppLanguage lang) {
+    return SafeArea(
+      top: false,
+      child: GlassContainer(
+        borderRadius: 24,
+        shadow: false,
+        margin: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          children: [
+            const Icon(Icons.lock_outline_rounded, color: _slate500, size: 21),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Text(
+                tr(
+                  lang,
+                  'Buyurtma yakunlangan. Xabar yuborish va qo‘ng‘iroq qilish yopildi.',
+                  'Заказ завершён. Сообщения и звонки больше недоступны.',
+                  'The order has ended. Messages and calls are now closed.',
+                ),
+                style: const TextStyle(
+                  color: _slate500,
+                  fontSize: 13,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

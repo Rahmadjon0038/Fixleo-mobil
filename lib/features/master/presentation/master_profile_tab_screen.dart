@@ -9,6 +9,7 @@ import 'package:fixleo/features/master/data/master_service.dart';
 import 'package:fixleo/features/master/presentation/master_edit_profile_screen.dart';
 import 'package:fixleo/features/master/presentation/master_addresses_screen.dart';
 import 'package:fixleo/features/master/presentation/master_service_pricing_screen.dart';
+import 'package:fixleo/features/master/presentation/master_availability_screen.dart';
 import 'package:fixleo/features/notifications/presentation/notifications_screen.dart';
 import 'package:fixleo/features/welcome/presentation/intro_screen.dart';
 import 'package:fixleo/features/faq/presentation/faq_screen.dart';
@@ -118,6 +119,15 @@ class _MasterProfileTabScreenState extends State<MasterProfileTabScreen> {
                 );
                 if (mounted) await _load();
               },
+            ),
+            _MenuItem(
+              icon: Icons.calendar_month_outlined,
+              label: tr(lang, 'Ish jadvalim', 'Мой график', 'My schedule'),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => MasterAvailabilityScreen(service: _service),
+                ),
+              ),
             ),
             _MenuItem(
               icon: Icons.person_outline,

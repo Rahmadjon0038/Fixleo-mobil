@@ -159,6 +159,7 @@ class OrderDetail {
     this.slotLabel,
     this.timing = '',
     this.scheduledDate,
+    this.scheduledAt,
     this.agreedPrice,
     this.finalAmount,
     this.photos = const [],
@@ -173,6 +174,8 @@ class OrderDetail {
     this.complaintStatus,
     this.capabilities = const OrderCapabilities(),
     this.matchedMastersCount,
+    this.invitationMasterName,
+    this.invitationExpiresAt,
   });
 
   final int id;
@@ -185,6 +188,7 @@ class OrderDetail {
   final String? slotLabel;
   final String timing;
   final String? scheduledDate;
+  final DateTime? scheduledAt;
   final int? agreedPrice;
   final int? finalAmount;
   final List<OrderPhoto> photos;
@@ -199,11 +203,14 @@ class OrderDetail {
   final String? complaintStatus;
   final OrderCapabilities capabilities;
   final int? matchedMastersCount;
+  final String? invitationMasterName;
+  final DateTime? invitationExpiresAt;
 
   factory OrderDetail.fromJson(Map<String, dynamic> j) {
     final payment = j['payment'] as Map<String, dynamic>?;
     final review = j['review'] as Map<String, dynamic>?;
     final complaint = j['complaint'] as Map<String, dynamic>?;
+    final invitation = j['invitation'] as Map<String, dynamic>?;
     return OrderDetail(
       id: _int(j['id']),
       title: j['title'] as String? ?? '',
@@ -215,6 +222,7 @@ class OrderDetail {
       slotLabel: j['slotLabel'] as String?,
       timing: j['timing'] as String? ?? '',
       scheduledDate: j['scheduledDate'] as String?,
+      scheduledAt: DateTime.tryParse(j['scheduledAt']?.toString() ?? ''),
       agreedPrice: _intN(j['agreedPrice']),
       finalAmount: _intN(j['finalAmount']),
       photos: (j['photos'] as List<dynamic>? ?? [])
@@ -237,8 +245,46 @@ class OrderDetail {
         j['capabilities'] as Map<String, dynamic>?,
       ),
       matchedMastersCount: _intN(j['matchedMastersCount']),
+      invitationMasterName: invitation?['masterName'] as String?,
+      invitationExpiresAt: DateTime.tryParse(
+        invitation?['expiresAt']?.toString() ?? '',
+      ),
     );
   }
+}
+
+class ScheduledMasterOption {
+  const ScheduledMasterOption({
+    required this.numericId,
+    this.name,
+    this.avatarUrl,
+    this.ratingAvg,
+    this.ratingCount = 0,
+    this.completedOrders = 0,
+    this.distanceKm = 0,
+    required this.price,
+  });
+
+  final int numericId;
+  final String? name;
+  final String? avatarUrl;
+  final double? ratingAvg;
+  final int ratingCount;
+  final int completedOrders;
+  final double distanceKm;
+  final int price;
+
+  factory ScheduledMasterOption.fromJson(Map<String, dynamic> json) =>
+      ScheduledMasterOption(
+        numericId: _int(json['numericId']),
+        name: json['name'] as String?,
+        avatarUrl: ApiConfig.resolveMediaUrl(json['avatarUrl']),
+        ratingAvg: _dbl(json['ratingAvg']),
+        ratingCount: _int(json['ratingCount']),
+        completedOrders: _int(json['completedOrders']),
+        distanceKm: _dbl(json['distanceKm']) ?? 0,
+        price: _int(json['price']),
+      );
 }
 
 /// One master's response to an order (c06 responses list).
@@ -321,10 +367,25 @@ class OrderSlots {
 
 /// Live tracking payload (c11): master location + ETA while on the way.
 class TrackInfo {
-  const TrackInfo({required this.status, this.lat, this.lng, this.etaMinutes});
+  const TrackInfo({
+    required this.status,
+    this.lat,
+    this.lng,
+    this.accuracyMeters,
+    this.headingDegrees,
+    this.speedMps,
+    this.at,
+    this.distanceKm,
+    this.etaMinutes,
+  });
   final String status;
   final double? lat;
   final double? lng;
+  final double? accuracyMeters;
+  final double? headingDegrees;
+  final double? speedMps;
+  final DateTime? at;
+  final double? distanceKm;
   final int? etaMinutes;
   factory TrackInfo.fromJson(Map<String, dynamic> j) {
     final loc = j['masterLocation'] as Map<String, dynamic>?;
@@ -332,6 +393,11 @@ class TrackInfo {
       status: j['status'] as String? ?? '',
       lat: _dbl(loc?['latitude'] ?? loc?['lat']),
       lng: _dbl(loc?['longitude'] ?? loc?['lng']),
+      accuracyMeters: _dbl(loc?['accuracyMeters']),
+      headingDegrees: _dbl(loc?['headingDegrees']),
+      speedMps: _dbl(loc?['speedMps']),
+      at: DateTime.tryParse(loc?['at']?.toString() ?? ''),
+      distanceKm: _dbl(j['distanceKm']),
       etaMinutes: _intN(j['etaMinutes']),
     );
   }

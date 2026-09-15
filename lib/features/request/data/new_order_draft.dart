@@ -23,6 +23,7 @@ class NewOrderDraft {
   /// asap | today | scheduled
   String timing = 'asap';
   String? scheduledDate; // YYYY-MM-DD
+  DateTime? scheduledAt; // Exact local appointment time; serialized as UTC.
   String? slot; // s10_12 | s12_15 | s15_18 | s18_21
   int? budgetMax;
 

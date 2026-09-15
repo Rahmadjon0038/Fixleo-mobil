@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:fixleo/core/network/api_config.dart';
 import 'package:fixleo/features/request/data/chat_service.dart';
 import 'package:fixleo/features/request/presentation/chats_list_screen.dart'
     as chat_list;
@@ -22,7 +23,7 @@ void main() {
     });
 
     expect(message.type, 'voice');
-    expect(message.audioUrl, 'https://api.fixleo.com/api/v1/media/voice-9');
+    expect(message.audioUrl, '${ApiConfig.baseUrl}/media/voice-9');
     expect(message.voiceDurationSec, 67);
     expect(message.fileMime, 'audio/mp4');
     expect(message.fileBytes, 48120);
@@ -92,13 +93,30 @@ void main() {
 
     expect(
       conversation.peerAvatarUrl,
-      'https://api.fixleo.com/api/v1/profile-avatars/master/22?v=1',
+      '${ApiConfig.baseUrl}/profile-avatars/master/22?v=1',
     );
     expect(conversation.peerOnline, isTrue);
     expect(
       conversation.peerLastSeenAt,
       DateTime.parse('2026-07-23T12:34:00.000Z'),
     );
+  });
+
+  test('completed order conversation disables messages and calls', () {
+    final conversation = Conversation.fromJson({
+      'id': 42,
+      'orderId': 92,
+      'orderTitle': 'Completed repair',
+      'orderStatus': 'completed',
+      'writable': false,
+      'canCall': false,
+      'peer': {'name': 'Master', 'phone': null},
+    });
+
+    expect(conversation.orderStatus, 'completed');
+    expect(conversation.writable, isFalse);
+    expect(conversation.canCall, isFalse);
+    expect(conversation.peerPhone, isNull);
   });
 
   test('presence label always includes online state and last seen', () {

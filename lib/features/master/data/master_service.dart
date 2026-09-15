@@ -7,6 +7,7 @@ import 'package:fixleo/core/notifications/native_call_service.dart';
 import 'package:fixleo/features/master/data/master_document_model.dart';
 import 'package:fixleo/features/master/data/master_model.dart';
 import 'package:fixleo/features/master/data/master_service_price.dart';
+import 'package:fixleo/features/master/data/master_availability.dart';
 import 'package:fixleo/app/locale/app_locale.dart';
 
 /// Result of master `verify-otp`: tokens + profile, plus whether this call
@@ -169,6 +170,24 @@ class MasterService {
       body: {'categoryIds': categoryIds},
     );
     return Master.fromJson(data as Map<String, dynamic>);
+  }
+
+  Future<MasterAvailability> availability() async {
+    final data = await _client.get('/masters/me/availability');
+    return MasterAvailability.fromJson(data as Map<String, dynamic>);
+  }
+
+  Future<MasterAvailability> saveAvailability(
+    List<MasterAvailabilityInterval> intervals,
+  ) async {
+    final data = await _client.put(
+      '/masters/me/availability',
+      body: {
+        'timezoneOffsetMinutes': DateTime.now().timeZoneOffset.inMinutes,
+        'intervals': intervals.map((entry) => entry.toJson()).toList(),
+      },
+    );
+    return MasterAvailability.fromJson(data as Map<String, dynamic>);
   }
 
   /// `PUT /masters/me/work-zone` — base location + service radius. `workRadiusKm`

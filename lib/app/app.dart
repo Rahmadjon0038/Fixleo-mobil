@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -6,6 +8,7 @@ import 'package:fixleo/app/theme/app_theme.dart';
 import 'package:fixleo/app/widgets/push_notification_banner.dart';
 import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:fixleo/core/network/auth_session.dart';
+import 'package:fixleo/core/location/master_trip_tracking_service.dart';
 import 'package:fixleo/core/notifications/native_call_service.dart';
 import 'package:fixleo/core/notifications/push_delivery_policy.dart';
 import 'package:fixleo/core/realtime/app_presence_service.dart';
@@ -58,6 +61,7 @@ class _FixleoAppState extends State<FixleoApp> with WidgetsBindingObserver {
         open: _openPushNotification,
       );
       AppPresenceService.instance.setForeground(_foreground);
+      unawaited(MasterTripTrackingService.instance.syncForCurrentSession());
       CallService.instance.syncForCurrentSession(
         onIncoming: NativeCallService.instance.showIncomingFromSocket,
       );
@@ -163,6 +167,7 @@ class _FixleoAppState extends State<FixleoApp> with WidgetsBindingObserver {
     }
     AppPresenceService.instance.setForeground(_foreground);
     if (_foreground) {
+      unawaited(MasterTripTrackingService.instance.syncForCurrentSession());
       CallService.instance.syncForCurrentSession(
         onIncoming: NativeCallService.instance.showIncomingFromSocket,
       );
@@ -184,6 +189,7 @@ class _FixleoAppState extends State<FixleoApp> with WidgetsBindingObserver {
     } else {
       AppPresenceService.instance.disconnect();
     }
+    unawaited(MasterTripTrackingService.instance.syncForCurrentSession());
   }
 
   void _onSessionExpired() {

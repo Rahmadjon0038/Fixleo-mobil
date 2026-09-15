@@ -93,9 +93,7 @@ class _MastersResponsesScreenState extends State<MastersResponsesScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      AppFeedback.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
+      AppFeedback.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 

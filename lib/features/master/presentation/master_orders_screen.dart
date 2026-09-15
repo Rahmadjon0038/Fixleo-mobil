@@ -99,6 +99,12 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
   }
 
   String _statusLabel(AppLanguage lang, String status) => switch (status) {
+    'searching' => tr(
+      lang,
+      'Javobingiz kutilmoqda',
+      'Ждёт вашего ответа',
+      'Waiting for your response',
+    ),
     'assigned' => tr(lang, 'Tayinlandi', 'Назначен', 'Assigned'),
     'on_the_way' => tr(lang, 'Yoʻlda', 'В пути', 'On the way'),
     'arrived' => tr(lang, 'Yetib keldi', 'На месте', 'Arrived'),
@@ -254,9 +260,13 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
                   price: '${_money(o.price)} ${tr(lang, 'soʻm', 'сум', 'sum')}',
                   actionLabel: tr(
                     lang,
-                    'Statusni oʻzgartirish',
-                    'Изменить статус',
-                    'Change status',
+                    o.invitationPending
+                        ? 'Qabul qilish yoki rad etish'
+                        : 'Statusni oʻzgartirish',
+                    o.invitationPending
+                        ? 'Принять или отклонить'
+                        : 'Изменить статус',
+                    o.invitationPending ? 'Accept or decline' : 'Change status',
                   ),
                   onTap: () async {
                     await Navigator.of(context).push(

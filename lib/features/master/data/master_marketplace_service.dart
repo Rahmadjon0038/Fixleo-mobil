@@ -122,6 +122,18 @@ class MasterMarketplaceService {
     return MasterOrderDetail.fromJson(data as Map<String, dynamic>);
   }
 
+  Future<MasterOrderDetail?> respondToInvitation(
+    int id, {
+    required bool accept,
+  }) async {
+    final data = await _client.post(
+      '/masters/me/orders/$id/invitation/respond',
+      body: {'accept': accept},
+    );
+    if (!accept) return null;
+    return MasterOrderDetail.fromJson(data as Map<String, dynamic>);
+  }
+
   /// `POST /masters/me/orders/:id/complete`
   Future<void> complete(
     int id, {
@@ -158,12 +170,22 @@ class MasterMarketplaceService {
 
   /// `POST /masters/me/location` — live location ping while on the way.
   Future<void> pingLocation({
+    required int orderId,
     required double latitude,
     required double longitude,
-  }) => _client.post(
-    '/masters/me/location',
-    body: {'latitude': latitude, 'longitude': longitude},
-  );
+    double? accuracyMeters,
+    double? headingDegrees,
+    double? speedMps,
+  }) {
+    final body = <String, dynamic>{
+      'latitude': latitude,
+      'longitude': longitude,
+    };
+    if (accuracyMeters != null) body['accuracyMeters'] = accuracyMeters;
+    if (headingDegrees != null) body['headingDegrees'] = headingDegrees;
+    if (speedMps != null) body['speedMps'] = speedMps;
+    return _client.post('/masters/me/orders/$orderId/location', body: body);
+  }
 
   // ------------------------------------------------------------- wallet
 

@@ -1,8 +1,5 @@
 PODS:
   - Flutter (1.0.0)
-  - flutter_webrtc (1.4.0):
-    - Flutter
-    - WebRTC-SDK (= 144.7559.09)
   - Google-Maps-iOS-Utils (5.0.0):
     - GoogleMaps (~> 8.0)
   - google_maps_flutter_ios (0.0.1):
@@ -18,11 +15,9 @@ PODS:
     - Flutter
     - TOCropViewController (~> 2.7.4)
   - TOCropViewController (2.7.4)
-  - WebRTC-SDK (144.7559.09)
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
-  - flutter_webrtc (from `.symlinks/plugins/flutter_webrtc/ios`)
   - google_maps_flutter_ios (from `.symlinks/plugins/google_maps_flutter_ios/ios`)
   - image_cropper (from `.symlinks/plugins/image_cropper/ios`)
 
@@ -31,13 +26,10 @@ SPEC REPOS:
     - Google-Maps-iOS-Utils
     - GoogleMaps
     - TOCropViewController
-    - WebRTC-SDK
 
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
-  flutter_webrtc:
-    :path: ".symlinks/plugins/flutter_webrtc/ios"
   google_maps_flutter_ios:
     :path: ".symlinks/plugins/google_maps_flutter_ios/ios"
   image_cropper:
@@ -45,13 +37,11 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  flutter_webrtc: 3ee86aa10e0313c38c93fdb215dd86e77014f96a
   Google-Maps-iOS-Utils: 66d6de12be1ce6d3742a54661e7a79cb317a9321
   google_maps_flutter_ios: 17552876e72723da1d41accc22f03b5f7afbde69
   GoogleMaps: 8939898920281c649150e0af74aa291c60f2e77d
   image_cropper: 5f162dcf988100dc1513f9c6b7eb42cd6fbf9156
   TOCropViewController: 80b8985ad794298fb69d3341de183f33d1853654
-  WebRTC-SDK: e6006119cd730d6315d875e4a421b6cc8bb88833
 
 PODFILE CHECKSUM: a0978988cd4c55c05b8ccb8a42f366cadb12022c
 

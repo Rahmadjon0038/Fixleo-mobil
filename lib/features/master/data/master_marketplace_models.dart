@@ -160,6 +160,9 @@ class MasterOrder {
     this.addressDetails,
     this.price,
     this.createdAt,
+    this.scheduledAt,
+    this.invitationPending = false,
+    this.invitationExpiresAt,
   });
   final int id;
   final String title;
@@ -169,6 +172,9 @@ class MasterOrder {
   final String? addressDetails;
   final int? price;
   final DateTime? createdAt;
+  final DateTime? scheduledAt;
+  final bool invitationPending;
+  final DateTime? invitationExpiresAt;
   factory MasterOrder.fromJson(Map<String, dynamic> j) => MasterOrder(
     id: _int(j['id']),
     title: j['title'] as String? ?? '',
@@ -178,6 +184,11 @@ class MasterOrder {
     addressDetails: j['addressDetails'] as String?,
     price: _intN(j['price']),
     createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
+    scheduledAt: DateTime.tryParse(j['scheduledAt']?.toString() ?? ''),
+    invitationPending: j['invitationPending'] == true,
+    invitationExpiresAt: DateTime.tryParse(
+      j['invitationExpiresAt']?.toString() ?? '',
+    ),
   );
 }
 
@@ -188,6 +199,8 @@ class MasterOrderDetail {
     required this.description,
     required this.status,
     required this.addressText,
+    this.latitude = 0,
+    this.longitude = 0,
     this.addressDetails,
     this.price,
     this.priceType,
@@ -200,6 +213,10 @@ class MasterOrderDetail {
     this.nextStatus,
     this.canComplete = false,
     this.canCancel = false,
+    this.canRespondInvitation = false,
+    this.invitationPending = false,
+    this.invitationExpiresAt,
+    this.scheduledAt,
     this.timeline = const [],
   });
 
@@ -208,6 +225,8 @@ class MasterOrderDetail {
   final String description;
   final String status;
   final String addressText;
+  final double latitude;
+  final double longitude;
   final String? addressDetails;
   final int? price;
   final String? priceType;
@@ -220,6 +239,10 @@ class MasterOrderDetail {
   final String? nextStatus;
   final bool canComplete;
   final bool canCancel;
+  final bool canRespondInvitation;
+  final bool invitationPending;
+  final DateTime? invitationExpiresAt;
+  final DateTime? scheduledAt;
   final List<MapEntry<String, DateTime?>> timeline;
 
   factory MasterOrderDetail.fromJson(Map<String, dynamic> j) {
@@ -231,6 +254,8 @@ class MasterOrderDetail {
       description: j['description'] as String? ?? '',
       status: j['status'] as String? ?? '',
       addressText: j['addressText'] as String? ?? '',
+      latitude: _dbl(j['latitude']),
+      longitude: _dbl(j['longitude']),
       addressDetails: j['addressDetails'] as String?,
       price: _intN(j['finalAmount']) ?? _intN(j['agreedPrice']),
       priceType: j['priceType'] as String?,
@@ -243,6 +268,12 @@ class MasterOrderDetail {
       nextStatus: cap?['nextStatus'] as String?,
       canComplete: cap?['canComplete'] == true,
       canCancel: cap?['canCancel'] == true,
+      canRespondInvitation: cap?['canRespondInvitation'] == true,
+      invitationPending: j['invitationPending'] == true,
+      invitationExpiresAt: DateTime.tryParse(
+        j['invitationExpiresAt']?.toString() ?? '',
+      ),
+      scheduledAt: DateTime.tryParse(j['scheduledAt']?.toString() ?? ''),
       timeline: (j['timeline'] as List<dynamic>? ?? [])
           .map(
             (e) => MapEntry(

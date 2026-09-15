@@ -75,46 +75,29 @@ class ApiClient {
       ),
     );
 
-    // In debug builds, print every request + response/error to the console so
-    // you can confirm the app is really hitting the backend (and see why a call
-    // fell back to local data). Stripped from release builds.
+    // In debug builds, print only request metadata. Payloads, query parameters
+    // and response bodies can contain OTPs, card data, chat text, addresses or
+    // push tokens and must never leak into device/CI logs. Stripped from
+    // release builds.
     if (kDebugMode) {
       _dio.interceptors.add(
         InterceptorsWrapper(
           onRequest: (options, handler) {
-            debugPrint('➡️  ${options.method} ${options.uri}');
-            if (options.data != null && !_sensitivePath(options.path)) {
-              if (options.data is FormData) {
-                final formData = options.data as FormData;
-                debugPrint('    form fields: ${formData.fields}');
-                debugPrint(
-                  '    form files: ${formData.files.map((f) => f.key).toList()}',
-                );
-              } else {
-                debugPrint('    body: ${options.data}');
-              }
-            }
+            debugPrint('➡️  ${options.method} ${_safeDebugUri(options.uri)}');
             handler.next(options);
           },
           onResponse: (response, handler) {
             debugPrint(
-              '⬅️  ${response.statusCode} ${response.requestOptions.uri}',
+              '⬅️  ${response.statusCode} '
+              '${_safeDebugUri(response.requestOptions.uri)}',
             );
-            if (response.statusCode != null &&
-                response.statusCode! >= 400 &&
-                !_sensitivePath(response.requestOptions.path)) {
-              debugPrint('    response body: ${response.data}');
-            }
             handler.next(response);
           },
           onError: (e, handler) {
             debugPrint(
-              '❌  ${e.response?.statusCode ?? '—'} ${e.requestOptions.uri}  ${e.message}',
+              '❌  ${e.response?.statusCode ?? '—'} '
+              '${_safeDebugUri(e.requestOptions.uri)}  ${e.type.name}',
             );
-            if (e.response?.data != null &&
-                !_sensitivePath(e.requestOptions.path)) {
-              debugPrint('    error body: ${e.response?.data}');
-            }
             handler.next(e);
           },
         ),
@@ -151,10 +134,12 @@ class ApiClient {
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) =>
       _send(() => _dio.get(path, queryParameters: query));
 
-  static bool _sensitivePath(String path) =>
-      path.contains('/cards') ||
-      path.contains('/auth/') ||
-      path.contains('/payments');
+  static String _safeDebugUri(Uri uri) {
+    if (uri.scheme == 'http' || uri.scheme == 'https') {
+      return '${uri.origin}${uri.path}';
+    }
+    return uri.path;
+  }
 
   Future<dynamic> post(String path, {Object? body, String? idempotencyKey}) =>
       _send(
@@ -244,15 +229,6 @@ class ApiClient {
     if (data is Map<String, dynamic>) {
       if (data['success'] == true) {
         return data['data'];
-      }
-      if (kDebugMode) {
-        debugPrint('    api error envelope: $data');
-        final errors = data['errors'];
-        if (errors is List) {
-          for (final item in errors) {
-            debugPrint('    validation: $item');
-          }
-        }
       }
       throw ApiException.fromEnvelope(
         data,

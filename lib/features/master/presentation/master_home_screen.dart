@@ -2,6 +2,7 @@ import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:fixleo/features/master/data/master_service_price.dart';
 import 'package:fixleo/features/master/presentation/master_service_pricing_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -173,6 +174,12 @@ class _MasterHomeAccessGateState extends State<MasterHomeScreen> {
         }
 
         if (snapshot.hasError) {
+          if (kDebugMode) {
+            debugPrint(
+              'Master profile load failed: ${snapshot.error.runtimeType}',
+            );
+            debugPrintStack(stackTrace: snapshot.stackTrace);
+          }
           return BrandedScaffold(
             body: Center(
               child: Padding(

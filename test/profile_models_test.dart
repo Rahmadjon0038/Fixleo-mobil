@@ -10,7 +10,7 @@ void main() {
     test('resolves a root-relative avatar against the API origin', () {
       expect(
         ApiConfig.resolveMediaUrl('/api/v1/profile-avatars/client/7?v=1'),
-        'https://api.fixleo.com/api/v1/profile-avatars/client/7?v=1',
+        '${ApiConfig.baseUrl}/profile-avatars/client/7?v=1',
       );
       expect(
         ApiConfig.resolveMediaUrl('https://cdn.fixleo.com/avatar.jpg'),
@@ -34,7 +34,7 @@ void main() {
       expect(client.gender, 'male');
       expect(
         client.avatarUrl,
-        'https://api.fixleo.com/api/v1/profile-avatars/client/7?v=1',
+        '${ApiConfig.baseUrl}/profile-avatars/client/7?v=1',
       );
     });
 
@@ -50,7 +50,7 @@ void main() {
 
       expect(
         master.avatarUrl,
-        'https://api.fixleo.com/api/v1/profile-avatars/master/3?v=1',
+        '${ApiConfig.baseUrl}/profile-avatars/master/3?v=1',
       );
     });
 

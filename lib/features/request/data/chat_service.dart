@@ -12,7 +12,9 @@ class Conversation {
     required this.id,
     required this.orderId,
     required this.orderTitle,
+    this.orderStatus = '',
     this.writable = true,
+    this.canCall = true,
     this.peerId,
     this.peerName,
     this.peerPhone,
@@ -28,7 +30,9 @@ class Conversation {
   final int id;
   final int orderId;
   final String orderTitle;
+  final String orderStatus;
   final bool writable;
+  final bool canCall;
 
   /// The peer's own account id (master id if [Conversation] was fetched by a
   /// client, client id if fetched by a master) — lets the UI open their full
@@ -51,7 +55,9 @@ class Conversation {
       id: _int(j['id']),
       orderId: _int(j['orderId']),
       orderTitle: j['orderTitle'] as String? ?? '',
+      orderStatus: j['orderStatus'] as String? ?? '',
       writable: j['writable'] != false,
+      canCall: j['canCall'] != false,
       peerId: _intN(peer['id']),
       peerName: peer['name'] as String?,
       peerPhone: peer['phone'] as String?,

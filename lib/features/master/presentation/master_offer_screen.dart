@@ -78,9 +78,7 @@ class _MasterOfferScreenState extends State<MasterOfferScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      AppFeedback.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
+      AppFeedback.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 

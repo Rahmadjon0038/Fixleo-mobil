@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fixleo/app/locale/app_locale.dart';
+import 'package:fixleo/app/widgets/glass/glass.dart';
 import 'package:fixleo/features/request/data/new_order_draft.dart';
 import 'package:fixleo/features/request/data/order_models.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
@@ -12,10 +13,14 @@ import 'package:fixleo/features/request/presentation/review_request_screen.dart'
 import 'package:fixleo/features/request/presentation/time_urgency_screen.dart';
 
 class _FakeOrderService extends OrderService {
+  _FakeOrderService({this.asapAvailable = true});
+
+  final bool asapAvailable;
+
   @override
   Future<OrderSlots> slots({String? date}) async => OrderSlots(
     date: date ?? '2026-08-28',
-    asapAvailable: true,
+    asapAvailable: asapAvailable,
     slots: const [
       OrderSlot(slot: 's10_12', label: '10:00–12:00', available: true),
       OrderSlot(slot: 's12_15', label: '12:00–15:00', available: true),
@@ -49,7 +54,9 @@ void main() {
     expect(find.byIcon(Icons.calendar_month_outlined), findsNothing);
   });
 
-  testWidgets('today requires only a time slot', (tester) async {
+  testWidgets('scheduled mode asks for one exact date and time', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: TimeUrgencyScreen(
@@ -59,17 +66,22 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Bugun').first);
+    await tester.tap(find.text('Rejalashtirish').first);
     await tester.pump();
-    expect(find.text('Bugungi vaqtlar'), findsOneWidget);
-    expect(find.byIcon(Icons.calendar_month_outlined), findsNothing);
+    expect(find.text('Kelish vaqti'), findsOneWidget);
+    expect(find.text('Sana va vaqtni tanlang'), findsNWidgets(2));
+    expect(find.byIcon(Icons.calendar_month_rounded), findsOneWidget);
 
-    await tester.tap(find.text('Davom etish'));
-    await tester.pump();
-    expect(find.text('Vaqtni tanlang'), findsOneWidget);
+    final continueButton = tester.widget<GlassButton>(
+      find.byType(GlassButton).last,
+    );
+    expect(continueButton.label, 'Sana va vaqtni tanlang');
+    expect(continueButton.onPressed, isNull);
   });
 
-  testWidgets('later requires a date before showing slots', (tester) async {
+  testWidgets('timing screen offers only urgent and scheduled modes', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: TimeUrgencyScreen(
@@ -79,10 +91,28 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Ertaga yoki keyinroq').first);
-    await tester.pump();
-    expect(find.text('Sanani tanlang'), findsOneWidget);
-    expect(find.text('Tanlangan kun vaqtlari'), findsNothing);
+    expect(find.text('Shoshilinch'), findsOneWidget);
+    expect(find.text('Rejalashtirish'), findsOneWidget);
+    expect(find.text('Bugun'), findsNothing);
+    expect(find.text('Ertaga yoki keyinroq'), findsNothing);
+  });
+
+  testWidgets('unavailable urgent mode automatically moves to scheduling', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TimeUrgencyScreen(
+          draft: NewOrderDraft(),
+          orderService: _FakeOrderService(asapAvailable: false),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hozir xizmat vaqti emas'), findsOneWidget);
+    expect(find.text('Sana va vaqtni tanlang'), findsNWidgets(2));
+    expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
   });
 
   testWidgets('review shows selected local photo thumbnails', (tester) async {

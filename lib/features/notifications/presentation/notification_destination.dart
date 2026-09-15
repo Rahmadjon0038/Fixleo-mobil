@@ -6,6 +6,7 @@ import 'package:fixleo/features/request/presentation/chats_list_screen.dart';
 import 'package:fixleo/features/request/presentation/masters_responses_screen.dart';
 import 'package:fixleo/features/request/presentation/order_status_screen.dart';
 import 'package:fixleo/features/request/presentation/order_tracking_screen.dart';
+import 'package:fixleo/features/request/presentation/scheduled_masters_screen.dart';
 
 /// Shared by FCM taps and the in-app inbox. FCM encodes IDs as strings whereas
 /// the REST inbox uses numbers; both must open the same actionable screen.
@@ -35,6 +36,13 @@ Widget? notificationDestination({
   }
   if (type == 'offer_received') {
     return MastersResponsesScreen(orderId: orderId);
+  }
+  if (type == 'scheduled_invitation_rejected' ||
+      type == 'scheduled_invitation_expired') {
+    return ScheduledMastersScreen(orderId: orderId);
+  }
+  if (type == 'scheduled_invitation_accepted') {
+    return OrderTrackingScreen(orderId: orderId);
   }
   if (type == 'order_reopened') {
     return OrderTrackingScreen(orderId: orderId);

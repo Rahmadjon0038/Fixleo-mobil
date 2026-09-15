@@ -54,7 +54,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   bool _loading = true;
   String? _error;
   Timer? _refreshTimer;
+  Timer? _trackRefreshTimer;
+  Timer? _markerAnimationTimer;
   StreamSubscription<ClientOrderRealtimeEvent>? _orderEventsSubscription;
+  StreamSubscription<MasterLocationUpdate>? _masterLocationSubscription;
+  TrackInfo? _track;
+  gmap.LatLng? _masterMarkerPosition;
+  gmap.GoogleMapController? _mapController;
   bool _declineScreenShown = false;
 
   @override
@@ -63,10 +69,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     _orderEventsSubscription = AppPresenceService.instance.orderUpdates.listen(
       _handleOrderEvent,
     );
+    _masterLocationSubscription = AppPresenceService.instance.masterLocations
+        .listen(_handleMasterLocation);
     _load();
     _refreshTimer = Timer.periodic(
       const Duration(seconds: 5),
       (_) => _refreshSilently(),
+    );
+    _trackRefreshTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _refreshTracking(),
     );
   }
 
@@ -82,6 +94,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         _order = order;
         _loading = false;
       });
+      if (order.status == 'on_the_way') {
+        unawaited(_refreshTracking());
+      } else {
+        _clearLiveTracking();
+      }
       if (isTerminalOrderStatus(order.status)) {
         _refreshTimer?.cancel();
       }
@@ -104,6 +121,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         _order = order;
         _error = null;
       });
+      if (order.status == 'on_the_way') {
+        unawaited(_refreshTracking());
+      } else {
+        _clearLiveTracking();
+      }
       if (previousStatus != null &&
           previousStatus != 'searching' &&
           order.status == 'searching') {
@@ -121,7 +143,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _trackRefreshTimer?.cancel();
+    _markerAnimationTimer?.cancel();
     _orderEventsSubscription?.cancel();
+    _masterLocationSubscription?.cancel();
+    _mapController?.dispose();
     super.dispose();
   }
 
@@ -136,6 +162,86 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       return;
     }
     unawaited(_refreshSilently());
+  }
+
+  void _handleMasterLocation(MasterLocationUpdate update) {
+    if (!mounted || update.orderId != widget.orderId) return;
+    _applyTrack(
+      TrackInfo(
+        status: 'on_the_way',
+        lat: update.latitude,
+        lng: update.longitude,
+        accuracyMeters: update.accuracyMeters,
+        headingDegrees: update.headingDegrees,
+        speedMps: update.speedMps,
+        at: update.at,
+        distanceKm: update.distanceKm,
+        etaMinutes: update.etaMinutes,
+      ),
+    );
+  }
+
+  Future<void> _refreshTracking() async {
+    if (!mounted || _order?.status != 'on_the_way') return;
+    try {
+      _applyTrack(await _service.track(widget.orderId));
+    } on ApiException {
+      // Keep the last live point. The Socket.IO stream or next fallback fetch
+      // will heal this after a transient outage.
+    }
+  }
+
+  void _applyTrack(TrackInfo track) {
+    final lat = track.lat;
+    final lng = track.lng;
+    if (!mounted ||
+        lat == null ||
+        lng == null ||
+        !lat.isFinite ||
+        !lng.isFinite ||
+        lat.abs() > 90 ||
+        lng.abs() > 180 ||
+        (lat == 0 && lng == 0)) {
+      return;
+    }
+    _track = track;
+    _animateMasterMarker(gmap.LatLng(lat, lng));
+  }
+
+  void _animateMasterMarker(gmap.LatLng target) {
+    _markerAnimationTimer?.cancel();
+    final from = _masterMarkerPosition;
+    if (from == null) {
+      setState(() => _masterMarkerPosition = target);
+      unawaited(_fitTripOnMap());
+      return;
+    }
+    const frames = 14;
+    var frame = 0;
+    _markerAnimationTimer = Timer.periodic(const Duration(milliseconds: 50), (
+      timer,
+    ) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      frame++;
+      final raw = frame / frames;
+      final progress = Curves.easeOutCubic.transform(raw.clamp(0, 1));
+      setState(() {
+        _masterMarkerPosition = gmap.LatLng(
+          from.latitude + (target.latitude - from.latitude) * progress,
+          from.longitude + (target.longitude - from.longitude) * progress,
+        );
+      });
+      if (frame >= frames) timer.cancel();
+    });
+  }
+
+  void _clearLiveTracking() {
+    _markerAnimationTimer?.cancel();
+    _track = null;
+    _masterMarkerPosition = null;
   }
 
   Future<void> _showMasterDeclined({
@@ -355,7 +461,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     );
   }
 
-  /// Real OpenStreetMap preview centred on the order's saved coordinates.
+  /// Live Google Maps preview: the service destination stays fixed while the
+  /// assigned master's marker moves from Socket.IO location events.
   Widget _mapPreview() {
     final latitude = _order?.latitude;
     final longitude = _order?.longitude;
@@ -371,7 +478,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     if (!validCoordinates) {
       final lang = LocaleController.language.value;
       return LiquidSurface(
-        height: 140,
+        height: 220,
         width: double.infinity,
         alignment: Alignment.center,
         decoration: BoxDecoration(
@@ -397,36 +504,252 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       );
     }
 
-    final center = gmap.LatLng(latitude, longitude);
+    final destination = gmap.LatLng(latitude, longitude);
+    final master = _masterMarkerPosition;
+    final accuracy = _track?.accuracyMeters;
+    final lang = LocaleController.language.value;
     return LiquidSurface(
-      height: 140,
+      height: 230,
       width: double.infinity,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: _mapBg,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: IgnorePointer(
-        child: gmap.GoogleMap(
-          initialCameraPosition: gmap.CameraPosition(target: center, zoom: 15),
-          markers: {
-            gmap.Marker(
-              markerId: const gmap.MarkerId('order-location'),
-              position: center,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: gmap.GoogleMap(
+              initialCameraPosition: gmap.CameraPosition(
+                target: destination,
+                zoom: 15,
+              ),
+              onMapCreated: (controller) {
+                _mapController = controller;
+                Future<void>.delayed(
+                  const Duration(milliseconds: 300),
+                  _fitTripOnMap,
+                );
+              },
+              markers: {
+                gmap.Marker(
+                  markerId: const gmap.MarkerId('order-destination'),
+                  position: destination,
+                  icon: gmap.BitmapDescriptor.defaultMarkerWithHue(
+                    gmap.BitmapDescriptor.hueRed,
+                  ),
+                  infoWindow: gmap.InfoWindow(
+                    title: tr(
+                      lang,
+                      'Kelish manzili',
+                      'Адрес заказа',
+                      'Destination',
+                    ),
+                    snippet: _order?.addressText,
+                  ),
+                ),
+                if (master != null)
+                  gmap.Marker(
+                    markerId: const gmap.MarkerId('master-live-location'),
+                    position: master,
+                    icon: gmap.BitmapDescriptor.defaultMarkerWithHue(
+                      gmap.BitmapDescriptor.hueAzure,
+                    ),
+                    rotation: _track?.headingDegrees ?? 0,
+                    flat: _track?.headingDegrees != null,
+                    anchor: const Offset(0.5, 0.5),
+                    infoWindow: gmap.InfoWindow(
+                      title: tr(lang, 'Usta', 'Мастер', 'Master'),
+                    ),
+                  ),
+              },
+              circles: {
+                if (master != null && accuracy != null && accuracy > 0)
+                  gmap.Circle(
+                    circleId: const gmap.CircleId('master-accuracy'),
+                    center: master,
+                    radius: accuracy.clamp(5, 250).toDouble(),
+                    fillColor: AppColors.blue.withValues(alpha: 0.10),
+                    strokeColor: AppColors.blue.withValues(alpha: 0.35),
+                    strokeWidth: 1,
+                  ),
+              },
+              compassEnabled: false,
+              mapToolbarEnabled: false,
+              myLocationButtonEnabled: false,
+              myLocationEnabled: false,
+              rotateGesturesEnabled: true,
+              scrollGesturesEnabled: true,
+              tiltGesturesEnabled: false,
+              zoomControlsEnabled: false,
+              zoomGesturesEnabled: true,
             ),
-          },
-          compassEnabled: false,
-          mapToolbarEnabled: false,
-          myLocationButtonEnabled: false,
-          myLocationEnabled: false,
-          rotateGesturesEnabled: false,
-          scrollGesturesEnabled: false,
-          tiltGesturesEnabled: false,
-          zoomControlsEnabled: false,
-          zoomGesturesEnabled: false,
-        ),
+          ),
+          Positioned(
+            top: 10,
+            left: 10,
+            child: GlassContainer.lite(
+              borderRadius: 999,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: master == null
+                          ? const Color(0xFFE7A23C)
+                          : const Color(0xFF0BA66C),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  Text(
+                    master == null
+                        ? tr(
+                            lang,
+                            'Usta lokatsiyasi kutilmoqda',
+                            'Ожидаем геолокацию мастера',
+                            'Waiting for master location',
+                          )
+                        : tr(
+                            lang,
+                            'Usta yo\u02bblda',
+                            'Мастер в пути',
+                            'Master is on the way',
+                          ),
+                    style: const TextStyle(
+                      color: AppColors.navy,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            right: 10,
+            bottom: 10,
+            child: LiquidActionButton.text(
+              onPressed: _fitTripOnMap,
+              style: TextButton.styleFrom(
+                fixedSize: const Size(42, 42),
+                minimumSize: const Size(42, 42),
+                padding: EdgeInsets.zero,
+                shape: const CircleBorder(),
+              ),
+              child: const Icon(
+                Icons.center_focus_strong_rounded,
+                color: AppColors.navy,
+                size: 20,
+              ),
+            ),
+          ),
+          if (master != null)
+            Positioned(
+              left: 10,
+              bottom: 10,
+              child: GlassContainer.lite(
+                borderRadius: 14,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.near_me_rounded,
+                      size: 17,
+                      color: AppColors.blue,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _tripSummary(lang),
+                      style: const TextStyle(
+                        color: AppColors.navy,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
+  }
+
+  String _tripSummary(AppLanguage lang) {
+    final distance = _track?.distanceKm;
+    final updatedAt = _track?.at;
+    final parts = <String>[];
+    if (distance != null) {
+      parts.add(
+        distance < 1
+            ? '${(distance * 1000).round()} m'
+            : '${distance.toStringAsFixed(distance < 10 ? 1 : 0)} km',
+      );
+    }
+    if (updatedAt != null) {
+      final age = DateTime.now().toUtc().difference(updatedAt.toUtc());
+      parts.add(
+        age.inSeconds < 15
+            ? tr(lang, 'hozir', 'сейчас', 'now')
+            : age.inMinutes < 1
+            ? '${age.inSeconds} ${tr(lang, 'soniya oldin', 'сек. назад', 'sec ago')}'
+            : '${age.inMinutes} ${tr(lang, 'daqiqa oldin', 'мин. назад', 'min ago')}',
+      );
+    }
+    return parts.isEmpty
+        ? tr(lang, 'Jonli lokatsiya', 'Геолокация', 'Live location')
+        : parts.join(' · ');
+  }
+
+  Future<void> _fitTripOnMap() async {
+    final controller = _mapController;
+    final latitude = _order?.latitude;
+    final longitude = _order?.longitude;
+    if (controller == null || latitude == null || longitude == null) return;
+    final destination = gmap.LatLng(latitude, longitude);
+    final master = _masterMarkerPosition;
+    try {
+      if (master == null ||
+          (master.latitude - destination.latitude).abs() < 0.0001 &&
+              (master.longitude - destination.longitude).abs() < 0.0001) {
+        await controller.animateCamera(
+          gmap.CameraUpdate.newLatLngZoom(destination, 16),
+        );
+      } else {
+        final south = master.latitude < destination.latitude
+            ? master.latitude
+            : destination.latitude;
+        final north = master.latitude > destination.latitude
+            ? master.latitude
+            : destination.latitude;
+        final west = master.longitude < destination.longitude
+            ? master.longitude
+            : destination.longitude;
+        final east = master.longitude > destination.longitude
+            ? master.longitude
+            : destination.longitude;
+        await controller.animateCamera(
+          gmap.CameraUpdate.newLatLngBounds(
+            gmap.LatLngBounds(
+              southwest: gmap.LatLng(south, west),
+              northeast: gmap.LatLng(north, east),
+            ),
+            64,
+          ),
+        );
+      }
+    } on Object {
+      // The platform map may still be laying out; the recenter control remains
+      // available and the next location update retries the first fit.
+    }
   }
 
   /// 4-step connected progress, driven by the live order status.

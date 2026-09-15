@@ -29,7 +29,7 @@ class PresenceUpdate {
   }
 }
 
-enum ClientOrderEventKind { reopened, statusChanged }
+enum ClientOrderEventKind { reopened, cancelled, statusChanged }
 
 class ClientOrderRealtimeEvent {
   const ClientOrderRealtimeEvent({
@@ -43,6 +43,45 @@ class ClientOrderRealtimeEvent {
   final int orderId;
   final String? from;
   final String? to;
+}
+
+class MasterLocationUpdate {
+  const MasterLocationUpdate({
+    required this.orderId,
+    required this.latitude,
+    required this.longitude,
+    required this.at,
+    this.accuracyMeters,
+    this.headingDegrees,
+    this.speedMps,
+    this.distanceKm,
+    this.etaMinutes,
+  });
+
+  final int orderId;
+  final double latitude;
+  final double longitude;
+  final DateTime at;
+  final double? accuracyMeters;
+  final double? headingDegrees;
+  final double? speedMps;
+  final double? distanceKm;
+  final int? etaMinutes;
+
+  factory MasterLocationUpdate.fromJson(Map<String, dynamic> json) =>
+      MasterLocationUpdate(
+        orderId: (json['orderId'] as num?)?.toInt() ?? 0,
+        latitude: (json['latitude'] as num?)?.toDouble() ?? 0,
+        longitude: (json['longitude'] as num?)?.toDouble() ?? 0,
+        at:
+            DateTime.tryParse(json['at']?.toString() ?? '') ??
+            DateTime.now().toUtc(),
+        accuracyMeters: (json['accuracyMeters'] as num?)?.toDouble(),
+        headingDegrees: (json['headingDegrees'] as num?)?.toDouble(),
+        speedMps: (json['speedMps'] as num?)?.toDouble(),
+        distanceKm: (json['distanceKm'] as num?)?.toDouble(),
+        etaMinutes: (json['etaMinutes'] as num?)?.toInt(),
+      );
 }
 
 /// Authoritative app-level presence for client and master accounts.
@@ -62,6 +101,8 @@ class AppPresenceService {
       StreamController<int>.broadcast();
   final StreamController<ClientOrderRealtimeEvent> _orderUpdates =
       StreamController<ClientOrderRealtimeEvent>.broadcast();
+  final StreamController<MasterLocationUpdate> _masterLocations =
+      StreamController<MasterLocationUpdate>.broadcast();
 
   Stream<PresenceUpdate> get updates => _updates.stream;
 
@@ -70,6 +111,7 @@ class AppPresenceService {
   /// previews without maintaining a second app-wide Socket.IO connection.
   Stream<int> get conversationUpdates => _conversationUpdates.stream;
   Stream<ClientOrderRealtimeEvent> get orderUpdates => _orderUpdates.stream;
+  Stream<MasterLocationUpdate> get masterLocations => _masterLocations.stream;
 
   io.Socket? _socket;
   AuthRole? _connectedRole;
@@ -151,8 +193,23 @@ class AppPresenceService {
       ..on('order_reopened', (data) {
         _notifyOrderChanged(ClientOrderEventKind.reopened, data);
       })
+      ..on('order_cancelled', (data) {
+        _notifyOrderChanged(ClientOrderEventKind.cancelled, data);
+      })
       ..on('order_status', (data) {
         _notifyOrderChanged(ClientOrderEventKind.statusChanged, data);
+      })
+      ..on('master_location', (data) {
+        if (data is! Map) return;
+        final update = MasterLocationUpdate.fromJson(
+          Map<String, dynamic>.from(data),
+        );
+        if (update.orderId > 0 &&
+            update.latitude.abs() <= 90 &&
+            update.longitude.abs() <= 180 &&
+            !(update.latitude == 0 && update.longitude == 0)) {
+          _masterLocations.add(update);
+        }
       })
       ..on('token_expired', refreshAndReconnect)
       ..on('unauthorized', refreshAndReconnect)

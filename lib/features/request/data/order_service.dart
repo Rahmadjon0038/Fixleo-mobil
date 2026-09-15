@@ -87,6 +87,7 @@ class OrderService {
     String? addressDetails,
     required String timing, // asap | today | scheduled
     String? scheduledDate, // YYYY-MM-DD (today/scheduled)
+    DateTime? scheduledAt,
     String? slot, // s10_12 | s12_15 | s15_18 | s18_21
     int? budgetMax,
     List<String> photoKeys = const [],
@@ -106,6 +107,8 @@ class OrderService {
         'addressDetails': addressDetails,
       'timing': timing,
       'scheduledDate': ?scheduledDate,
+      if (scheduledAt != null)
+        'scheduledAt': scheduledAt.toUtc().toIso8601String(),
       'slot': ?slot,
       'budgetMax': ?budgetMax,
       if (photoKeys.isNotEmpty) 'photoKeys': photoKeys,
@@ -166,6 +169,25 @@ class OrderService {
   /// `POST /clients/me/orders/:id/offers/:offerId/decline`
   Future<void> declineOffer(int orderId, int offerId) =>
       _client.post('/clients/me/orders/$orderId/offers/$offerId/decline');
+
+  Future<List<ScheduledMasterOption>> scheduledMasters(int orderId) async {
+    final data = await _client.get(
+      '/clients/me/orders/$orderId/scheduled-masters',
+    );
+    return (data as List<dynamic>)
+        .map(
+          (entry) =>
+              ScheduledMasterOption.fromJson(entry as Map<String, dynamic>),
+        )
+        .toList(growable: false);
+  }
+
+  Future<OrderDetail> selectScheduledMaster(int orderId, int masterId) async {
+    final data = await _client.post(
+      '/clients/me/orders/$orderId/scheduled-masters/$masterId/select',
+    );
+    return OrderDetail.fromJson(data as Map<String, dynamic>);
+  }
 
   /// `POST /clients/me/orders/:id/cancel`
   Future<void> cancel(int id, {required String reason, String? note}) =>

@@ -14,6 +14,7 @@ import 'package:fixleo/features/request/data/new_order_draft.dart';
 import 'package:fixleo/features/request/data/order_timing_label.dart';
 import 'package:fixleo/features/request/data/order_service.dart';
 import 'package:fixleo/features/request/presentation/waiting_responses_screen.dart';
+import 'package:fixleo/features/request/presentation/scheduled_masters_screen.dart';
 
 const _slotLabels = {
   's10_12': '10:00–12:00',
@@ -70,6 +71,7 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
         addressDetails: d.addressDetails,
         timing: d.timing,
         scheduledDate: d.scheduledDate,
+        scheduledAt: d.scheduledAt,
         slot: d.slot,
         budgetMax: d.budgetMax,
         photoKeys: d.photoKeys,
@@ -79,16 +81,16 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => WaitingResponsesScreen(orderId: order.id),
+          builder: (_) => d.timing == 'scheduled'
+              ? ScheduledMastersScreen(orderId: order.id)
+              : WaitingResponsesScreen(orderId: order.id),
         ),
         (route) => false,
       );
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _sending = false);
-      AppFeedback.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
+      AppFeedback.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -173,12 +175,16 @@ class _ReviewRequestScreenState extends State<ReviewRequestScreen> {
   Widget _summaryCard() {
     final lang = LocaleController.language.value;
     final d = widget.draft;
-    final timeLabel = orderTimingLabel(
-      lang,
-      timing: d.timing,
-      scheduledDate: d.scheduledDate,
-      slotLabel: d.slot == null ? null : _slotLabels[d.slot],
-    );
+    final timeLabel = d.scheduledAt == null
+        ? orderTimingLabel(
+            lang,
+            timing: d.timing,
+            scheduledDate: d.scheduledDate,
+            slotLabel: d.slot == null ? null : _slotLabels[d.slot],
+          )
+        : '${d.scheduledDate} · '
+              '${d.scheduledAt!.hour.toString().padLeft(2, '0')}:'
+              '${d.scheduledAt!.minute.toString().padLeft(2, '0')}';
     return GlassCard(
       radius: 30,
       padding: const EdgeInsets.all(16),

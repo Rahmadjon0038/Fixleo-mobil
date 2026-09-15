@@ -46,11 +46,14 @@ dependencies:
   google_maps_flutter_platform_interface: ^2.16.0
   latlong2: ^0.9.1
   geolocator: ^14.0.3
+  url_launcher: ^6.3.2
   dio: ^5.9.2
   shared_preferences: ^2.5.5
   socket_io_client: ^3.1.6
   web_socket: ^1.0.1
-  flutter_webrtc: ^1.5.2
+  # 1.6.0+ removes the private iOS `buttonPressed:` ReplayKit selector that
+  # App Store static analysis rejects. FixLeo uses the audio-call APIs only.
+  flutter_webrtc: ^1.6.2+hotfix.2
   record: ^7.1.1
   audioplayers: ^6.8.1
   path_provider: ^2.1.5

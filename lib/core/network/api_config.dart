@@ -1,9 +1,9 @@
 /// Central place for backend connection settings.
 ///
 /// All API docs (see `/api/*.md`) share the same base URL and the same
-/// response envelope. The app-v2 branch targets the public test environment by
-/// default; production builds must opt in with
-/// `--dart-define=FIXLEO_API_BASE_URL=https://api.fixleo.com/api/v1`.
+/// response envelope. Release and local builds target production by default.
+/// A test build can still opt in explicitly with `--dart-define`, keeping the
+/// selected REST and realtime environments aligned.
 class ApiConfig {
   ApiConfig._();
 
@@ -11,13 +11,13 @@ class ApiConfig {
   /// service classes pass only the route part (e.g. `/work-radiuses`).
   static const String baseUrl = String.fromEnvironment(
     'FIXLEO_API_BASE_URL',
-    defaultValue: 'https://test.api.fixleo.idevs.uz/api/v1',
+    defaultValue: 'https://api.fixleo.com/api/v1',
   );
 
   /// Swagger / OpenAPI docs, handy for reference.
   static const String docsUrl = String.fromEnvironment(
     'FIXLEO_API_DOCS_URL',
-    defaultValue: 'https://test.api.fixleo.idevs.uz/api/docs',
+    defaultValue: 'https://api.fixleo.com/api/docs',
   );
 
   /// Socket.IO namespaces live at the API origin, outside the `/api/v1`

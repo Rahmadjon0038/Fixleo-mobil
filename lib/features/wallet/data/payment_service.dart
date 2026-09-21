@@ -51,6 +51,18 @@ class OrderPaymentInfo {
   );
 }
 
+class PaymentAttempt {
+  const PaymentAttempt({required this.operationId, required this.status});
+
+  final int operationId;
+  final String status;
+
+  factory PaymentAttempt.fromJson(Map<String, dynamic> json) => PaymentAttempt(
+    operationId: _int(json['operationId'] ?? json['id']),
+    status: json['status'] as String? ?? 'pending',
+  );
+}
+
 /// Client cards + order payment (see docs/v3/Payments.md). Cards live under
 /// `/{kind}s/me/cards`; [kind] lets masters reuse this for their payout cards.
 class PaymentService {
@@ -115,13 +127,21 @@ class PaymentService {
     return OrderPaymentInfo.fromJson(data as Map<String, dynamic>);
   }
 
-  /// `POST /clients/me/orders/:id/pay` → `{status, masterShare?}`.
-  Future<String> pay(int orderId, int cardId) async {
+  /// `POST /clients/me/orders/:id/pay` returns the durable ATMOS operation.
+  Future<PaymentAttempt> pay(int orderId, int cardId) async {
     final data = await _client.post(
       '/clients/me/orders/$orderId/pay',
       body: {'cardId': cardId},
     );
-    return (data as Map<String, dynamic>)['status'] as String? ?? 'unknown';
+    return PaymentAttempt.fromJson(Map<String, dynamic>.from(data as Map));
+  }
+
+  /// GET-only provider recovery. It never creates or reapplies a charge.
+  Future<PaymentAttempt> paymentOperation(int operationId) async {
+    final data = await _client.get(
+      '/clients/me/payment-operations/$operationId',
+    );
+    return PaymentAttempt.fromJson(Map<String, dynamic>.from(data as Map));
   }
 
   // ---- client wallet (FINAL «Кошелек») ----

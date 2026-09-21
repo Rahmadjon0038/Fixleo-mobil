@@ -10,6 +10,7 @@ class BankClient extends ApiClient {
   final keys = <String?>[];
   bool pending = true;
   String? statusOverride;
+  String operationStatus = 'pending';
   @override
   Future<dynamic> post(
     String path, {
@@ -25,10 +26,19 @@ class BankClient extends ApiClient {
     if (path.endsWith('/confirm')) {
       return {'id': 7, 'brand': 'humo', 'last4': '4364'};
     }
+    if (path.contains('/orders/') && path.endsWith('/pay')) {
+      return {'id': 41, 'operationId': 41, 'status': operationStatus};
+    }
     return {
       'status': statusOverride ?? (pending ? 'pending' : 'succeeded'),
       'balance': 1000,
     };
+  }
+
+  @override
+  Future<dynamic> get(String path, {Map<String, dynamic>? query}) async {
+    this.path = path;
+    return {'id': 41, 'operationId': 41, 'status': operationStatus};
   }
 }
 
@@ -129,6 +139,23 @@ void main() {
         1000,
       );
       expect(client.keys.last, 'next-payment-key');
+    },
+  );
+  test(
+    'order payment exposes its durable operation for GET-only recovery',
+    () async {
+      final client = BankClient();
+      final service = PaymentService(client: client);
+      final pending = await service.pay(22, 7);
+      expect(pending.operationId, 41);
+      expect(pending.status, 'pending');
+      expect(client.path, '/clients/me/orders/22/pay');
+
+      client.operationStatus = 'succeeded';
+      final recovered = await service.paymentOperation(pending.operationId);
+      expect(recovered.operationId, 41);
+      expect(recovered.status, 'succeeded');
+      expect(client.path, '/clients/me/payment-operations/41');
     },
   );
 }

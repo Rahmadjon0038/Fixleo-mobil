@@ -119,10 +119,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
       setState(() => _busy = true);
       try {
         final card = _realCards[_selected.clamp(0, _realCards.length - 1)];
-        final status = await _payments.pay(widget.orderId!, card.id);
+        var attempt = await _payments.pay(widget.orderId!, card.id);
+        if (attempt.status == 'pending' && attempt.operationId > 0) {
+          attempt = await _recoverPayment(attempt);
+        }
         if (!mounted) return;
         setState(() => _busy = false);
-        if (status != 'succeeded') {
+        if (attempt.status != 'succeeded') {
           AppFeedback.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -173,6 +176,18 @@ class _PaymentScreenState extends State<PaymentScreen> {
         builder: (_) => RateMasterScreen(orderId: widget.orderId),
       ),
     );
+  }
+
+  Future<PaymentAttempt> _recoverPayment(PaymentAttempt attempt) async {
+    var current = attempt;
+    // pay/get is safe and idempotent. A short bounded poll resolves the common
+    // lost apply-response case without ever issuing a second debit.
+    for (var index = 0; index < 10 && current.status == 'pending'; index++) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (!mounted) return current;
+      current = await _payments.paymentOperation(current.operationId);
+    }
+    return current;
   }
 
   @override

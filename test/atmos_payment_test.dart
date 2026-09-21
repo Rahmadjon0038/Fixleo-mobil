@@ -11,6 +11,11 @@ class BankClient extends ApiClient {
   bool pending = true;
   String? statusOverride;
   String operationStatus = 'pending';
+  int? topupOperationId = 41;
+  int statusOperationId = 41;
+  final getPaths = <String>[];
+  ApiException? statusError;
+  bool lookupMissing = false;
   @override
   Future<dynamic> post(
     String path, {
@@ -30,6 +35,7 @@ class BankClient extends ApiClient {
       return {'id': 41, 'operationId': 41, 'status': operationStatus};
     }
     return {
+      if (topupOperationId != null) 'operationId': topupOperationId,
       'status': statusOverride ?? (pending ? 'pending' : 'succeeded'),
       'balance': 1000,
     };
@@ -38,13 +44,138 @@ class BankClient extends ApiClient {
   @override
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) async {
     this.path = path;
-    return {'id': 41, 'operationId': 41, 'status': operationStatus};
+    getPaths.add(path);
+    if (statusError != null) throw statusError!;
+    if (path.endsWith('/topup-status') && lookupMissing) return null;
+    return {
+      'id': statusOperationId,
+      'operationId': statusOperationId,
+      'status': operationStatus,
+    };
   }
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
+  test(
+    'pending intent survives reopening and uses only GET until confirmed',
+    () async {
+      final client = BankClient();
+      final service = PaymentService(client: client);
+      await expectLater(
+        service.topup(cardId: 7, amount: 1000, requestKey: 'pending-key'),
+        throwsA(isA<TopupPendingException>()),
+      );
+      final reopened = PaymentService(client: client);
+      final pending = await reopened.pendingTopup();
+      expect(pending?.operationId, 41);
+      expect(pending?.amount, 1000);
+      expect((await reopened.refreshPendingTopup())?.status, 'pending');
+      expect(await reopened.pendingTopup(), isNotNull);
+      client.operationStatus = 'succeeded';
+      expect((await reopened.refreshPendingTopup())?.status, 'succeeded');
+      expect(await reopened.pendingTopup(), isNull);
+      expect(await reopened.refreshPendingTopup(), isNull);
+      expect(client.keys, ['pending-key']);
+      expect(client.getPaths, [
+        '/clients/me/payment-operations/41',
+        '/clients/me/payment-operations/41',
+      ]);
+      client.pending = false;
+      await reopened.topup(cardId: 8, amount: 2000, requestKey: 'new-key');
+      expect(client.keys, ['pending-key', 'new-key']);
+    },
+  );
+  test(
+    'status network errors and missing server records retain the intent',
+    () async {
+      final client = BankClient();
+      final service = PaymentService(client: client);
+      await expectLater(
+        service.topup(cardId: 7, amount: 1000, requestKey: 'pending-key'),
+        throwsA(isA<TopupPendingException>()),
+      );
+      for (final error in [
+        const ApiException(message: 'Offline', isNetworkError: true),
+        const ApiException(message: 'Not found', statusCode: 404),
+      ]) {
+        client.statusError = error;
+        await expectLater(
+          service.refreshPendingTopup(),
+          throwsA(isA<ApiException>()),
+        );
+        expect(await service.pendingTopup(), isNotNull);
+      }
+      expect(client.keys.length, 1);
+    },
+  );
+  test('a mismatched operation does not clear a payment', () async {
+    final client = BankClient();
+    final service = PaymentService(client: client);
+    await expectLater(
+      service.topup(cardId: 7, amount: 1000, requestKey: 'pending-key'),
+      throwsA(isA<TopupPendingException>()),
+    );
+    client.statusOperationId = 999;
+    client.operationStatus = 'succeeded';
+    expect(await service.refreshPendingTopup(), isNull);
+    expect(await service.pendingTopup(), isNotNull);
+  });
+  test(
+    'confirmed failure clears local pending state, unknown status does not',
+    () async {
+      final client = BankClient();
+      final service = PaymentService(client: client);
+      await expectLater(
+        service.topup(cardId: 7, amount: 1000, requestKey: 'pending-key'),
+        throwsA(isA<TopupPendingException>()),
+      );
+      client.operationStatus = 'unknown';
+      await service.refreshPendingTopup();
+      expect(await service.pendingTopup(), isNotNull);
+      client.operationStatus = 'failed';
+      expect((await service.refreshPendingTopup())?.status, 'failed');
+      expect(await service.pendingTopup(), isNull);
+    },
+  );
+  test(
+    'legacy intent with no operation id never triggers automatic POST',
+    () async {
+      final client = BankClient()..topupOperationId = null;
+      final service = PaymentService(client: client);
+      await expectLater(
+        service.topup(cardId: 7, amount: 1000, requestKey: 'pending-key'),
+        throwsA(isA<TopupPendingException>()),
+      );
+      expect((await service.refreshPendingTopup())?.status, 'pending');
+      expect((await service.pendingTopup())?.operationId, 41);
+      client.operationStatus = 'succeeded';
+      await service.refreshPendingTopup();
+      expect(await service.pendingTopup(), isNull);
+      expect(client.getPaths, [
+        '/clients/me/wallet/topup-status',
+        '/clients/me/payment-operations/41',
+      ]);
+      expect(client.keys, ['pending-key']);
+    },
+  );
+  test(
+    'missing legacy record remains pending and never replays payment',
+    () async {
+      final client = BankClient()
+        ..topupOperationId = null
+        ..lookupMissing = true;
+      final service = PaymentService(client: client);
+      await expectLater(
+        service.topup(cardId: 7, amount: 1000, requestKey: 'pending-key'),
+        throwsA(isA<TopupPendingException>()),
+      );
+      expect(await service.refreshPendingTopup(), isNull);
+      expect(await service.pendingTopup(), isNotNull);
+      expect(client.keys, ['pending-key']);
+    },
+  );
   test(
     'terminal failure is shown as an error and allows a new intent',
     () async {

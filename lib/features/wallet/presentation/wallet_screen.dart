@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fixleo/app/widgets/app_feedback.dart';
 import 'package:uuid/uuid.dart';
 
@@ -14,12 +16,13 @@ import 'package:fixleo/features/wallet/presentation/add_card_screen.dart';
 
 /// Client «Кошелек» (FINAL design): dark balance card with «Пополнить» /
 /// «История», the operations feed, plus saved-card management. The balance
-/// and operations are real (`GET /clients/me/wallet[…]`); top-up charges the
-/// selected saved card through the mock provider.
+/// and operations are real (`GET /clients/me/wallet[…]`). Pending top-ups are
+/// recovered through read-only operation status requests, never repeated debits.
 class WalletScreen extends StatefulWidget {
-  const WalletScreen({super.key, this.embedded = false});
+  const WalletScreen({super.key, this.embedded = false, this.payments});
 
   final bool embedded;
+  final PaymentService? payments;
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -53,10 +56,12 @@ String _fmtOpDate(AppLanguage lang, DateTime? dt) {
   return '${two(local.day)}.${two(local.month)}, $hm';
 }
 
-class _WalletScreenState extends State<WalletScreen> {
+class _WalletScreenState extends State<WalletScreen>
+    with WidgetsBindingObserver {
   static const _gray = Color(0xFF8D96A4);
 
-  final PaymentService _payments = PaymentService(kind: 'client');
+  late final PaymentService _payments =
+      widget.payments ?? PaymentService(kind: 'client');
   final GlobalKey _operationsKey = GlobalKey();
 
   List<SavedCard> _cards = const [];
@@ -64,16 +69,91 @@ class _WalletScreenState extends State<WalletScreen> {
   int? _balance;
   bool _loading = true;
   String? _error;
+  PendingTopup? _pendingTopup;
+  Timer? _paymentTimer;
+  bool _checkingPayment = false;
+  bool _paymentConnectionIssue = false;
+  bool _foreground = true;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+    _checkPendingPayment();
+    _paymentTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (_foreground) _checkPendingPayment();
+    });
   }
 
-  Future<void> _load() async {
+  @override
+  void dispose() {
+    _paymentTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (_foreground) {
+      _checkPendingPayment();
+      _load(showLoading: false);
+    }
+  }
+
+  Future<void> _checkPendingPayment() async {
+    if (_checkingPayment || !mounted || !_foreground) return;
+    _checkingPayment = true;
+    try {
+      final pending = await _payments.pendingTopup();
+      if (!mounted) return;
+      setState(() => _pendingTopup = pending);
+      if (pending == null) return;
+      final result = await _payments.refreshPendingTopup();
+      final updatedPending = await _payments.pendingTopup();
+      if (!mounted) return;
+      setState(() {
+        _paymentConnectionIssue = false;
+        _pendingTopup = updatedPending;
+      });
+      if (result?.status == 'succeeded' || result?.status == 'failed') {
+        setState(() => _pendingTopup = null);
+        await _load(showLoading: false);
+        if (!mounted) return;
+        final lang = LocaleController.language.value;
+        AppFeedback.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result!.status == 'succeeded'
+                  ? tr(
+                      lang,
+                      'Hamyoningizga ${_fmtSum(pending.amount)} so‘m qo‘shildi',
+                      'Кошелёк пополнен на ${_fmtSum(pending.amount)} сум',
+                      '${_fmtSum(pending.amount)} sum added to your wallet',
+                    )
+                  : tr(
+                      lang,
+                      'To‘lov amalga oshmadi. Holat yangilandi.',
+                      'Платёж не выполнен. Статус обновлён.',
+                      'Payment failed. Its status has been updated.',
+                    ),
+            ),
+          ),
+        );
+      }
+    } on ApiException {
+      if (mounted) setState(() => _paymentConnectionIssue = true);
+    } finally {
+      _checkingPayment = false;
+    }
+  }
+
+  Future<void> _load({bool showLoading = true}) async {
+    final generation = ++_loadGeneration;
     setState(() {
-      _loading = true;
+      if (showLoading) _loading = true;
       _error = null;
     });
     try {
@@ -82,7 +162,7 @@ class _WalletScreenState extends State<WalletScreen> {
         _payments.walletOperations(),
         _payments.cards(),
       ]);
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _balance = results[0] as int;
         _operations = results[1] as List<WalletOperation>;
@@ -90,7 +170,7 @@ class _WalletScreenState extends State<WalletScreen> {
         _loading = false;
       });
     } on ApiException catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _error = e.message;
         _loading = false;
@@ -142,9 +222,7 @@ class _WalletScreenState extends State<WalletScreen> {
       if (mounted) _load();
     } on ApiException catch (e) {
       if (!mounted) return;
-      AppFeedback.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
+      AppFeedback.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -176,13 +254,16 @@ class _WalletScreenState extends State<WalletScreen> {
       );
       return;
     }
-    final done = await showModalBottomSheet<bool>(
+    await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _TopupSheet(payments: _payments, cards: _cards),
     );
-    if (done == true && mounted) _load();
+    if (mounted) {
+      _load(showLoading: false);
+      _checkPendingPayment();
+    }
   }
 
   @override
@@ -194,12 +275,19 @@ class _WalletScreenState extends State<WalletScreen> {
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
         child: RefreshIndicator(
-          onRefresh: _load,
+          onRefresh: () async {
+            await _checkPendingPayment();
+            await _load(showLoading: false);
+          },
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.only(bottom: widget.embedded ? 100 : 20),
             children: [
               _balanceCard(lang),
+              if (_pendingTopup != null) ...[
+                const SizedBox(height: 12),
+                _paymentStatus(lang),
+              ],
               const SizedBox(height: 10),
               _addCard(lang),
               const SizedBox(height: 10),
@@ -208,6 +296,89 @@ class _WalletScreenState extends State<WalletScreen> {
               _cardsSection(lang),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _paymentStatus(AppLanguage lang) {
+    final pending = _pendingTopup!;
+    return Semantics(
+      liveRegion: true,
+      child: GlassContainer.lite(
+        padding: const EdgeInsets.all(16),
+        borderRadius: 20,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.schedule_rounded, color: AppColors.blue),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    tr(
+                      lang,
+                      'To‘lov tasdiqlanmoqda',
+                      'Платёж подтверждается',
+                      'Confirming your payment',
+                    ),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navy,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              '${_fmtSum(pending.amount)} ${tr(lang, 'so‘m', 'сум', 'sum')}',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: AppColors.navy,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _paymentConnectionIssue
+                  ? tr(
+                      lang,
+                      'Hozir holatni tekshira olmadik. Aloqa tiklangach tekshirish davom etadi. Qayta to‘lamang.',
+                      'Не удалось проверить статус. Проверка продолжится после восстановления связи. Не платите повторно.',
+                      'We could not check the status. Checks will resume when connected. Do not pay again.',
+                    )
+                  : pending.operationId == null
+                  ? tr(
+                      lang,
+                      'Oldingi so‘rov natijasi hali noma’lum. Yangi to‘lov qilmang. Holatni aniqlash uchun yordam xizmatiga murojaat qiling.',
+                      'Результат предыдущего запроса пока неизвестен. Не платите повторно. Обратитесь в поддержку для проверки.',
+                      'The previous request has no confirmed result yet. Do not pay again. Contact support to check its status.',
+                    )
+                  : tr(
+                      lang,
+                      'Tasdiqlash bir necha daqiqa olishi mumkin. Balans avtomatik yangilanadi. Qayta to‘lamang.',
+                      'Подтверждение может занять несколько минут. Баланс обновится автоматически. Не платите повторно.',
+                      'Confirmation may take a few minutes. Your balance will update automatically. Do not pay again.',
+                    ),
+              style: const TextStyle(
+                fontSize: 14,
+                height: 1.45,
+                color: AppColors.navy,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              tr(
+                lang,
+                'Bu oynadan chiqishingiz mumkin — to‘lov tekshirilishda davom etadi.',
+                'Можно закрыть этот экран — проверка платежа продолжится.',
+                'You can leave this screen — your payment will still be checked.',
+              ),
+              style: const TextStyle(fontSize: 12, height: 1.4, color: _gray),
+            ),
+          ],
         ),
       ),
     );
@@ -229,7 +400,7 @@ class _WalletScreenState extends State<WalletScreen> {
           Row(
             children: [
               Text(
-                tr(lang, 'Karta balansi', 'Баланс карты', 'Card balance'),
+                tr(lang, 'Hamyon balansi', 'Баланс кошелька', 'Wallet balance'),
                 style: const TextStyle(
                   fontSize: 14,
                   height: 20 / 14,
@@ -265,7 +436,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 child: SizedBox(
                   height: 44,
                   child: LiquidActionButton.filled(
-                    onPressed: _openTopupSheet,
+                    onPressed: _pendingTopup == null ? _openTopupSheet : null,
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: AppColors.heroDark,
@@ -274,7 +445,14 @@ class _WalletScreenState extends State<WalletScreen> {
                       ),
                     ),
                     child: Text(
-                      tr(lang, 'Toʻldirish', 'Пополнить', 'Top up'),
+                      _pendingTopup == null
+                          ? tr(lang, 'Toʻldirish', 'Пополнить', 'Top up')
+                          : tr(
+                              lang,
+                              'Tasdiqlanmoqda',
+                              'Подтверждается',
+                              'Confirming',
+                            ),
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -557,7 +735,7 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 }
 
-/// «Пополнить» bottom sheet — amount + card picker → mock top-up.
+/// Top-up sheet: pending responses move to the persistent wallet status card.
 class _TopupSheet extends StatefulWidget {
   const _TopupSheet({required this.payments, required this.cards});
 
@@ -583,6 +761,7 @@ class _TopupSheetState extends State<_TopupSheet> {
   }
 
   Future<void> _submit() async {
+    if (_busy) return;
     final lang = LocaleController.language.value;
     final amount = int.tryParse(_amountController.text.replaceAll(' ', ''));
     if (amount == null || amount < 1000) {
@@ -608,12 +787,14 @@ class _TopupSheetState extends State<_TopupSheet> {
         requestKey: _requestKey,
       );
       if (mounted) Navigator.of(context).pop(true);
+    } on TopupPendingException {
+      // A pending payment is not an error. The wallet owns status polling and
+      // shows the durable non-blocking explanation after this sheet closes.
+      if (mounted) Navigator.of(context).pop(true);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      AppFeedback.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
+      AppFeedback.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -695,6 +876,7 @@ class _TopupSheetState extends State<_TopupSheet> {
                 ),
                 const SizedBox(height: 14),
                 GlassTextField(
+                  enabled: !_busy,
                   controller: _amountController,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -713,7 +895,9 @@ class _TopupSheetState extends State<_TopupSheet> {
                 const SizedBox(height: 12),
                 for (final card in widget.cards) ...[
                   GestureDetector(
-                    onTap: () => setState(() => _cardId = card.id),
+                    onTap: _busy
+                        ? null
+                        : () => setState(() => _cardId = card.id),
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: _cardId == card.id
